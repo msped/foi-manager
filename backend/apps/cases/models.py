@@ -180,6 +180,47 @@ class Case(models.Model):
         )
 
 
+class CaseExemption(models.Model):
+    class Code(models.TextChoices):
+        S12_COST_LIMIT = 's12', 's.12 — Cost of compliance limit'
+        S14_VEXATIOUS = 's14', 's.14 — Vexatious or repeated request'
+        S21_PUBLICLY_AVAILABLE = 's21', 's.21 — Information accessible by other means'
+        S22_FUTURE_PUBLICATION = 's22', 's.22 — Intended for future publication'
+        S23_SECURITY_BODIES = 's23', 's.23 — Information supplied by security bodies'
+        S24_NATIONAL_SECURITY = 's24', 's.24 — National security'
+        S26_DEFENCE = 's26', 's.26 — Defence'
+        S27_INTERNATIONAL_RELATIONS = 's27', 's.27 — International relations'
+        S28_RELATIONS_WITHIN_UK = 's28', 's.28 — Relations within the UK'
+        S29_ECONOMY = 's29', 's.29 — The economy'
+        S30_INVESTIGATIONS = 's30', 's.30 — Investigations and proceedings'
+        S31_LAW_ENFORCEMENT = 's31', 's.31 — Law enforcement'
+        S32_COURT_RECORDS = 's32', 's.32 — Court records'
+        S33_AUDIT = 's33', 's.33 — Audit functions'
+        S34_PARLIAMENTARY_PRIVILEGE = 's34', 's.34 — Parliamentary privilege'
+        S35_POLICY_FORMULATION = 's35', 's.35 — Formulation of government policy'
+        S36_PREJUDICE = 's36', 's.36 — Prejudice to effective conduct of public affairs'
+        S37_COMMUNICATIONS = 's37', 's.37 — Communications with the Crown'
+        S38_HEALTH_AND_SAFETY = 's38', 's.38 — Health and safety'
+        S39_ENVIRONMENTAL = 's39', 's.39 — Environmental information'
+        S40_PERSONAL_INFO = 's40', 's.40 — Personal information'
+        S41_CONFIDENTIAL = 's41', 's.41 — Information provided in confidence'
+        S42_LEGAL_PRIVILEGE = 's42', 's.42 — Legal professional privilege'
+        S43_COMMERCIAL = 's43', 's.43 — Commercial interests'
+        S44_PROHIBITIONS = 's44', 's.44 — Prohibitions on disclosure'
+
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='exemptions')
+    code = models.CharField(max_length=10, choices=Code.choices)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['code']
+        unique_together = [['case', 'code']]
+
+    def __str__(self):
+        return f'{self.code} — {self.case.ref}'
+
+
 class CaseNote(models.Model):
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='notes')
     author = models.ForeignKey(

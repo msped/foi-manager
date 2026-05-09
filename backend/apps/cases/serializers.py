@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Case, Department, CaseNote, CaseAuditEvent
+from .models import Case, CaseExemption, Department, CaseNote, CaseAuditEvent
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -23,6 +23,11 @@ class CaseNoteSerializer(serializers.ModelSerializer):
         model = CaseNote
         fields = ['id', 'body', 'author_name', 'created_at']
         read_only_fields = ['author_name', 'created_at']
+
+    def validate_body(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('Note body cannot be empty.')
+        return value
 
 
 class CaseListSerializer(serializers.ModelSerializer):
@@ -77,6 +82,13 @@ class PublicCaseTrackSerializer(serializers.ModelSerializer):
     class Meta:
         model = Case
         fields = ['ref', 'status', 'submitted_at', 'statutory_deadline']
+
+
+class CaseExemptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CaseExemption
+        fields = ['id', 'code', 'notes', 'created_at']
+        read_only_fields = ['created_at']
 
 
 class CaseTransitionSerializer(serializers.Serializer):
