@@ -16,6 +16,11 @@ build/
 backend/staticfiles/
 backend/media/
 
+# Test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
 # Node
 node_modules/
 .next/
