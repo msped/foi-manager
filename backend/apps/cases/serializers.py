@@ -15,7 +15,13 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 
 class CaseAuditEventSerializer(serializers.ModelSerializer):
-    actor_name = serializers.CharField(source='actor.__str__', read_only=True, default=None)
+    actor_name = serializers.SerializerMethodField()
+
+    def get_actor_name(self, obj):
+        if not obj.actor:
+            return None
+        name = f'{obj.actor.first_name} {obj.actor.last_name}'.strip()
+        return name or obj.actor.email
 
     class Meta:
         model = CaseAuditEvent
@@ -23,7 +29,13 @@ class CaseAuditEventSerializer(serializers.ModelSerializer):
 
 
 class CaseNoteSerializer(serializers.ModelSerializer):
-    author_name = serializers.CharField(source='author.__str__', read_only=True, default=None)
+    author_name = serializers.SerializerMethodField()
+
+    def get_author_name(self, obj):
+        if not obj.author:
+            return None
+        name = f'{obj.author.first_name} {obj.author.last_name}'.strip()
+        return name or obj.author.email
 
     class Meta:
         model = CaseNote
@@ -37,9 +49,18 @@ class CaseNoteSerializer(serializers.ModelSerializer):
 
 
 class CaseListSerializer(serializers.ModelSerializer):
-    department_name = serializers.CharField(source='department.name', read_only=True, default=None)
-    assignee_name = serializers.CharField(source='assignee.__str__', read_only=True, default=None)
+    department_name = serializers.SerializerMethodField()
+    assignee_name = serializers.SerializerMethodField()
     is_overdue = serializers.BooleanField(read_only=True)
+
+    def get_department_name(self, obj):
+        return obj.department.name if obj.department else None
+
+    def get_assignee_name(self, obj):
+        if not obj.assignee:
+            return None
+        name = f'{obj.assignee.first_name} {obj.assignee.last_name}'.strip()
+        return name or obj.assignee.email
 
     class Meta:
         model = Case
@@ -55,10 +76,16 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     department_id = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.all(), source='department', write_only=True, required=False
     )
-    assignee_name = serializers.CharField(source='assignee.__str__', read_only=True, default=None)
+    assignee_name = serializers.SerializerMethodField()
     is_overdue = serializers.BooleanField(read_only=True)
     notes = CaseNoteSerializer(many=True, read_only=True)
     audit_events = CaseAuditEventSerializer(many=True, read_only=True)
+
+    def get_assignee_name(self, obj):
+        if not obj.assignee:
+            return None
+        name = f'{obj.assignee.first_name} {obj.assignee.last_name}'.strip()
+        return name or obj.assignee.email
 
     class Meta:
         model = Case
