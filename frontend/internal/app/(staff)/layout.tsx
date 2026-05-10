@@ -1,0 +1,19 @@
+import { redirect } from "next/navigation";
+import StaffSidebar from "@/components/StaffSidebar";
+import { getMe } from "@/lib/api";
+
+export default async function StaffLayout({ children }: { children: React.ReactNode }) {
+  let user;
+  try {
+    user = await getMe();
+  } catch {
+    redirect("/login");
+  }
+
+  return (
+    <div className="staff-shell">
+      <StaffSidebar user={user} />
+      <div className="staff-main">{children}</div>
+    </div>
+  );
+}
