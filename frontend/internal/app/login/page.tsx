@@ -66,7 +66,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} method="post" noValidate>
           <div className="govuk-form-group">
             <label className="govuk-label govuk-label--s" htmlFor="email">
               Email address

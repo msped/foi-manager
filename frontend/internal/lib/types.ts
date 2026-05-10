@@ -11,7 +11,7 @@ export type CaseStatus =
   | "exempt"
   | "closed";
 
-export type RequesterType = "individual" | "journalist" | "business" | "mp" | "ngo" | "other";
+export type RequesterType = string;
 
 export interface ApiUser {
   id: number;

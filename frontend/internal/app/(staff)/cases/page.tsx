@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Button from "@/components/ui/Button";
 import CasesTable from "@/components/CasesTable";
-import { getMe, listCases } from "@/lib/api";
+import { getMe } from "@/lib/services/users";
+import { listCases } from "@/lib/services/cases";
 
 export const metadata: Metadata = { title: "Cases — FOI Manager" };
 

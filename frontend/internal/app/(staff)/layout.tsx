@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import StaffSidebar from "@/components/StaffSidebar";
-import { getMe } from "@/lib/api";
+import { getMe } from "@/lib/services/users";
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   let user;

@@ -3,7 +3,8 @@ import Link from "next/link";
 import Button from "@/components/ui/Button";
 import { StatusTag } from "@/components/ui/Tag";
 import AiPanel from "@/components/ui/AiPanel";
-import { getMe, listCases } from "@/lib/api";
+import { getMe } from "@/lib/services/users";
+import { listCases } from "@/lib/services/cases";
 import { fmtDate, daysUntil } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard — FOI Manager" };
