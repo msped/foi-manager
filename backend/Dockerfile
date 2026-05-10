@@ -9,8 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements/prod.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+COPY requirements/ requirements/
+RUN uv pip install --system --no-cache -r requirements/prod.txt
 
 COPY . .
 

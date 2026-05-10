@@ -15,81 +15,12 @@ services:
     ports:
       - "6379:6379"
 
-  ollama:
-    image: ollama/ollama
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: uv run python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - ./backend:/app
-      - ./backend/.venv:/app/.venv
-    env_file:
-      - .env
-    environment:
-      DJANGO_SETTINGS_MODULE: config.settings.dev
-      DB_HOST: db
-      REDIS_URL: redis://redis:6379/0
-      OLLAMA_BASE_URL: http://ollama:11434
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-      - redis
-
-  celery:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: uv run celery -A config worker -l info
-    volumes:
-      - ./backend:/app
-      - ./backend/.venv:/app/.venv
-    env_file:
-      - .env
-    environment:
-      DJANGO_SETTINGS_MODULE: config.settings.dev
-      DB_HOST: db
-      REDIS_URL: redis://redis:6379/0
-      OLLAMA_BASE_URL: http://ollama:11434
-    depends_on:
-      - db
-      - redis
-
-  frontend-internal:
-    build:
-      context: ./frontend/internal
-      dockerfile: Dockerfile
-    volumes:
-      - ./frontend/internal:/app
-      - /app/node_modules
-      - /app/.next
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-    ports:
-      - "3000:3000"
-    command: npm run dev
-
-  frontend-public:
-    build:
-      context: ./frontend/public
-      dockerfile: Dockerfile
-    volumes:
-      - ./frontend/public:/app
-      - /app/node_modules
-      - /app/.next
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-    ports:
-      - "3001:3001"
-    command: npm run dev -- -p 3001
+  # ollama:
+  #   image: ollama/ollama
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   ports:
+  #     - "11434:11434"
 
 volumes:
   postgres_data:
-  ollama_data:
