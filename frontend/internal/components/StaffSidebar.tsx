@@ -19,6 +19,10 @@ const NAV_LIBRARY = [
   { href: "/team",       label: "Team & departments" },
 ];
 
+const NAV_ADMIN = [
+  { href: "/settings", label: "Settings" },
+];
+
 interface StaffSidebarProps {
   user: ApiUser;
 }
@@ -65,6 +69,18 @@ export default function StaffSidebar({ user }: StaffSidebarProps) {
 
         <div className="staff-nav-section">Library</div>
         {NAV_LIBRARY.map((n) => (
+          <Link
+            key={n.href}
+            href={n.href}
+            className={`staff-nav-item${isActive(n.href) ? " active" : ""}`}
+            aria-current={isActive(n.href) ? "page" : undefined}
+          >
+            {n.label}
+          </Link>
+        ))}
+
+        <div className="staff-nav-section">Admin</div>
+        {NAV_ADMIN.map((n) => (
           <Link
             key={n.href}
             href={n.href}

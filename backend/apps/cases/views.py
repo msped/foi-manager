@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 
-from .models import Case, Department
+from .models import Case, Department, RequesterCategory
 from .permissions import IsFOITeam
 from .serializers import (
     CaseDetailSerializer,
@@ -14,6 +14,7 @@ from .serializers import (
     DepartmentSerializer,
     PublicCaseSubmitSerializer,
     PublicCaseTrackSerializer,
+    RequesterCategorySerializer,
 )
 
 
@@ -63,7 +64,7 @@ class CaseViewSet(viewsets.ModelViewSet):
         return obj
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, received_by=Case.ReceivedBy.EMAIL)
+        serializer.save(created_by=self.request.user)
 
     @action(detail=True, methods=['post'], permission_classes=[IsFOITeam])
     def acknowledge(self, request, pk=None):
@@ -96,3 +97,15 @@ class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+
+class RequesterCategoryViewSet(viewsets.ModelViewSet):
+    queryset = RequesterCategory.objects.all()
+    serializer_class = RequesterCategorySerializer
+    pagination_class = None
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsFOITeam()]

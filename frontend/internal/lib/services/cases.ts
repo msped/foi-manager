@@ -17,7 +17,7 @@ export async function listDepartments(): Promise<Department[]> {
   return data;
 }
 
-export async function listRequesterCategories(): Promise<{ id: number; name: string }[]> {
-  const { data } = await djangoClient.get<{ id: number; name: string }[]>("/requester-categories/");
+export async function listRequesterCategories(): Promise<{ id: number; name: string; order: number }[]> {
+  const { data } = await djangoClient.get<{ id: number; name: string; order: number }[]>("/requester-categories/");
   return data;
 }

@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Case, CaseAuditEvent, CaseNote, Department
+from .models import Case, CaseAuditEvent, CaseNote, Department, RequesterCategory
+
+
+@admin.register(RequesterCategory)
+class RequesterCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'order']
+    ordering = ['order', 'name']
 
 
 @admin.register(Department)

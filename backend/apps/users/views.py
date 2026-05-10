@@ -25,6 +25,7 @@ class MicrosoftLogin(SocialLoginView):
 class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsFOITeam]
+    pagination_class = None
 
     def get_queryset(self):
         return User.objects.all().order_by('first_name', 'last_name', 'email')

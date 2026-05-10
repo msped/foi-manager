@@ -1,12 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CaseViewSet, DepartmentViewSet, PublicCaseSubmitView, PublicCaseTrackView
+from .views import CaseViewSet, DepartmentViewSet, PublicCaseSubmitView, PublicCaseTrackView, RequesterCategoryViewSet
 from .views_notes import CaseNoteViewSet
 from .views_exemptions import CaseExemptionViewSet
 
 router = DefaultRouter()
 router.register(r'cases', CaseViewSet, basename='case')
 router.register(r'departments', DepartmentViewSet, basename='department')
+router.register(r'requester-categories', RequesterCategoryViewSet, basename='requester-category')
 
 app_name = 'cases'
 

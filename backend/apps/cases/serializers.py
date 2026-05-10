@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from .models import Case, CaseExemption, Department, CaseNote, CaseAuditEvent
+from .models import Case, CaseExemption, Department, CaseNote, CaseAuditEvent, RequesterCategory
+
+
+class RequesterCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RequesterCategory
+        fields = ['id', 'name', 'order']
 
 
 class DepartmentSerializer(serializers.ModelSerializer):

@@ -5,6 +5,18 @@ from django.utils import timezone
 from apps.cases.utils import add_working_days, working_days_between
 
 
+class RequesterCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name_plural = 'requester categories'
+
+    def __str__(self):
+        return self.name
+
+
 class Department(models.Model):
     name = models.CharField(max_length=200, unique=True)
     internal_deadline_days = models.PositiveSmallIntegerField(default=10)
@@ -36,23 +48,13 @@ class Case(models.Model):
         POST = 'post', 'Post'
         OTHER = 'other', 'Other'
 
-    class RequesterType(models.TextChoices):
-        INDIVIDUAL = 'individual', 'Individual'
-        JOURNALIST = 'journalist', 'Journalist'
-        BUSINESS = 'business', 'Business'
-        RESEARCHER = 'researcher', 'Researcher'
-        CAMPAIGN = 'campaign', 'Campaign / Advocacy Group'
-        OTHER = 'other', 'Other'
-
     # Reference
     ref = models.CharField(max_length=20, unique=True, editable=False)
 
     # Requester details
     requester_name = models.CharField(max_length=300)
     requester_email = models.EmailField()
-    requester_type = models.CharField(
-        max_length=20, choices=RequesterType.choices, blank=True
-    )
+    requester_type = models.CharField(max_length=100, blank=True)
     preferred_response_format = models.CharField(max_length=50, blank=True)
 
     # Request content
