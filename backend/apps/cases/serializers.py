@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Case, CaseExemption, Department, CaseNote, CaseAuditEvent, RequesterCategory
+from .models import Case, CaseConsultation, CaseExemption, Department, CaseNote, CaseAuditEvent, RequesterCategory
 
 
 class RequesterCategorySerializer(serializers.ModelSerializer):
@@ -48,6 +48,36 @@ class CaseNoteSerializer(serializers.ModelSerializer):
         return value
 
 
+class CaseConsultationSerializer(serializers.ModelSerializer):
+    department_name = serializers.SerializerMethodField()
+    assignee_name = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+
+    def get_department_name(self, obj):
+        return obj.department.name if obj.department else None
+
+    def get_assignee_name(self, obj):
+        if not obj.assignee:
+            return None
+        name = f'{obj.assignee.first_name} {obj.assignee.last_name}'.strip()
+        return name or obj.assignee.email
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return None
+        name = f'{obj.created_by.first_name} {obj.created_by.last_name}'.strip()
+        return name or obj.created_by.email
+
+    class Meta:
+        model = CaseConsultation
+        fields = [
+            'id', 'department', 'department_name', 'assignee', 'assignee_name',
+            'scope', 'status', 'due_date', 'response',
+            'created_by_name', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'department_name', 'assignee_name', 'created_by_name']
+
+
 class CaseListSerializer(serializers.ModelSerializer):
     department_name = serializers.SerializerMethodField()
     assignee_name = serializers.SerializerMethodField()
@@ -80,6 +110,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     is_overdue = serializers.BooleanField(read_only=True)
     notes = CaseNoteSerializer(many=True, read_only=True)
     audit_events = CaseAuditEventSerializer(many=True, read_only=True)
+    consultations = CaseConsultationSerializer(many=True, read_only=True)
 
     def get_assignee_name(self, obj):
         if not obj.assignee:
@@ -97,7 +128,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             'submitted_at', 'acknowledged_at', 'statutory_deadline',
             'clock_paused', 'clock_paused_days', 'is_overdue',
             'outcome', 'created_at', 'updated_at',
-            'notes', 'audit_events',
+            'notes', 'audit_events', 'consultations',
         ]
         read_only_fields = [
             'ref', 'status', 'acknowledged_at', 'statutory_deadline',

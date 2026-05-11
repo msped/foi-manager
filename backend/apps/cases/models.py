@@ -185,6 +185,40 @@ class Case(models.Model):
         )
 
 
+class CaseConsultation(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        RESPONDED = 'responded', 'Responded'
+        WITHDRAWN = 'withdrawn', 'Withdrawn'
+
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='consultations')
+    department = models.ForeignKey(
+        Department, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='consultations',
+    )
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='consultations',
+    )
+    scope = models.TextField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    due_date = models.DateField(null=True, blank=True)
+    response = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='created_consultations',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        dept = self.department.name if self.department else 'No department'
+        return f'{self.case.ref} → {dept}'
+
+
 class CaseExemption(models.Model):
     class Code(models.TextChoices):
         S12_COST_LIMIT = 's12', 's.12 — Cost of compliance limit'

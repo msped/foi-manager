@@ -28,6 +28,23 @@ export interface Department {
   internal_deadline_days: number;
 }
 
+export type ConsultationStatus = "pending" | "responded" | "withdrawn";
+
+export interface CaseConsultation {
+  id: number;
+  department: number | null;
+  department_name: string | null;
+  assignee: number | null;
+  assignee_name: string | null;
+  scope: string;
+  status: ConsultationStatus;
+  due_date: string | null;
+  response: string;
+  created_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CaseNote {
   id: number;
   body: string;
@@ -82,6 +99,7 @@ export interface CaseDetail {
   outcome: string;
   notes: CaseNote[];
   audit_events: CaseAuditEvent[];
+  consultations: CaseConsultation[];
 }
 
 /** DRF paginated list response */

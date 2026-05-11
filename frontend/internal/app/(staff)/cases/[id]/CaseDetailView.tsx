@@ -6,8 +6,9 @@ import Button from "@/components/ui/Button";
 import { StatusTag, Tag } from "@/components/ui/Tag";
 import AiPanel from "@/components/ui/AiPanel";
 import FormField from "@/components/ui/FormField";
+import ConsultationsPanel from "./ConsultationsPanel";
 import { fmtDate, daysUntil } from "@/lib/utils";
-import type { CaseDetail } from "@/lib/types";
+import type { ApiUser, CaseDetail, Department } from "@/lib/types";
 
 const TABS = [
   { id: "overview",  label: "Overview" },
@@ -16,7 +17,13 @@ const TABS = [
   { id: "audit",     label: "Audit" },
 ];
 
-export default function CaseDetailView({ c }: { c: CaseDetail }) {
+interface Props {
+  c: CaseDetail;
+  departments: Department[];
+  users: ApiUser[];
+}
+
+export default function CaseDetailView({ c, departments, users }: Props) {
   const [tab, setTab] = useState("overview");
   const days = daysUntil(c.statutory_deadline);
 
@@ -255,6 +262,13 @@ export default function CaseDetailView({ c }: { c: CaseDetail }) {
                 <Button variant="secondary">Change status</Button>
               </div>
             </div>
+
+            <ConsultationsPanel
+              caseId={c.id}
+              consultations={c.consultations}
+              departments={departments}
+              users={users}
+            />
           </aside>
         </div>
       </div>
