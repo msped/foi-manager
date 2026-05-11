@@ -15,6 +15,7 @@ export default function NewCaseForm({ departments, requesterCategories }: Props)
   const [isPending, startTransition] = useTransition();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const today = new Date().toISOString().split("T")[0];
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -84,6 +85,21 @@ export default function NewCaseForm({ departments, requesterCategories }: Props)
           <option value="post">Post</option>
           <option value="other">Other</option>
         </select>
+      </FormField>
+
+      <FormField
+        label="Date received"
+        hint="The date the request was actually received — the statutory deadline is calculated from this date."
+        htmlFor="submitted_at"
+      >
+        <input
+          id="submitted_at"
+          name="submitted_at"
+          type="date"
+          className="govuk-input govuk-input--width-10"
+          defaultValue={today}
+          max={today}
+        />
       </FormField>
 
       <FormField

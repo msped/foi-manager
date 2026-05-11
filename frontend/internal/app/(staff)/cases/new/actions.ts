@@ -10,11 +10,13 @@ export interface CreateCaseResult {
 
 export async function createCase(formData: FormData): Promise<CreateCaseResult> {
   const departmentId = formData.get("department_id") as string;
+  const submittedAt = formData.get("submitted_at") as string;
   const body: Record<string, unknown> = {
     requester_name: (formData.get("requester_name") as string).trim(),
     requester_email: (formData.get("requester_email") as string).trim(),
     requester_type: formData.get("requester_type"),
     received_by: formData.get("received_by"),
+    submitted_at: submittedAt || new Date().toISOString().split("T")[0],
     request_text: (formData.get("request_text") as string).trim(),
     summary: (formData.get("summary") as string).trim(),
   };

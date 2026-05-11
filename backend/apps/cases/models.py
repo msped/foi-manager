@@ -108,6 +108,9 @@ class Case(models.Model):
     def save(self, *args, **kwargs):
         if not self.ref:
             self.ref = self._generate_ref()
+        if not self.statutory_deadline and self.submitted_at:
+            submitted_date = self.submitted_at.date() if hasattr(self.submitted_at, 'date') else self.submitted_at
+            self.statutory_deadline = add_working_days(submitted_date, settings.FOI_STATUTORY_DAYS)
         super().save(*args, **kwargs)
 
     @classmethod
