@@ -5,9 +5,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 
-from .models import Case, Department, RequesterCategory
+from .models import BankHoliday, Case, Department, RequesterCategory
 from .permissions import IsFOITeam
 from .serializers import (
+    BankHolidaySerializer,
     CaseDetailSerializer,
     CaseListSerializer,
     CaseTransitionSerializer,
@@ -44,10 +45,7 @@ class CaseViewSet(viewsets.ModelViewSet):
     serializer_class = CaseDetailSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        qs = Case.objects.select_related('department', 'assignee', 'created_by')
-        if not user.is_foi_team():
-            qs = qs.filter(assignee=user)
+        qs = Case.objects.select_related('created_by')
         status_filter = self.request.query_params.get('status')
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -109,3 +107,19 @@ class RequesterCategoryViewSet(viewsets.ModelViewSet):
         if self.action in ('list', 'retrieve'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsFOITeam()]
+
+
+class BankHolidayViewSet(viewsets.ModelViewSet):
+    serializer_class = BankHolidaySerializer
+    permission_classes = [IsAuthenticated, IsFOITeam]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = BankHoliday.objects.all()
+        country = self.request.query_params.get('country')
+        if country:
+            qs = qs.filter(country=country)
+        year = self.request.query_params.get('year')
+        if year:
+            qs = qs.filter(date__year=year)
+        return qs

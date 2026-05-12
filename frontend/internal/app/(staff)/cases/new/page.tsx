@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listDepartments, listRequesterCategories } from "@/lib/services/cases";
+import { listRequesterCategories } from "@/lib/services/cases";
 import NewCaseForm from "./NewCaseForm";
 
 export const metadata: Metadata = { title: "New case — FOI Manager" };
 
 export default async function NewCasePage() {
-  const [departments, requesterCategories] = await Promise.all([
-    listDepartments().catch(() => []),
-    listRequesterCategories().catch(() => []),
-  ]);
+  const requesterCategories = await listRequesterCategories().catch(() => []);
 
   return (
     <>
@@ -24,7 +21,7 @@ export default async function NewCasePage() {
 
       <div className="staff-body">
         <div style={{ maxWidth: 640 }}>
-          <NewCaseForm departments={departments} requesterCategories={requesterCategories} />
+          <NewCaseForm requesterCategories={requesterCategories} />
         </div>
       </div>
     </>

@@ -211,20 +211,12 @@ export default function CaseDetailView({ c, departments, users }: Props) {
           </div>
 
           <aside className="foi-col">
-            <div className="foi-card">
-              <h3 className="govuk-heading-s">Assignment</h3>
-              <dl style={{ margin: 0 }}>
-                {[
-                  { label: "Case officer", value: c.assignee_name ?? <Tag colour="grey">Unassigned</Tag> },
-                  { label: "Department",   value: c.department?.name ?? <Tag colour="grey">Unassigned</Tag> },
-                ].map(({ label, value }) => (
-                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0", borderBottom: "1px solid var(--govuk-border-colour)" }}>
-                    <dt style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", minWidth: 100, margin: 0 }}>{label}</dt>
-                    <dd style={{ fontSize: 14, margin: 0 }}>{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
+            <ConsultationsPanel
+              caseId={c.id}
+              consultations={c.consultations}
+              departments={departments}
+              users={users}
+            />
 
             <div className="foi-card">
               <h3 className="govuk-heading-s">Timeline</h3>
@@ -263,12 +255,6 @@ export default function CaseDetailView({ c, departments, users }: Props) {
               </div>
             </div>
 
-            <ConsultationsPanel
-              caseId={c.id}
-              consultations={c.consultations}
-              departments={departments}
-              users={users}
-            />
           </aside>
         </div>
       </div>

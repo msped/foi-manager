@@ -5,6 +5,25 @@ from django.utils import timezone
 from apps.cases.utils import add_working_days, working_days_between
 
 
+class BankHoliday(models.Model):
+    class Country(models.TextChoices):
+        ENGLAND = 'england', 'England'
+        WALES = 'wales', 'Wales'
+        SCOTLAND = 'scotland', 'Scotland'
+        NORTHERN_IRELAND = 'northern_ireland', 'Northern Ireland'
+
+    country = models.CharField(max_length=20, choices=Country.choices)
+    name = models.CharField(max_length=100)
+    date = models.DateField()
+
+    class Meta:
+        ordering = ['date', 'country']
+        unique_together = [['date', 'country']]
+
+    def __str__(self):
+        return f'{self.date} — {self.name} ({self.get_country_display()})'
+
+
 class RequesterCategory(models.Model):
     name = models.CharField(max_length=100, unique=True)
     order = models.PositiveSmallIntegerField(default=0)
@@ -79,15 +98,6 @@ class Case(models.Model):
     clock_paused_at = models.DateField(null=True, blank=True)
     clock_paused_days = models.PositiveSmallIntegerField(default=0)
 
-    # Assignment
-    department = models.ForeignKey(
-        Department, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name='cases',
-    )
-    assignee = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='assigned_cases',
-    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='created_cases',

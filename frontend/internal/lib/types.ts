@@ -28,6 +28,15 @@ export interface Department {
   internal_deadline_days: number;
 }
 
+export type BankHolidayCountry = "england" | "wales" | "scotland" | "northern_ireland";
+
+export interface BankHoliday {
+  id: number;
+  country: BankHolidayCountry;
+  name: string;
+  date: string;
+}
+
 export type ConsultationStatus = "pending" | "responded" | "withdrawn";
 
 export interface CaseConsultation {
@@ -69,8 +78,6 @@ export interface CaseListItem {
   requester_type: RequesterType;
   request_text: string;
   summary: string;
-  department_name: string | null;
-  assignee_name: string | null;
   submitted_at: string;
   statutory_deadline: string | null;
   is_overdue: boolean;
@@ -87,9 +94,6 @@ export interface CaseDetail {
   requester_type: RequesterType;
   request_text: string;
   summary: string;
-  department: Department | null;
-  assignee: number | null;
-  assignee_name: string | null;
   submitted_at: string;
   acknowledged_at: string | null;
   statutory_deadline: string | null;

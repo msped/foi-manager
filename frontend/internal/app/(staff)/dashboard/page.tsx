@@ -87,7 +87,7 @@ export default async function DashboardPage() {
                             {c.summary || c.request_text.slice(0, 60) + "…"}
                           </div>
                           <div className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
-                            {c.department_name ?? "No department"}
+                            {c.requester_name}
                           </div>
                         </td>
                         <td className="govuk-table__cell">

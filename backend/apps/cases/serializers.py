@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Case, CaseConsultation, CaseExemption, Department, CaseNote, CaseAuditEvent, RequesterCategory
+from .models import BankHoliday, Case, CaseConsultation, CaseExemption, Department, CaseNote, CaseAuditEvent, RequesterCategory
 
 
 class RequesterCategorySerializer(serializers.ModelSerializer):
@@ -79,44 +79,22 @@ class CaseConsultationSerializer(serializers.ModelSerializer):
 
 
 class CaseListSerializer(serializers.ModelSerializer):
-    department_name = serializers.SerializerMethodField()
-    assignee_name = serializers.SerializerMethodField()
     is_overdue = serializers.BooleanField(read_only=True)
-
-    def get_department_name(self, obj):
-        return obj.department.name if obj.department else None
-
-    def get_assignee_name(self, obj):
-        if not obj.assignee:
-            return None
-        name = f'{obj.assignee.first_name} {obj.assignee.last_name}'.strip()
-        return name or obj.assignee.email
 
     class Meta:
         model = Case
         fields = [
             'id', 'ref', 'status', 'requester_name', 'requester_type',
-            'request_text', 'summary', 'department_name', 'assignee_name',
+            'request_text', 'summary',
             'submitted_at', 'statutory_deadline', 'is_overdue',
         ]
 
 
 class CaseDetailSerializer(serializers.ModelSerializer):
-    department = DepartmentSerializer(read_only=True)
-    department_id = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.all(), source='department', write_only=True, required=False
-    )
-    assignee_name = serializers.SerializerMethodField()
     is_overdue = serializers.BooleanField(read_only=True)
     notes = CaseNoteSerializer(many=True, read_only=True)
     audit_events = CaseAuditEventSerializer(many=True, read_only=True)
     consultations = CaseConsultationSerializer(many=True, read_only=True)
-
-    def get_assignee_name(self, obj):
-        if not obj.assignee:
-            return None
-        name = f'{obj.assignee.first_name} {obj.assignee.last_name}'.strip()
-        return name or obj.assignee.email
 
     class Meta:
         model = Case
@@ -124,7 +102,6 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             'id', 'ref', 'status', 'received_by',
             'requester_name', 'requester_email', 'requester_type',
             'preferred_response_format', 'request_text', 'summary',
-            'department', 'department_id', 'assignee', 'assignee_name',
             'submitted_at', 'acknowledged_at', 'statutory_deadline',
             'clock_paused', 'clock_paused_days', 'is_overdue',
             'outcome', 'created_at', 'updated_at',
@@ -153,6 +130,12 @@ class CaseExemptionSerializer(serializers.ModelSerializer):
         model = CaseExemption
         fields = ['id', 'code', 'notes', 'created_at']
         read_only_fields = ['created_at']
+
+
+class BankHolidaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BankHoliday
+        fields = ['id', 'country', 'name', 'date']
 
 
 class CaseTransitionSerializer(serializers.Serializer):

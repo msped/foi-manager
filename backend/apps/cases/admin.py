@@ -31,8 +31,8 @@ class AuditEventInline(admin.TabularInline):
 
 @admin.register(Case)
 class CaseAdmin(admin.ModelAdmin):
-    list_display = ['ref', 'status', 'requester_name', 'department', 'statutory_deadline', 'is_overdue']
-    list_filter = ['status', 'department', 'received_by']
+    list_display = ['ref', 'status', 'requester_name', 'statutory_deadline', 'is_overdue']
+    list_filter = ['status', 'received_by']
     search_fields = ['ref', 'requester_name', 'requester_email', 'request_text']
     readonly_fields = ['ref', 'acknowledged_at', 'statutory_deadline', 'created_at', 'updated_at']
     inlines = [CaseNoteInline, AuditEventInline]

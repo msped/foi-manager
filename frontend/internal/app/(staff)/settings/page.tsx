@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
-import { listRequesterCategories } from "@/lib/services/cases";
+import { listRequesterCategories, listBankHolidays } from "@/lib/services/cases";
 import RequesterCategoriesManager from "./RequesterCategoriesManager";
+import BankHolidaysManager from "./BankHolidaysManager";
 
 export const metadata: Metadata = { title: "Settings — FOI Manager" };
 
 export default async function SettingsPage() {
-  const categories = await listRequesterCategories().catch(() => []);
+  const [categories, bankHolidays] = await Promise.all([
+    listRequesterCategories().catch(() => []),
+    listBankHolidays().catch(() => []),
+  ]);
 
   return (
     <>
@@ -14,8 +18,9 @@ export default async function SettingsPage() {
       </header>
 
       <div className="staff-body">
-        <div style={{ maxWidth: 640 }}>
+        <div style={{ maxWidth: 800 }}>
           <RequesterCategoriesManager initial={categories} />
+          <BankHolidaysManager initial={bankHolidays} />
         </div>
       </div>
     </>

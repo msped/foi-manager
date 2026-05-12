@@ -9,7 +9,6 @@ export interface CreateCaseResult {
 }
 
 export async function createCase(formData: FormData): Promise<CreateCaseResult> {
-  const departmentId = formData.get("department_id") as string;
   const submittedAt = formData.get("submitted_at") as string;
   const body: Record<string, unknown> = {
     requester_name: (formData.get("requester_name") as string).trim(),
@@ -20,7 +19,6 @@ export async function createCase(formData: FormData): Promise<CreateCaseResult> 
     request_text: (formData.get("request_text") as string).trim(),
     summary: (formData.get("summary") as string).trim(),
   };
-  if (departmentId) body.department_id = Number(departmentId);
 
   try {
     const { data } = await djangoClient.post<CaseDetail>("/cases/", body);

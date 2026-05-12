@@ -4,14 +4,12 @@ import { useState, useTransition } from "react";
 import FormField from "@/components/ui/FormField";
 import Button from "@/components/ui/Button";
 import { createCase } from "./actions";
-import type { Department } from "@/lib/types";
 
 interface Props {
-  departments: Department[];
   requesterCategories: { id: number; name: string }[];
 }
 
-export default function NewCaseForm({ departments, requesterCategories }: Props) {
+export default function NewCaseForm({ requesterCategories }: Props) {
   const [isPending, startTransition] = useTransition();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -119,17 +117,6 @@ export default function NewCaseForm({ departments, requesterCategories }: Props)
       <FormField label="Summary" hint="A brief internal summary (optional)." htmlFor="summary">
         <textarea id="summary" name="summary" className="govuk-textarea" rows={2} />
       </FormField>
-
-      {departments.length > 0 && (
-        <FormField label="Department" hint="Leave blank to assign later." htmlFor="department_id">
-          <select id="department_id" name="department_id" className="govuk-select" defaultValue="">
-            <option value="">— Not assigned —</option>
-            {departments.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-        </FormField>
-      )}
 
       <div className="foi-row" style={{ marginTop: 24 }}>
         <Button type="submit" disabled={isPending}>

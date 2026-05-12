@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import djangoClient from "@/lib/services/django";
+import type { BankHoliday } from "@/lib/types";
 
 export async function createRequesterCategory(name: string): Promise<{ error?: string }> {
   try {
@@ -32,5 +33,27 @@ export async function deleteRequesterCategory(id: number): Promise<{ error?: str
     return {};
   } catch {
     return { error: "Failed to delete category." };
+  }
+}
+
+export async function createBankHoliday(
+  body: { country: string; name: string; date: string },
+): Promise<{ data?: BankHoliday; error?: string }> {
+  try {
+    const { data } = await djangoClient.post<BankHoliday>("/bank-holidays/", body);
+    revalidatePath("/settings");
+    return { data };
+  } catch {
+    return { error: "Failed to add bank holiday." };
+  }
+}
+
+export async function deleteBankHoliday(id: number): Promise<{ error?: string }> {
+  try {
+    await djangoClient.delete(`/bank-holidays/${id}/`);
+    revalidatePath("/settings");
+    return {};
+  } catch {
+    return { error: "Failed to delete bank holiday." };
   }
 }

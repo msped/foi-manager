@@ -2,50 +2,41 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { StatusTag, Tag } from "./ui/Tag";
+import { StatusTag } from "./ui/Tag";
 import { fmtDate, daysUntil } from "@/lib/utils";
 import type { CaseListItem } from "@/lib/types";
 
 const TABS = [
-  { id: "all",        label: "All"        },
-  { id: "mine",       label: "Mine"       },
-  { id: "unassigned", label: "Unassigned" },
-  { id: "review",     label: "In review"  },
-  { id: "overdue",    label: "Overdue"    },
+  { id: "all",     label: "All"       },
+  { id: "review",  label: "In review" },
+  { id: "overdue", label: "Overdue"   },
 ];
 
 interface Props {
   cases: CaseListItem[];
-  currentUserName: string;
 }
 
-export default function CasesTable({ cases, currentUserName }: Props) {
+export default function CasesTable({ cases }: Props) {
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
 
   let filtered = cases;
-
-  if (tab === "mine")       filtered = filtered.filter(c => c.assignee_name === currentUserName);
-  if (tab === "unassigned") filtered = filtered.filter(c => !c.assignee_name);
-  if (tab === "review")     filtered = filtered.filter(c => c.status === "review");
-  if (tab === "overdue")    filtered = filtered.filter(c => c.is_overdue);
+  if (tab === "review")  filtered = filtered.filter(c => c.status === "review");
+  if (tab === "overdue") filtered = filtered.filter(c => c.is_overdue);
 
   if (q) {
     const ql = q.toLowerCase();
     filtered = filtered.filter(c =>
       c.ref.toLowerCase().includes(ql) ||
       c.summary.toLowerCase().includes(ql) ||
-      c.requester_name.toLowerCase().includes(ql) ||
-      (c.department_name ?? "").toLowerCase().includes(ql)
+      c.requester_name.toLowerCase().includes(ql)
     );
   }
 
   const tabCount = (id: string) => {
-    if (id === "all")        return cases.length;
-    if (id === "mine")       return cases.filter(c => c.assignee_name === currentUserName).length;
-    if (id === "unassigned") return cases.filter(c => !c.assignee_name).length;
-    if (id === "review")     return cases.filter(c => c.status === "review").length;
-    if (id === "overdue")    return cases.filter(c => c.is_overdue).length;
+    if (id === "all")     return cases.length;
+    if (id === "review")  return cases.filter(c => c.status === "review").length;
+    if (id === "overdue") return cases.filter(c => c.is_overdue).length;
     return 0;
   };
 
@@ -91,8 +82,6 @@ export default function CasesTable({ cases, currentUserName }: Props) {
             <tr className="govuk-table__row">
               <th className="govuk-table__header" style={{ width: 140 }}>Reference</th>
               <th className="govuk-table__header">Summary</th>
-              <th className="govuk-table__header">Department</th>
-              <th className="govuk-table__header">Assigned to</th>
               <th className="govuk-table__header">Status</th>
               <th className="govuk-table__header">Deadline</th>
             </tr>
@@ -100,7 +89,7 @@ export default function CasesTable({ cases, currentUserName }: Props) {
           <tbody className="govuk-table__body">
             {filtered.length === 0 ? (
               <tr className="govuk-table__row">
-                <td className="govuk-table__cell" colSpan={6} style={{ textAlign: "center", color: "var(--govuk-secondary-text-colour)", padding: 32 }}>
+                <td className="govuk-table__cell" colSpan={4} style={{ textAlign: "center", color: "var(--govuk-secondary-text-colour)", padding: 32 }}>
                   No cases match your search.
                 </td>
               </tr>
@@ -120,16 +109,6 @@ export default function CasesTable({ cases, currentUserName }: Props) {
                     <div className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
                       {c.requester_name} · {fmtDate(c.submitted_at)}
                     </div>
-                  </td>
-                  <td className="govuk-table__cell">
-                    {c.department_name
-                      ? <Tag colour="grey">{c.department_name}</Tag>
-                      : <Tag colour="yellow">No dept</Tag>}
-                  </td>
-                  <td className="govuk-table__cell">
-                    {c.assignee_name
-                      ? <span style={{ fontSize: 13 }}>{c.assignee_name}</span>
-                      : <Tag colour="orange">Unassigned</Tag>}
                   </td>
                   <td className="govuk-table__cell">
                     <StatusTag status={c.status} />

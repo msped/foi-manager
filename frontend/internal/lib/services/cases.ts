@@ -1,5 +1,5 @@
 import djangoClient from "./django";
-import type { CaseConsultation, CaseDetail, CaseListItem, Department, Paginated } from "@/lib/types";
+import type { BankHoliday, CaseConsultation, CaseDetail, CaseListItem, Department, Paginated } from "@/lib/types";
 
 export async function listCases(params?: Record<string, string>): Promise<Paginated<CaseListItem>> {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
@@ -41,4 +41,19 @@ export async function updateConsultation(
 
 export async function deleteConsultation(caseId: number | string, consultationId: number): Promise<void> {
   await djangoClient.delete(`/cases/${caseId}/consultations/${consultationId}/`);
+}
+
+export async function listBankHolidays(params?: { country?: string; year?: string }): Promise<BankHoliday[]> {
+  const qs = params ? "?" + new URLSearchParams(params as Record<string, string>).toString() : "";
+  const { data } = await djangoClient.get<BankHoliday[]>(`/bank-holidays/${qs}`);
+  return data;
+}
+
+export async function createBankHoliday(body: { country: string; name: string; date: string }): Promise<BankHoliday> {
+  const { data } = await djangoClient.post<BankHoliday>("/bank-holidays/", body);
+  return data;
+}
+
+export async function deleteBankHoliday(id: number): Promise<void> {
+  await djangoClient.delete(`/bank-holidays/${id}/`);
 }
