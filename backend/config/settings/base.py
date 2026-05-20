@@ -165,3 +165,4 @@ FOI_GDPR_RETENTION_YEARS = config('FOI_GDPR_RETENTION_YEARS', default=3, cast=in
 FOI_REFERENCE_PREFIX = config('FOI_REFERENCE_PREFIX', default='FOI')
 FOI_JURISDICTION = config('FOI_JURISDICTION', default='england')
 ORGANISATION_NAME = config('ORGANISATION_NAME', default='Organisation')
+FOI_CONTACT_EMAIL = config('FOI_CONTACT_EMAIL', default='foi@example.com')
