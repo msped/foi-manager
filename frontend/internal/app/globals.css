@@ -21,7 +21,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   z-index: 10;
@@ -64,6 +64,7 @@
 .staff-nav {
   padding: 8px;
   flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
