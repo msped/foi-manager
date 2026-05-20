@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getCase, listDepartments } from "@/lib/services/cases";
+import { getCase, listEmailTemplates } from "@/lib/services/cases";
 import { listUsers } from "@/lib/services/users";
 import CaseDetailView from "./CaseDetailView";
 
@@ -13,7 +13,12 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     notFound();
   }
 
-  const [departments, users] = await Promise.all([listDepartments(), listUsers()]);
+  const [emailTemplates, users] = await Promise.all([
+    listEmailTemplates(),
+    listUsers(),
+  ]);
 
-  return <CaseDetailView c={c} departments={departments} users={users} />;
+  const foiTeam = users.filter(u => u.role === "foi_team" && u.is_active);
+
+  return <CaseDetailView c={c} emailTemplates={emailTemplates} foiTeam={foiTeam} />;
 }

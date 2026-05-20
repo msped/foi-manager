@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import djangoClient from "@/lib/services/django";
-import type { BankHoliday } from "@/lib/types";
+import type { ApiUser, BankHoliday, EmailTemplate, Mailbox } from "@/lib/types";
 
 export async function createRequesterCategory(name: string): Promise<{ error?: string }> {
   try {
@@ -55,5 +55,83 @@ export async function deleteBankHoliday(id: number): Promise<{ error?: string }>
     return {};
   } catch {
     return { error: "Failed to delete bank holiday." };
+  }
+}
+
+export async function createMailbox(name: string, email: string): Promise<{ data?: Mailbox; error?: string }> {
+  try {
+    const { data } = await djangoClient.post<Mailbox>("/mailboxes/", { name: name.trim(), email: email.trim() });
+    revalidatePath("/settings");
+    return { data };
+  } catch {
+    return { error: "Failed to create mailbox." };
+  }
+}
+
+export async function updateMailboxAction(id: number, name: string, email: string): Promise<{ error?: string }> {
+  try {
+    await djangoClient.patch(`/mailboxes/${id}/`, { name: name.trim(), email: email.trim() });
+    revalidatePath("/settings");
+    return {};
+  } catch {
+    return { error: "Failed to update mailbox." };
+  }
+}
+
+export async function deleteMailboxAction(id: number): Promise<{ error?: string }> {
+  try {
+    await djangoClient.delete(`/mailboxes/${id}/`);
+    revalidatePath("/settings");
+    return {};
+  } catch {
+    return { error: "Failed to delete mailbox." };
+  }
+}
+
+export async function createEmailTemplateAction(
+  body: { name: string; type: "email" | "response"; description: string; subject: string; body: string },
+): Promise<{ data?: EmailTemplate; error?: string }> {
+  try {
+    const { data } = await djangoClient.post<EmailTemplate>("/email-templates/", body);
+    revalidatePath("/settings");
+    return { data };
+  } catch {
+    return { error: "Failed to create template." };
+  }
+}
+
+export async function updateEmailTemplateAction(
+  id: number,
+  body: Partial<{ name: string; type: "email" | "response"; description: string; subject: string; body: string }>,
+): Promise<{ error?: string }> {
+  try {
+    await djangoClient.patch(`/email-templates/${id}/`, body);
+    revalidatePath("/settings");
+    return {};
+  } catch {
+    return { error: "Failed to update template." };
+  }
+}
+
+export async function deleteEmailTemplateAction(id: number): Promise<{ error?: string }> {
+  try {
+    await djangoClient.delete(`/email-templates/${id}/`);
+    revalidatePath("/settings");
+    return {};
+  } catch {
+    return { error: "Failed to delete template." };
+  }
+}
+
+export async function updateUserAction(
+  id: number,
+  body: Partial<{ role: "foi_team" | "assignee"; is_active: boolean }>,
+): Promise<{ data?: ApiUser; error?: string }> {
+  try {
+    const { data } = await djangoClient.patch<ApiUser>(`/users/${id}/`, body);
+    revalidatePath("/settings");
+    return { data };
+  } catch {
+    return { error: "Failed to update user." };
   }
 }

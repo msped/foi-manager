@@ -20,6 +20,7 @@ export interface ApiUser {
   last_name: string;
   role: "foi_team" | "assignee";
   department: string;
+  is_active: boolean;
 }
 
 export interface Department {
@@ -37,21 +38,76 @@ export interface BankHoliday {
   date: string;
 }
 
-export type ConsultationStatus = "pending" | "responded" | "withdrawn";
+export type ConsultationStatus = "pending" | "awaiting_clarification" | "responded" | "withdrawn";
+
+export interface ConsultationMessage {
+  id: number;
+  author_name: string | null;
+  author_role: "foi_team" | "assignee" | null;
+  body: string;
+  created_at: string;
+}
 
 export interface CaseConsultation {
   id: number;
-  department: number | null;
-  department_name: string | null;
   assignee: number | null;
   assignee_name: string | null;
+  mailbox: number | null;
+  mailbox_name: string | null;
+  mailbox_email: string | null;
   scope: string;
   status: ConsultationStatus;
   due_date: string | null;
-  response: string;
   created_by_name: string | null;
   created_at: string;
   updated_at: string;
+  messages: ConsultationMessage[];
+}
+
+export type CaseResponseStatus = "draft" | "sent";
+
+export interface CaseResponse {
+  id: number;
+  body: string;
+  status: CaseResponseStatus;
+  sent_at: string | null;
+  created_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Mailbox {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export type EmailTemplateType = "email" | "response";
+
+export interface EmailTemplate {
+  id: number;
+  name: string;
+  type: EmailTemplateType;
+  description: string;
+  subject: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Notification {
+  id: number;
+  message: string;
+  link: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface UserSearchResult {
+  id: number;
+  email: string;
+  full_name: string;
+  role: "foi_team" | "assignee";
 }
 
 export interface CaseNote {
@@ -81,6 +137,8 @@ export interface CaseListItem {
   submitted_at: string;
   statutory_deadline: string | null;
   is_overdue: boolean;
+  assignee: number | null;
+  assignee_name: string | null;
 }
 
 /** Shape returned by CaseDetailSerializer (nested department, notes, audit) */
@@ -101,9 +159,12 @@ export interface CaseDetail {
   clock_paused_days: number;
   is_overdue: boolean;
   outcome: string;
+  assignee: number | null;
+  assignee_name: string | null;
   notes: CaseNote[];
   audit_events: CaseAuditEvent[];
   consultations: CaseConsultation[];
+  responses: CaseResponse[];
 }
 
 /** DRF paginated list response */

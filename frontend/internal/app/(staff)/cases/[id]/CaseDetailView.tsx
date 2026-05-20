@@ -1,31 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import { StatusTag, Tag } from "@/components/ui/Tag";
 import AiPanel from "@/components/ui/AiPanel";
-import FormField from "@/components/ui/FormField";
 import ConsultationsPanel from "./ConsultationsPanel";
+import CaseResponsesPanel from "./CaseResponsesPanel";
 import { fmtDate, daysUntil } from "@/lib/utils";
-import type { ApiUser, CaseDetail, Department } from "@/lib/types";
+import {
+  acknowledgeCaseAction, addCaseNote, assignCaseAction,
+  pauseClockAction, resumeClockAction, transitionCaseAction,
+} from "./actions";
+import type { ApiUser, CaseDetail, EmailTemplate } from "@/lib/types";
 
 const TABS = [
-  { id: "overview",  label: "Overview" },
-  { id: "comms",     label: "Communications" },
-  { id: "drafting",  label: "Drafting" },
-  { id: "audit",     label: "Audit" },
+  { id: "overview",      label: "Overview" },
+  { id: "consultations", label: "Consultations" },
+  { id: "response",      label: "Response" },
+  { id: "audit",         label: "Audit" },
+];
+
+const STATUSES = [
+  { value: "new",             label: "New" },
+  { value: "acknowledged",    label: "Acknowledged" },
+  { value: "with_department", label: "With department" },
+  { value: "drafting",        label: "Drafting" },
+  { value: "review",          label: "In review" },
+  { value: "with_applicant",  label: "With applicant" },
+  { value: "internal_review", label: "Internal review" },
+  { value: "referred",        label: "Referred" },
+  { value: "published",       label: "Published" },
+  { value: "exempt",          label: "Exempt" },
+  { value: "closed",          label: "Closed" },
 ];
 
 interface Props {
   c: CaseDetail;
-  departments: Department[];
-  users: ApiUser[];
+  emailTemplates: EmailTemplate[];
+  foiTeam: ApiUser[];
 }
 
-export default function CaseDetailView({ c, departments, users }: Props) {
+export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
   const [tab, setTab] = useState("overview");
+  const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [noteBody, setNoteBody] = useState("");
+  const [showTransition, setShowTransition] = useState(false);
+  const [nextStatus, setNextStatus] = useState(c.status);
   const days = daysUntil(c.statutory_deadline);
+
+  function withAction(fn: () => Promise<{ error: string } | void>) {
+    setActionError(null);
+    startTransition(async () => {
+      const result = await fn();
+      if (result?.error) setActionError(result.error);
+    });
+  }
+
+  function handleAddNote(e: React.FormEvent) {
+    e.preventDefault();
+    withAction(async () => {
+      const result = await addCaseNote(c.id, noteBody);
+      if (!result?.error) setNoteBody("");
+      return result;
+    });
+  }
+
+  const activeConsultations = c.consultations.filter(con => con.status !== "withdrawn").length;
 
   return (
     <>
@@ -40,7 +82,6 @@ export default function CaseDetailView({ c, departments, users }: Props) {
         </div>
         <div className="staff-header-actions">
           <StatusTag status={c.status} />
-          <Button variant="secondary" size="small">Save</Button>
           <Button size="small">Open redaction →</Button>
         </div>
       </header>
@@ -56,6 +97,16 @@ export default function CaseDetailView({ c, departments, users }: Props) {
               onClick={() => setTab(t.id)}
             >
               {t.label}
+              {t.id === "consultations" && activeConsultations > 0 && (
+                <span className="nav-badge" style={{ marginLeft: 6, background: "rgba(0,0,0,0.12)", color: "inherit" }}>
+                  {activeConsultations}
+                </span>
+              )}
+              {t.id === "response" && c.responses.length > 0 && (
+                <span className="nav-badge" style={{ marginLeft: 6, background: "rgba(0,0,0,0.12)", color: "inherit" }}>
+                  {c.responses.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -79,7 +130,13 @@ export default function CaseDetailView({ c, departments, users }: Props) {
                     </div>
                     <div className="govuk-summary-list__row">
                       <dt className="govuk-summary-list__key">Requester</dt>
-                      <dd className="govuk-summary-list__value">{c.requester_name} ({c.requester_type})</dd>
+                      <dd className="govuk-summary-list__value">{c.requester_name} · {c.requester_email} · {c.requester_type}</dd>
+                    </div>
+                    <div className="govuk-summary-list__row">
+                      <dt className="govuk-summary-list__key">Assigned to</dt>
+                      <dd className="govuk-summary-list__value">
+                        {c.assignee_name ?? <span style={{ color: "var(--govuk-secondary-text-colour)" }}>Unassigned</span>}
+                      </dd>
                     </div>
                     <div className="govuk-summary-list__row">
                       <dt className="govuk-summary-list__key">Clock</dt>
@@ -114,68 +171,45 @@ export default function CaseDetailView({ c, departments, users }: Props) {
                       </div>
                     ))
                   }
-                  <textarea className="govuk-textarea" rows={2} placeholder="Add a note…" aria-label="Internal note" />
-                  <Button variant="secondary" size="small" style={{ marginTop: 8 }}>Add note</Button>
+                  <form onSubmit={handleAddNote}>
+                    <textarea
+                      className="govuk-textarea"
+                      rows={2}
+                      placeholder="Add a note…"
+                      aria-label="Internal note"
+                      value={noteBody}
+                      onChange={e => setNoteBody(e.target.value)}
+                      required
+                    />
+                    <Button type="submit" variant="secondary" size="small" disabled={isPending} style={{ marginTop: 8 }}>
+                      Add note
+                    </Button>
+                  </form>
                 </div>
               </div>
             )}
 
-            {tab === "comms" && (
-              <div className="foi-col">
-                <div className="foi-card">
-                  <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
-                    Email communications will appear here once the email integration is connected.
-                  </p>
-                </div>
-                <div className="foi-card">
-                  <h3 className="govuk-heading-s">Reply to applicant</h3>
-                  <textarea className="govuk-textarea" rows={4} placeholder="Type your reply…" aria-label="Reply" />
-                  <div className="foi-spread" style={{ marginTop: 10 }}>
-                    <select className="govuk-select" defaultValue="" style={{ width: "auto" }}>
-                      <option value="">Use template…</option>
-                      <option>Acknowledgement v3</option>
-                      <option>Clarification request</option>
-                      <option>Extension notice (s.10)</option>
-                    </select>
-                    <div className="foi-row">
-                      <Button variant="secondary" size="small">Save draft</Button>
-                      <Button size="small">Send</Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {tab === "consultations" && (
+              <ConsultationsPanel
+                caseId={c.id}
+                consultations={c.consultations}
+              />
             )}
 
-            {tab === "drafting" && (
-              <div className="foi-col">
-                <div className="foi-card">
-                  <h2 className="govuk-heading-s">Response materials</h2>
-                  <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>No documents uploaded yet.</p>
-                  <div className="foi-upload-target">Drop files here or click to upload</div>
-                </div>
-                <div className="foi-card">
-                  <h2 className="govuk-heading-s">Response letter</h2>
-                  <FormField label="Outcome" htmlFor="outcome">
-                    <select className="govuk-select" id="outcome" defaultValue={c.outcome || ""}>
-                      <option value="">— Select outcome —</option>
-                      <option value="full">Information disclosed in full</option>
-                      <option value="partial">Information disclosed in part</option>
-                      <option value="exempt">Information withheld</option>
-                      <option value="not-held">Information not held</option>
-                    </select>
-                  </FormField>
-                  <FormField label="Letter body" hint="Inserted into the response template." htmlFor="letter">
-                    <textarea id="letter" className="govuk-textarea" rows={6} placeholder="Draft your response letter here…" />
-                  </FormField>
-                  <div className="foi-spread">
-                    <Button variant="secondary" size="small">↻ Draft with AI</Button>
-                    <div className="foi-row">
-                      <Button variant="secondary">Save draft</Button>
-                      <Button>Send for review →</Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {tab === "response" && (
+              <CaseResponsesPanel
+                caseId={c.id}
+                responses={c.responses}
+                emailTemplates={emailTemplates}
+                templateVars={{
+                  ref: c.ref,
+                  requester_name: c.requester_name,
+                  requester_email: c.requester_email,
+                  submitted_at: fmtDate(c.submitted_at),
+                  statutory_deadline: fmtDate(c.statutory_deadline),
+                  request_summary: c.summary || c.request_text.slice(0, 200),
+                }}
+              />
             )}
 
             {tab === "audit" && (
@@ -211,13 +245,6 @@ export default function CaseDetailView({ c, departments, users }: Props) {
           </div>
 
           <aside className="foi-col">
-            <ConsultationsPanel
-              caseId={c.id}
-              consultations={c.consultations}
-              departments={departments}
-              users={users}
-            />
-
             <div className="foi-card">
               <h3 className="govuk-heading-s">Timeline</h3>
               <dl className="govuk-summary-list govuk-summary-list--no-border">
@@ -227,7 +254,9 @@ export default function CaseDetailView({ c, departments, users }: Props) {
                 </div>
                 <div className="govuk-summary-list__row">
                   <dt className="govuk-summary-list__key">Acknowledged</dt>
-                  <dd className="govuk-summary-list__value">{c.acknowledged_at ? fmtDate(c.acknowledged_at) : <Tag colour="grey">Pending</Tag>}</dd>
+                  <dd className="govuk-summary-list__value">
+                    {c.acknowledged_at ? fmtDate(c.acknowledged_at) : <Tag colour="grey">Pending</Tag>}
+                  </dd>
                 </div>
                 <div className="govuk-summary-list__row">
                   <dt className="govuk-summary-list__key">Due</dt>
@@ -247,14 +276,90 @@ export default function CaseDetailView({ c, departments, users }: Props) {
             </div>
 
             <div className="foi-card">
-              <h3 className="govuk-heading-s">Actions</h3>
-              <div className="foi-col" style={{ gap: 8 }}>
-                {c.status === "new" && <Button>Acknowledge receipt</Button>}
-                <Button variant="secondary">Pause clock</Button>
-                <Button variant="secondary">Change status</Button>
-              </div>
+              <h3 className="govuk-heading-s">Assigned to</h3>
+              <select
+                className="govuk-select"
+                defaultValue={c.assignee ?? ""}
+                style={{ width: "100%", marginBottom: 8 }}
+                onChange={e => {
+                  const val = e.target.value;
+                  withAction(() => assignCaseAction(c.id, val ? Number(val) : null));
+                }}
+              >
+                <option value="">— Unassigned —</option>
+                {foiTeam.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.first_name || u.last_name ? `${u.first_name} ${u.last_name}`.trim() : u.email}
+                  </option>
+                ))}
+              </select>
             </div>
 
+            <div className="foi-card">
+              <h3 className="govuk-heading-s">Actions</h3>
+              {actionError && <p className="govuk-error-message" style={{ marginBottom: 8 }}>{actionError}</p>}
+              <div className="foi-col" style={{ gap: 8 }}>
+                {c.status === "new" && (
+                  <Button
+                    disabled={isPending}
+                    onClick={() => withAction(() => acknowledgeCaseAction(c.id))}
+                  >
+                    Acknowledge receipt
+                  </Button>
+                )}
+                {c.clock_paused ? (
+                  <Button
+                    variant="secondary"
+                    disabled={isPending}
+                    onClick={() => withAction(() => resumeClockAction(c.id))}
+                  >
+                    Resume clock
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    disabled={isPending}
+                    onClick={() => withAction(() => pauseClockAction(c.id))}
+                  >
+                    Pause clock
+                  </Button>
+                )}
+
+                {!showTransition ? (
+                  <Button variant="secondary" onClick={() => setShowTransition(true)}>
+                    Change status
+                  </Button>
+                ) : (
+                  <div>
+                    <select
+                      className="govuk-select"
+                      value={nextStatus}
+                      onChange={e => setNextStatus(e.target.value as typeof c.status)}
+                      style={{ width: "100%", marginBottom: 8 }}
+                    >
+                      {STATUSES.map(s => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Button
+                        size="small"
+                        disabled={isPending || nextStatus === c.status}
+                        onClick={() => {
+                          withAction(() => transitionCaseAction(c.id, nextStatus));
+                          setShowTransition(false);
+                        }}
+                      >
+                        Apply
+                      </Button>
+                      <Button variant="secondary" size="small" onClick={() => setShowTransition(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </aside>
         </div>
       </div>

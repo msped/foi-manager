@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Avatar from "./ui/Avatar";
+import NotificationBell from "./ui/NotificationBell";
 import { authClient } from "@/lib/auth-client";
 import type { ApiUser } from "@/lib/types";
 
 const NAV_MAIN = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/cases",     label: "Cases" },
-  { href: "/publish",   label: "Ready to publish" },
+  { href: "/publish",   label: "Publish to portal" },
   { href: "/analytics", label: "Analytics" },
 ];
 
@@ -102,6 +103,7 @@ export default function StaffSidebar({ user }: StaffSidebarProps) {
             {user.department}
           </div>
         </div>
+        <NotificationBell />
         <button
           onClick={handleSignOut}
           title="Sign out"
