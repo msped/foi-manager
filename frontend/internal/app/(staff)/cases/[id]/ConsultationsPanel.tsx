@@ -4,53 +4,39 @@ import { useState, useTransition } from "react";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import FormField from "@/components/ui/FormField";
+import RichTextEditor from "@/components/ui/RichTextEditor";
+import RecipientSearch, { type RecipientResult } from "@/components/ui/RecipientSearch";
 import { fmtDate } from "@/lib/utils";
-import { sendConsultation, reassignConsultation, markConsultationResponded, withdrawConsultation } from "./actions";
-import type { CaseConsultation, Department, ApiUser } from "@/lib/types";
+import {
+  sendConsultation, withdrawConsultation,
+  sendConsultationMessageAction,
+} from "./actions";
+import type { CaseConsultation } from "@/lib/types";
 
-const STATUS_COLOUR: Record<string, "yellow" | "green" | "grey"> = {
+const STATUS_COLOUR: Record<string, "yellow" | "green" | "grey" | "orange"> = {
   pending: "yellow",
+  awaiting_clarification: "orange",
   responded: "green",
   withdrawn: "grey",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Pending",
+  awaiting_clarification: "Awaiting clarification",
+  responded: "Responded",
+  withdrawn: "Withdrawn",
 };
 
 interface Props {
   caseId: number;
   consultations: CaseConsultation[];
-  departments: Department[];
-  users: ApiUser[];
 }
 
-function ConsultationRow({
-  c,
-  caseId,
-  users,
-}: {
-  c: CaseConsultation;
-  caseId: number;
-  users: ApiUser[];
-}) {
+function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number }) {
   const [expanded, setExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [responseText, setResponseText] = useState(c.response ?? "");
-
-  function handleReassign(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    startTransition(async () => {
-      const result = await reassignConsultation(caseId, c.id, fd);
-      if (result?.error) setError(result.error);
-    });
-  }
-
-  function handleRespond(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    startTransition(async () => {
-      const result = await markConsultationResponded(caseId, c.id, responseText);
-      if (result?.error) setError(result.error);
-    });
-  }
+  const [msgBody, setMsgBody] = useState("");
 
   function handleWithdraw() {
     startTransition(async () => {
@@ -59,93 +45,98 @@ function ConsultationRow({
     });
   }
 
+  function handleSendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const result = await sendConsultationMessageAction(caseId, c.id, msgBody);
+      if (result?.error) setError(result.error);
+      else setMsgBody("");
+    });
+  }
+
+  const recipientLabel = c.assignee_name
+    ? c.assignee_name
+    : c.mailbox_name
+      ? `${c.mailbox_name} <${c.mailbox_email}>`
+      : "Unknown recipient";
+
   return (
-    <div style={{ borderBottom: "1px solid var(--govuk-border-colour)", paddingBottom: 12, marginBottom: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+    <div className="foi-card">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <Tag colour={STATUS_COLOUR[c.status] ?? "grey"}>
-          {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
+          {STATUS_LABEL[c.status] ?? c.status}
         </Tag>
-        <span className="govuk-body-s" style={{ fontWeight: 600, flex: 1 }}>
-          {c.department_name ?? "No department"}
-        </span>
+        <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{recipientLabel}</span>
+        {c.due_date && (
+          <span className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
+            Due {fmtDate(c.due_date)}
+          </span>
+        )}
         <button
           className="govuk-link govuk-body-s"
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
           onClick={() => setExpanded(v => !v)}
         >
-          {expanded ? "Hide" : "Details"}
+          {expanded ? "Collapse" : "Expand"}
         </button>
       </div>
 
-      <div className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
-        {c.assignee_name ?? <em>Unassigned</em>}
-        {c.due_date && ` · Due ${fmtDate(c.due_date)}`}
-      </div>
-
       {expanded && (
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--govuk-border-colour)" }}>
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--govuk-border-colour, #cecece)" }}>
           <p className="govuk-body-s" style={{ fontWeight: 600, marginBottom: 4 }}>Scope</p>
           <p className="govuk-body-s" style={{ marginBottom: 12, whiteSpace: "pre-wrap" }}>{c.scope}</p>
 
-          {error && <p className="govuk-error-message">{error}</p>}
-
-          {c.status === "pending" && (
-            <>
-              <form onSubmit={handleReassign} style={{ marginBottom: 10 }}>
-                <FormField label="Reassign to" htmlFor={`reassign-${c.id}`}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <select
-                      id={`reassign-${c.id}`}
-                      name="assignee"
-                      className="govuk-select"
-                      defaultValue={c.assignee ?? ""}
-                      style={{ flex: 1 }}
-                    >
-                      <option value="">— Unassigned —</option>
-                      {users.map(u => (
-                        <option key={u.id} value={u.id}>
-                          {u.first_name || u.last_name ? `${u.first_name} ${u.last_name}`.trim() : u.email}
-                        </option>
-                      ))}
-                    </select>
-                    <Button type="submit" variant="secondary" size="small" disabled={isPending}>
-                      Save
-                    </Button>
+          {c.messages.length > 0 && (
+            <div style={{ borderLeft: "3px solid var(--govuk-border-colour)", paddingLeft: 10, marginBottom: 12 }}>
+              {c.messages.map(m => (
+                <div key={m.id} style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: "var(--govuk-secondary-text-colour)", marginBottom: 2 }}>
+                    {m.author_name ?? "Unknown"} · {fmtDate(m.created_at)}
                   </div>
-                </FormField>
-              </form>
-
-              <form onSubmit={handleRespond}>
-                <FormField label="Response / notes" htmlFor={`response-${c.id}`}>
-                  <textarea
-                    id={`response-${c.id}`}
-                    className="govuk-textarea"
-                    rows={3}
-                    value={responseText}
-                    onChange={e => setResponseText(e.target.value)}
-                  />
-                </FormField>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Button type="submit" size="small" disabled={isPending}>Mark responded</Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="small"
-                    disabled={isPending}
-                    onClick={handleWithdraw}
-                  >
-                    Withdraw
-                  </Button>
+                  <div className="foi-rich-content govuk-body-s" style={{ marginBottom: 0 }} dangerouslySetInnerHTML={{ __html: m.body }} />
                 </div>
-              </form>
-            </>
+              ))}
+            </div>
           )}
 
-          {c.status === "responded" && c.response && (
-            <>
-              <p className="govuk-body-s" style={{ fontWeight: 600, marginBottom: 4 }}>Response</p>
-              <p className="govuk-body-s" style={{ whiteSpace: "pre-wrap" }}>{c.response}</p>
-            </>
+          {error && <p className="govuk-error-message">{error}</p>}
+
+          {c.status !== "withdrawn" && c.assignee && (
+            <form onSubmit={handleSendMessage} style={{ marginBottom: 10 }}>
+              <FormField label="Send message" htmlFor={`msg-${c.id}`}>
+                <RichTextEditor
+                  value={msgBody}
+                  onChange={setMsgBody}
+                  placeholder="Type a message…"
+                  minHeight={80}
+                />
+              </FormField>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Button type="submit" size="small" disabled={isPending || msgBody === "<p></p>" || msgBody.trim() === ""}>
+                  {isPending ? "Sending…" : "Send message"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  disabled={isPending}
+                  onClick={handleWithdraw}
+                >
+                  Withdraw
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {c.status !== "withdrawn" && !c.assignee && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="small"
+              disabled={isPending}
+              onClick={handleWithdraw}
+            >
+              Withdraw
+            </Button>
           )}
         </div>
       )}
@@ -153,14 +144,24 @@ function ConsultationRow({
   );
 }
 
-export default function ConsultationsPanel({ caseId, consultations, departments, users }: Props) {
+export default function ConsultationsPanel({ caseId, consultations }: Readonly<Props>) {
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [recipient, setRecipient] = useState<RecipientResult | null>(null);
+  const [scope, setScope] = useState("");
+  const [dueDate, setDueDate] = useState("");
 
   function handleSend(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+    if (!recipient) { setError("Select a recipient."); return; }
+
+    const fd = new FormData();
+    if (recipient.type === "mailbox") fd.set("mailbox", String(recipient.data.id));
+    else fd.set("assignee", String(recipient.data.id));
+    fd.set("scope", scope);
+    if (dueDate) fd.set("due_date", dueDate);
+
     startTransition(async () => {
       const result = await sendConsultation(caseId, fd);
       if (result?.error) {
@@ -168,7 +169,9 @@ export default function ConsultationsPanel({ caseId, consultations, departments,
       } else {
         setShowForm(false);
         setError(null);
-        (e.target as HTMLFormElement).reset();
+        setRecipient(null);
+        setScope("");
+        setDueDate("");
       }
     });
   }
@@ -176,73 +179,76 @@ export default function ConsultationsPanel({ caseId, consultations, departments,
   const active = consultations.filter(c => c.status !== "withdrawn");
 
   return (
-    <div className="foi-card">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h3 className="govuk-heading-s" style={{ margin: 0 }}>Consultations</h3>
+    <div className="foi-col">
+      <div className="foi-spread">
+        <h2 className="govuk-heading-m" style={{ marginBottom: 0 }}>Consultations</h2>
         {!showForm && (
           <Button variant="secondary" size="small" onClick={() => setShowForm(true)}>
-            Send →
+            Send consultation →
           </Button>
         )}
       </div>
 
       {active.length === 0 && !showForm && (
-        <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
-          No consultations sent.
-        </p>
+        <div className="foi-card">
+          <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
+            No consultations sent yet. Use this tab to send parts of this request to other departments or named individuals for a response.
+          </p>
+        </div>
       )}
 
       {active.map(c => (
-        <ConsultationRow key={c.id} c={c} caseId={caseId} users={users} />
+        <ConsultationRow key={c.id} c={c} caseId={caseId} />
       ))}
 
       {showForm && (
-        <form onSubmit={handleSend} style={{ borderTop: active.length > 0 ? "1px solid var(--govuk-border-colour)" : undefined, paddingTop: active.length > 0 ? 12 : 0 }}>
+        <div className="foi-card">
+        <form
+          onSubmit={handleSend}
+        >
           <p className="govuk-heading-s" style={{ marginBottom: 12 }}>Send consultation</p>
           {error && <p className="govuk-error-message">{error}</p>}
 
-          <FormField label="Department" htmlFor="cons-department">
-            <select id="cons-department" name="department" className="govuk-select" defaultValue="">
-              <option value="">— Departmental mailbox —</option>
-              {departments.map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
+          <FormField label="Recipient" hint="Search for a departmental mailbox or named person." htmlFor="cons-recipient">
+            <RecipientSearch onSelect={setRecipient} />
           </FormField>
 
-          <FormField label="Assign to person" hint="Optional — leave blank to send to the department mailbox." htmlFor="cons-assignee">
-            <select id="cons-assignee" name="assignee" className="govuk-select" defaultValue="">
-              <option value="">— Unassigned —</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>
-                  {u.first_name || u.last_name ? `${u.first_name} ${u.last_name}`.trim() : u.email}
-                </option>
-              ))}
-            </select>
-          </FormField>
-
-          <FormField label="Scope" hint="What specifically do you need this department to respond to?" htmlFor="cons-scope">
-            <textarea id="cons-scope" name="scope" className="govuk-textarea" rows={4} required />
+          <FormField label="Scope" hint="What specifically do you need this party to respond to?" htmlFor="cons-scope">
+            <textarea
+              id="cons-scope"
+              className="govuk-textarea"
+              rows={4}
+              value={scope}
+              onChange={e => setScope(e.target.value)}
+              required
+            />
           </FormField>
 
           <FormField label="Internal deadline" hint="Optional." htmlFor="cons-due-date">
-            <input id="cons-due-date" name="due_date" type="date" className="govuk-input govuk-input--width-10" />
+            <input
+              id="cons-due-date"
+              type="date"
+              className="govuk-input govuk-input--width-10"
+              value={dueDate}
+              onChange={e => setDueDate(e.target.value)}
+            />
           </FormField>
 
           <div style={{ display: "flex", gap: 8 }}>
-            <Button type="submit" size="small" disabled={isPending}>
+            <Button type="submit" size="small" disabled={isPending || !recipient}>
               {isPending ? "Sending…" : "Send consultation"}
             </Button>
             <Button
               type="button"
               variant="secondary"
               size="small"
-              onClick={() => { setShowForm(false); setError(null); }}
+              onClick={() => { setShowForm(false); setError(null); setRecipient(null); setScope(""); setDueDate(""); }}
             >
               Cancel
             </Button>
           </div>
         </form>
+        </div>
       )}
     </div>
   );

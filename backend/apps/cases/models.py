@@ -102,6 +102,10 @@ class Case(models.Model):
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='created_cases',
     )
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='assigned_cases',
+    )
 
     # Outcome
     outcome = models.CharField(max_length=20, blank=True)
@@ -195,25 +199,69 @@ class Case(models.Model):
         )
 
 
+class Mailbox(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+    email = models.EmailField(unique=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name_plural = 'mailboxes'
+
+    def __str__(self):
+        return f'{self.name} <{self.email}>'
+
+
+class EmailTemplate(models.Model):
+    class Type(models.TextChoices):
+        CONSULTATION = 'consultation', 'Consultation'
+        REQUESTER = 'requester', 'Requester'
+
+    name = models.CharField(max_length=200, unique=True)
+    type = models.CharField(max_length=20, choices=Type.choices)
+    description = models.TextField(blank=True)
+    subject = models.CharField(max_length=500, blank=True)
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['type', 'name']
+
+    def __str__(self):
+        return f'[{self.get_type_display()}] {self.name}'
+
+    def render(self, context: dict) -> str:
+        result = self.body
+        for key, value in context.items():
+            result = result.replace(f'{{{{{key}}}}}', str(value))
+        return result
+
+    def render_subject(self, context: dict) -> str:
+        result = self.subject
+        for key, value in context.items():
+            result = result.replace(f'{{{{{key}}}}}', str(value))
+        return result
+
+
 class CaseConsultation(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
+        AWAITING_CLARIFICATION = 'awaiting_clarification', 'Awaiting Clarification'
         RESPONDED = 'responded', 'Responded'
         WITHDRAWN = 'withdrawn', 'Withdrawn'
 
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='consultations')
-    department = models.ForeignKey(
-        Department, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name='consultations',
-    )
     assignee = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='consultations',
     )
+    mailbox = models.ForeignKey(
+        Mailbox, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='consultations',
+    )
     scope = models.TextField()
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.PENDING)
     due_date = models.DateField(null=True, blank=True)
-    response = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='created_consultations',
@@ -225,8 +273,53 @@ class CaseConsultation(models.Model):
         ordering = ['created_at']
 
     def __str__(self):
-        dept = self.department.name if self.department else 'No department'
-        return f'{self.case.ref} → {dept}'
+        recipient = (
+            self.assignee.get_full_name() if self.assignee
+            else self.mailbox.name if self.mailbox
+            else 'Unassigned'
+        )
+        return f'{self.case.ref} → {recipient}'
+
+
+class ConsultationMessage(models.Model):
+    consultation = models.ForeignKey(
+        CaseConsultation, on_delete=models.CASCADE, related_name='messages'
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.consultation} — {self.created_at:%Y-%m-%d %H:%M}'
+
+
+class CaseResponse(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        SENT = 'sent', 'Sent'
+
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='responses')
+    body = models.TextField()
+    rendered_body = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='created_responses',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.case.ref} response ({self.status})'
 
 
 class CaseExemption(models.Model):

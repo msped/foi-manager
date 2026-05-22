@@ -1,5 +1,9 @@
 from rest_framework import serializers
-from .models import BankHoliday, Case, CaseConsultation, CaseExemption, Department, CaseNote, CaseAuditEvent, RequesterCategory
+from .models import (
+    BankHoliday, Case, CaseAuditEvent, CaseConsultation, CaseExemption,
+    CaseNote, CaseResponse, ConsultationMessage, Department, EmailTemplate,
+    Mailbox, RequesterCategory,
+)
 
 
 class RequesterCategorySerializer(serializers.ModelSerializer):
@@ -12,6 +16,19 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = ['id', 'name', 'internal_deadline_days']
+
+
+class MailboxSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Mailbox
+        fields = ['id', 'name', 'email']
+
+
+class EmailTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmailTemplate
+        fields = ['id', 'name', 'type', 'description', 'subject', 'body', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class CaseAuditEventSerializer(serializers.ModelSerializer):
@@ -48,19 +65,75 @@ class CaseNoteSerializer(serializers.ModelSerializer):
         return value
 
 
-class CaseConsultationSerializer(serializers.ModelSerializer):
-    department_name = serializers.SerializerMethodField()
-    assignee_name = serializers.SerializerMethodField()
-    created_by_name = serializers.SerializerMethodField()
+class ConsultationMessageSerializer(serializers.ModelSerializer):
+    author_name = serializers.SerializerMethodField()
+    author_role = serializers.SerializerMethodField()
 
-    def get_department_name(self, obj):
-        return obj.department.name if obj.department else None
+    def get_author_name(self, obj):
+        if not obj.author:
+            return None
+        name = f'{obj.author.first_name} {obj.author.last_name}'.strip()
+        return name or obj.author.email
+
+    def get_author_role(self, obj):
+        if not obj.author:
+            return None
+        return obj.author.role
+
+    class Meta:
+        model = ConsultationMessage
+        fields = ['id', 'author_name', 'author_role', 'body', 'created_at']
+        read_only_fields = ['author_name', 'author_role', 'created_at']
+
+
+class CaseConsultationSerializer(serializers.ModelSerializer):
+    assignee_name = serializers.SerializerMethodField()
+    mailbox_name = serializers.SerializerMethodField()
+    mailbox_email = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+    messages = ConsultationMessageSerializer(many=True, read_only=True)
 
     def get_assignee_name(self, obj):
         if not obj.assignee:
             return None
         name = f'{obj.assignee.first_name} {obj.assignee.last_name}'.strip()
         return name or obj.assignee.email
+
+    def get_mailbox_name(self, obj):
+        return obj.mailbox.name if obj.mailbox else None
+
+    def get_mailbox_email(self, obj):
+        return obj.mailbox.email if obj.mailbox else None
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return None
+        name = f'{obj.created_by.first_name} {obj.created_by.last_name}'.strip()
+        return name or obj.created_by.email
+
+    def validate(self, attrs):
+        if attrs.get('assignee') and attrs.get('mailbox'):
+            raise serializers.ValidationError('A consultation can have an assignee or a mailbox, not both.')
+        if not attrs.get('assignee') and not attrs.get('mailbox'):
+            raise serializers.ValidationError('A consultation must have either an assignee or a mailbox.')
+        return attrs
+
+    class Meta:
+        model = CaseConsultation
+        fields = [
+            'id', 'assignee', 'assignee_name', 'mailbox', 'mailbox_name', 'mailbox_email',
+            'scope', 'status', 'due_date',
+            'created_by_name', 'created_at', 'updated_at',
+            'messages',
+        ]
+        read_only_fields = [
+            'created_at', 'updated_at',
+            'assignee_name', 'mailbox_name', 'mailbox_email', 'created_by_name',
+        ]
+
+
+class CaseResponseSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
 
     def get_created_by_name(self, obj):
         if not obj.created_by:
@@ -69,17 +142,23 @@ class CaseConsultationSerializer(serializers.ModelSerializer):
         return name or obj.created_by.email
 
     class Meta:
-        model = CaseConsultation
+        model = CaseResponse
         fields = [
-            'id', 'department', 'department_name', 'assignee', 'assignee_name',
-            'scope', 'status', 'due_date', 'response',
+            'id', 'body', 'status', 'sent_at',
             'created_by_name', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'department_name', 'assignee_name', 'created_by_name']
+        read_only_fields = ['status', 'sent_at', 'created_by_name', 'created_at', 'updated_at']
 
 
 class CaseListSerializer(serializers.ModelSerializer):
     is_overdue = serializers.BooleanField(read_only=True)
+    assignee_name = serializers.SerializerMethodField()
+
+    def get_assignee_name(self, obj):
+        if not obj.assignee:
+            return None
+        name = f'{obj.assignee.first_name} {obj.assignee.last_name}'.strip()
+        return name or obj.assignee.email
 
     class Meta:
         model = Case
@@ -87,14 +166,28 @@ class CaseListSerializer(serializers.ModelSerializer):
             'id', 'ref', 'status', 'requester_name', 'requester_type',
             'request_text', 'summary',
             'submitted_at', 'statutory_deadline', 'is_overdue',
+            'assignee', 'assignee_name',
         ]
 
 
 class CaseDetailSerializer(serializers.ModelSerializer):
     is_overdue = serializers.BooleanField(read_only=True)
+    assignee_name = serializers.SerializerMethodField()
     notes = CaseNoteSerializer(many=True, read_only=True)
     audit_events = CaseAuditEventSerializer(many=True, read_only=True)
     consultations = CaseConsultationSerializer(many=True, read_only=True)
+    responses = CaseResponseSerializer(many=True, read_only=True)
+
+    def get_assignee_name(self, obj):
+        if not obj.assignee:
+            return None
+        name = f'{obj.assignee.first_name} {obj.assignee.last_name}'.strip()
+        return name or obj.assignee.email
+
+    def validate_assignee(self, value):
+        if value is not None and not value.is_foi_team():
+            raise serializers.ValidationError('Assignee must be a member of the FOI team.')
+        return value
 
     class Meta:
         model = Case
@@ -105,11 +198,13 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             'submitted_at', 'acknowledged_at', 'statutory_deadline',
             'clock_paused', 'clock_paused_days', 'is_overdue',
             'outcome', 'created_at', 'updated_at',
-            'notes', 'audit_events', 'consultations',
+            'assignee', 'assignee_name',
+            'notes', 'audit_events', 'consultations', 'responses',
         ]
         read_only_fields = [
             'ref', 'status', 'acknowledged_at', 'statutory_deadline',
             'clock_paused', 'clock_paused_days', 'created_at', 'updated_at',
+            'assignee_name',
         ]
 
 

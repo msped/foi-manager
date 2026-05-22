@@ -9,6 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tiptap/extension-placeholder": "3.23.6",
+    "@tiptap/extension-underline": "3.23.6",
+    "@tiptap/pm": "3.23.6",
+    "@tiptap/react": "3.23.6",
+    "@tiptap/starter-kit": "3.23.6",
     "axios": "1.16.0",
     "better-auth": "1.6.10",
     "govuk-frontend": "6.1.0",

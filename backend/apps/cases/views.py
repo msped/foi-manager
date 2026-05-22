@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 
-from .models import BankHoliday, Case, Department, RequesterCategory
+from .models import BankHoliday, Case, Department, EmailTemplate, Mailbox, RequesterCategory
 from .permissions import IsFOITeam
 from .serializers import (
     BankHolidaySerializer,
@@ -13,10 +13,13 @@ from .serializers import (
     CaseListSerializer,
     CaseTransitionSerializer,
     DepartmentSerializer,
+    EmailTemplateSerializer,
+    MailboxSerializer,
     PublicCaseSubmitSerializer,
     PublicCaseTrackSerializer,
     RequesterCategorySerializer,
 )
+from .tasks import task_send_acknowledgement
 
 
 class PublicCaseSubmitView(APIView):
@@ -67,7 +70,10 @@ class CaseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsFOITeam])
     def acknowledge(self, request, pk=None):
         case = get_object_or_404(Case, pk=pk)
+        if case.status == Case.Status.ACKNOWLEDGED:
+            return Response({'detail': 'Case is already acknowledged.'}, status=status.HTTP_400_BAD_REQUEST)
         case.acknowledge(actor=request.user)
+        task_send_acknowledgement.delay(case.pk)
         return Response(CaseDetailSerializer(case).data)
 
     @action(detail=True, methods=['post'], permission_classes=[IsFOITeam])
@@ -122,4 +128,34 @@ class BankHolidayViewSet(viewsets.ModelViewSet):
         year = self.request.query_params.get('year')
         if year:
             qs = qs.filter(date__year=year)
+        return qs
+
+
+class MailboxViewSet(viewsets.ModelViewSet):
+    serializer_class = MailboxSerializer
+    pagination_class = None
+
+    def get_permissions(self):
+        if self.action in ('list',):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsFOITeam()]
+
+    def get_queryset(self):
+        qs = Mailbox.objects.all()
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(name__icontains=search) | qs.filter(email__icontains=search)
+        return qs.distinct()
+
+
+class EmailTemplateViewSet(viewsets.ModelViewSet):
+    serializer_class = EmailTemplateSerializer
+    permission_classes = [IsAuthenticated, IsFOITeam]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = EmailTemplate.objects.all()
+        type_filter = self.request.query_params.get('type')
+        if type_filter:
+            qs = qs.filter(type=type_filter)
         return qs

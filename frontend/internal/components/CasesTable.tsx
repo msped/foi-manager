@@ -8,19 +8,22 @@ import type { CaseListItem } from "@/lib/types";
 
 const TABS = [
   { id: "all",     label: "All"       },
+  { id: "mine",    label: "Mine"      },
   { id: "review",  label: "In review" },
   { id: "overdue", label: "Overdue"   },
 ];
 
 interface Props {
   cases: CaseListItem[];
+  currentUserId: number;
 }
 
-export default function CasesTable({ cases }: Props) {
+export default function CasesTable({ cases, currentUserId }: Props) {
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
 
   let filtered = cases;
+  if (tab === "mine")    filtered = filtered.filter(c => c.assignee === currentUserId);
   if (tab === "review")  filtered = filtered.filter(c => c.status === "review");
   if (tab === "overdue") filtered = filtered.filter(c => c.is_overdue);
 
@@ -35,6 +38,7 @@ export default function CasesTable({ cases }: Props) {
 
   const tabCount = (id: string) => {
     if (id === "all")     return cases.length;
+    if (id === "mine")    return cases.filter(c => c.assignee === currentUserId).length;
     if (id === "review")  return cases.filter(c => c.status === "review").length;
     if (id === "overdue") return cases.filter(c => c.is_overdue).length;
     return 0;
@@ -83,13 +87,14 @@ export default function CasesTable({ cases }: Props) {
               <th className="govuk-table__header" style={{ width: 140 }}>Reference</th>
               <th className="govuk-table__header">Summary</th>
               <th className="govuk-table__header">Status</th>
+              <th className="govuk-table__header">Assigned</th>
               <th className="govuk-table__header">Deadline</th>
             </tr>
           </thead>
           <tbody className="govuk-table__body">
             {filtered.length === 0 ? (
               <tr className="govuk-table__row">
-                <td className="govuk-table__cell" colSpan={4} style={{ textAlign: "center", color: "var(--govuk-secondary-text-colour)", padding: 32 }}>
+                <td className="govuk-table__cell" colSpan={5} style={{ textAlign: "center", color: "var(--govuk-secondary-text-colour)", padding: 32 }}>
                   No cases match your search.
                 </td>
               </tr>
@@ -112,6 +117,9 @@ export default function CasesTable({ cases }: Props) {
                   </td>
                   <td className="govuk-table__cell">
                     <StatusTag status={c.status} />
+                  </td>
+                  <td className="govuk-table__cell govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
+                    {c.assignee_name ?? <span style={{ fontStyle: "italic" }}>Unassigned</span>}
                   </td>
                   <td className="govuk-table__cell">
                     {days !== null ? (

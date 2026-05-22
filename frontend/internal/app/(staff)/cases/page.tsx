@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Button from "@/components/ui/Button";
 import CasesTable from "@/components/CasesTable";
 import { listCases } from "@/lib/services/cases";
+import { getMe } from "@/lib/services/users";
 
 export const metadata: Metadata = { title: "Cases — FOI Manager" };
 
 export default async function CasesPage() {
-  const { results: cases, count } = await listCases();
+  const [{ results: cases, count }, me] = await Promise.all([
+    listCases(),
+    getMe(),
+  ]);
 
   return (
     <>
@@ -24,7 +28,7 @@ export default async function CasesPage() {
       </header>
 
       <div className="staff-body">
-        <CasesTable cases={cases} />
+        <CasesTable cases={cases} currentUserId={me.id} />
       </div>
     </>
   );
