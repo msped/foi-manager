@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import FormField from "@/components/ui/FormField";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import RecipientSearch, { type RecipientResult } from "@/components/ui/RecipientSearch";
 import { fmtDate } from "@/lib/utils";
 import {
@@ -92,7 +93,7 @@ function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number })
                   <div style={{ fontSize: 12, color: "var(--govuk-secondary-text-colour)", marginBottom: 2 }}>
                     {m.author_name ?? "Unknown"} · {fmtDate(m.created_at)}
                   </div>
-                  <p className="govuk-body-s" style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{m.body}</p>
+                  <div className="foi-rich-content govuk-body-s" style={{ marginBottom: 0 }} dangerouslySetInnerHTML={{ __html: m.body }} />
                 </div>
               ))}
             </div>
@@ -103,17 +104,15 @@ function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number })
           {c.status !== "withdrawn" && c.assignee && (
             <form onSubmit={handleSendMessage} style={{ marginBottom: 10 }}>
               <FormField label="Send message" htmlFor={`msg-${c.id}`}>
-                <textarea
-                  id={`msg-${c.id}`}
-                  className="govuk-textarea"
-                  rows={2}
+                <RichTextEditor
                   value={msgBody}
-                  onChange={e => setMsgBody(e.target.value)}
+                  onChange={setMsgBody}
                   placeholder="Type a message…"
+                  minHeight={80}
                 />
               </FormField>
               <div style={{ display: "flex", gap: 6 }}>
-                <Button type="submit" size="small" disabled={isPending || !msgBody.trim()}>
+                <Button type="submit" size="small" disabled={isPending || msgBody === "<p></p>" || msgBody.trim() === ""}>
                   {isPending ? "Sending…" : "Send message"}
                 </Button>
                 <Button

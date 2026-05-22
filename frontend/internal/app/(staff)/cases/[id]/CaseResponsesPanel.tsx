@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import FormField from "@/components/ui/FormField";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import { fmtDate } from "@/lib/utils";
 import { saveCaseResponseAction, sendCaseResponseAction } from "./actions";
 import type { CaseResponse, EmailTemplate } from "@/lib/types";
@@ -17,14 +18,18 @@ interface TemplateVars {
   request_summary: string;
 }
 
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function applyVars(template: string, vars: TemplateVars): string {
   return template
-    .replace(/\{\{ref\}\}/g, vars.ref)
-    .replace(/\{\{requester_name\}\}/g, vars.requester_name)
-    .replace(/\{\{requester_email\}\}/g, vars.requester_email)
-    .replace(/\{\{submitted_at\}\}/g, vars.submitted_at)
-    .replace(/\{\{statutory_deadline\}\}/g, vars.statutory_deadline)
-    .replace(/\{\{request_summary\}\}/g, vars.request_summary);
+    .replace(/\{\{ref\}\}/g, escHtml(vars.ref))
+    .replace(/\{\{requester_name\}\}/g, escHtml(vars.requester_name))
+    .replace(/\{\{requester_email\}\}/g, escHtml(vars.requester_email))
+    .replace(/\{\{submitted_at\}\}/g, escHtml(vars.submitted_at))
+    .replace(/\{\{statutory_deadline\}\}/g, escHtml(vars.statutory_deadline))
+    .replace(/\{\{request_summary\}\}/g, escHtml(vars.request_summary));
 }
 
 interface Props {
@@ -88,13 +93,9 @@ function ResponseRow({ resp, caseId }: { resp: CaseResponse; caseId: number }) {
           {error && <p className="govuk-error-message">{error}</p>}
           {resp.status === "draft" ? (
             <>
-              <textarea
-                className="govuk-textarea"
-                rows={8}
-                value={body}
-                onChange={e => setBody(e.target.value)}
-                style={{ marginBottom: 8 }}
-              />
+              <div style={{ marginBottom: 8 }}>
+                <RichTextEditor value={body} onChange={setBody} minHeight={180} />
+              </div>
               <div className="foi-spread">
                 <span style={{ fontSize: 13, color: "var(--govuk-secondary-text-colour)" }}>
                   {saved ? "Saved." : ""}
@@ -110,9 +111,11 @@ function ResponseRow({ resp, caseId }: { resp: CaseResponse; caseId: number }) {
               </div>
             </>
           ) : (
-            <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 14, margin: 0 }}>
-              {resp.body}
-            </pre>
+            <div
+              className="foi-rich-content govuk-body-s"
+              style={{ fontSize: 14 }}
+              dangerouslySetInnerHTML={{ __html: resp.body }}
+            />
           )}
         </div>
       )}
@@ -208,13 +211,11 @@ export default function CaseResponsesPanel({ caseId, responses, emailTemplates, 
             )}
 
             <FormField label="Response body" htmlFor="resp-body">
-              <textarea
-                id="resp-body"
-                className="govuk-textarea"
-                rows={8}
+              <RichTextEditor
                 value={body}
-                onChange={e => setBody(e.target.value)}
-                required
+                onChange={setBody}
+                placeholder="Write your response…"
+                minHeight={200}
               />
             </FormField>
 

@@ -392,6 +392,47 @@
   margin-top: 12px;
 }
 
+/* ─── Rich text editor (TipTap) ─────────────────────────────────────────── */
+
+.tiptap {
+  outline: none;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--govuk-secondary-text-colour, #505a5f);
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap h2 { font-size: 1.25rem; font-weight: 700; margin: 0.75em 0 0.25em; }
+.tiptap h3 { font-size: 1.05rem; font-weight: 700; margin: 0.75em 0 0.25em; }
+.tiptap p  { margin: 0 0 0.5em; }
+.tiptap ul  { padding-left: 1.5em; margin: 0 0 0.5em; list-style: disc; }
+.tiptap ol  { padding-left: 1.5em; margin: 0 0 0.5em; list-style: decimal; }
+.tiptap li  { margin-bottom: 0.15em; }
+.tiptap blockquote {
+  border-left: 3px solid #b1b4b6;
+  margin: 0.5em 0;
+  padding-left: 0.75em;
+  color: #505a5f;
+}
+
+/* Read-only rendered HTML in response / message display */
+.foi-rich-content h2 { font-size: 1.25rem; font-weight: 700; margin: 0.5em 0 0.2em; }
+.foi-rich-content h3 { font-size: 1.05rem; font-weight: 700; margin: 0.5em 0 0.2em; }
+.foi-rich-content p  { margin: 0 0 0.5em; }
+.foi-rich-content ul { padding-left: 1.5em; margin: 0 0 0.5em; list-style: disc; }
+.foi-rich-content ol { padding-left: 1.5em; margin: 0 0 0.5em; list-style: decimal; }
+.foi-rich-content li { margin-bottom: 0.15em; }
+.foi-rich-content blockquote {
+  border-left: 3px solid #b1b4b6;
+  margin: 0.5em 0;
+  padding-left: 0.75em;
+  color: #505a5f;
+}
+
 /* ─── Doc icon ───────────────────────────────────────────────────────────── */
 
 .foi-doc-icon {

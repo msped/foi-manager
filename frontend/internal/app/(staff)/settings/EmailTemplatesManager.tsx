@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import FormField from "@/components/ui/FormField";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import { createEmailTemplateAction, deleteEmailTemplateAction, updateEmailTemplateAction } from "./actions";
 import type { EmailTemplate } from "@/lib/types";
 
@@ -81,7 +82,7 @@ function TemplateRow({ t, onDelete, onUpdate }: {
               <span className="govuk-body-s foi-mono">{t.subject}</span>
             </div>
           )}
-          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13, margin: 0 }}>{t.body}</pre>
+          <div className="foi-rich-content" style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: t.body }} />
         </div>
       )}
 
@@ -99,8 +100,8 @@ function TemplateRow({ t, onDelete, onUpdate }: {
               <input id={`tpl-subject-${t.id}`} className="govuk-input" value={subject} onChange={e => setSubject(e.target.value)} />
             </FormField>
           )}
-          <FormField label="Body" hint={`Variables: ${VARIABLES.join(", ")}`} htmlFor={`tpl-body-${t.id}`}>
-            <textarea id={`tpl-body-${t.id}`} className="govuk-textarea" rows={8} value={body} onChange={e => setBody(e.target.value)} required />
+          <FormField label="Body" htmlFor={`tpl-body-${t.id}`}>
+            <RichTextEditor value={body} onChange={setBody} variables={VARIABLES} minHeight={180} />
           </FormField>
           <div style={{ display: "flex", gap: 6 }}>
             <Button type="submit" size="small" disabled={isPending}>Save</Button>
@@ -211,8 +212,8 @@ export default function EmailTemplatesManager({ initial }: Props) {
               <input id="new-tpl-subject" className="govuk-input" value={subject} onChange={e => setSubject(e.target.value)} />
             </FormField>
           )}
-          <FormField label="Body" hint={`Available variables: ${VARIABLES.join(", ")}`} htmlFor="new-tpl-body">
-            <textarea id="new-tpl-body" className="govuk-textarea" rows={8} value={body} onChange={e => setBody(e.target.value)} required />
+          <FormField label="Body" htmlFor="new-tpl-body">
+            <RichTextEditor value={body} onChange={setBody} variables={VARIABLES} placeholder="Template body…" minHeight={180} />
           </FormField>
           <div style={{ display: "flex", gap: 6 }}>
             <Button type="submit" size="small" disabled={isPending}>Save template</Button>
