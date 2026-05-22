@@ -82,7 +82,7 @@ export interface Mailbox {
   email: string;
 }
 
-export type EmailTemplateType = "email" | "response";
+export type EmailTemplateType = "consultation" | "requester";
 
 export interface EmailTemplate {
   id: number;

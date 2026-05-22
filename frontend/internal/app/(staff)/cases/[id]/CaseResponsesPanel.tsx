@@ -81,7 +81,6 @@ function ResponseRow({ resp, caseId }: { resp: CaseResponse; caseId: number }) {
         </span>
         <button
           className="govuk-link govuk-body-s"
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
           onClick={() => setExpanded(v => !v)}
         >
           {expanded ? "Collapse" : "Expand"}
@@ -199,7 +198,7 @@ export default function CaseResponsesPanel({ caseId, responses, emailTemplates, 
                 >
                   <option value="">Insert template…</option>
                   {emailTemplates
-                    .filter(t => t.type === "response")
+                    .filter(t => t.type === "requester")
                     .map(t => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}

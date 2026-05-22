@@ -392,6 +392,16 @@
   margin-top: 12px;
 }
 
+/* ─── Buttons styled as GDS links ───────────────────────────────────────── */
+/* Allows <button class="govuk-link"> without per-element inline style resets */
+button.govuk-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
 /* ─── Rich text editor (TipTap) ─────────────────────────────────────────── */
 
 .tiptap {

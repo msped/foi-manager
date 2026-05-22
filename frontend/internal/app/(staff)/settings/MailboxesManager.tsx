@@ -86,10 +86,10 @@ function MailboxRow({ m, onDelete, onUpdate }: {
       <td className="govuk-table__cell govuk-body-s">{m.name}</td>
       <td className="govuk-table__cell govuk-body-s foi-mono">{m.email}</td>
       <td className="govuk-table__cell" style={{ whiteSpace: "nowrap" }}>
-        <button className="govuk-link govuk-body-s" style={{ background: "none", border: "none", cursor: "pointer", marginRight: 12 }} onClick={() => setEditing(true)}>
+        <button className="govuk-link govuk-body-s" style={{ marginRight: 12 }} onClick={() => setEditing(true)}>
           Edit
         </button>
-        <button className="govuk-link govuk-body-s" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--govuk-error-colour)" }} onClick={handleDelete} disabled={isPending}>
+        <button className="govuk-link govuk-body-s govuk-link--no-visited-state" style={{ color: "var(--govuk-error-colour)" }} onClick={handleDelete} disabled={isPending}>
           Delete
         </button>
       </td>

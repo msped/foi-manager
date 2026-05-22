@@ -68,8 +68,8 @@ function UserRow({ u, currentUserId, onUpdate }: {
               <option value="assignee">Assignee</option>
             </select>
             <button
-              className="govuk-link govuk-body-s"
-              style={{ background: "none", border: "none", cursor: "pointer", color: u.is_active ? "var(--govuk-error-colour)" : "#1d70b8" }}
+              className="govuk-link govuk-body-s govuk-link--no-visited-state"
+              style={{ color: u.is_active ? "var(--govuk-error-colour)" : "#1d70b8" }}
               onClick={handleToggleActive}
               disabled={isPending}
             >

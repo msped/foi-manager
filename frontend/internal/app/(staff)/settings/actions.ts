@@ -89,7 +89,7 @@ export async function deleteMailboxAction(id: number): Promise<{ error?: string 
 }
 
 export async function createEmailTemplateAction(
-  body: { name: string; type: "email" | "response"; description: string; subject: string; body: string },
+  body: { name: string; type: "consultation" | "requester"; description: string; subject: string; body: string },
 ): Promise<{ data?: EmailTemplate; error?: string }> {
   try {
     const { data } = await djangoClient.post<EmailTemplate>("/email-templates/", body);
@@ -102,7 +102,7 @@ export async function createEmailTemplateAction(
 
 export async function updateEmailTemplateAction(
   id: number,
-  body: Partial<{ name: string; type: "email" | "response"; description: string; subject: string; body: string }>,
+  body: Partial<{ name: string; type: "consultation" | "requester"; description: string; subject: string; body: string }>,
 ): Promise<{ error?: string }> {
   try {
     await djangoClient.patch(`/email-templates/${id}/`, body);

@@ -18,7 +18,7 @@ def _base_context(case) -> dict:
 
 def send_acknowledgement(case):
     try:
-        template = EmailTemplate.objects.get(name='acknowledgement', type=EmailTemplate.Type.EMAIL)
+        template = EmailTemplate.objects.get(name__iexact='acknowledgement', type=EmailTemplate.Type.REQUESTER)
     except EmailTemplate.DoesNotExist:
         return
 
@@ -42,7 +42,7 @@ def send_consultation_notification(consultation):
 
     try:
         template = EmailTemplate.objects.get(
-            name='consultation_notification', type=EmailTemplate.Type.EMAIL
+            name__iexact='consultation_notification', type=EmailTemplate.Type.CONSULTATION
         )
     except EmailTemplate.DoesNotExist:
         return
@@ -76,7 +76,7 @@ def send_consultation_message_notification(message):
 
     try:
         template = EmailTemplate.objects.get(
-            name='consultation_message', type=EmailTemplate.Type.EMAIL
+            name__iexact='consultation_message', type=EmailTemplate.Type.CONSULTATION
         )
     except EmailTemplate.DoesNotExist:
         return
@@ -106,7 +106,7 @@ def send_case_response(case_response):
 
     try:
         template = EmailTemplate.objects.get(
-            name='response_sent', type=EmailTemplate.Type.EMAIL
+            name__iexact='response_sent', type=EmailTemplate.Type.REQUESTER
         )
     except EmailTemplate.DoesNotExist:
         return

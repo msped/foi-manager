@@ -213,8 +213,8 @@ class Mailbox(models.Model):
 
 class EmailTemplate(models.Model):
     class Type(models.TextChoices):
-        EMAIL = 'email', 'Email'
-        RESPONSE = 'response', 'Response Template'
+        CONSULTATION = 'consultation', 'Consultation'
+        REQUESTER = 'requester', 'Requester'
 
     name = models.CharField(max_length=200, unique=True)
     type = models.CharField(max_length=20, choices=Type.choices)

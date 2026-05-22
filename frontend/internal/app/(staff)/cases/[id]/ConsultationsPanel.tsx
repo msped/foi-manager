@@ -74,7 +74,6 @@ function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number })
         )}
         <button
           className="govuk-link govuk-body-s"
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
           onClick={() => setExpanded(v => !v)}
         >
           {expanded ? "Collapse" : "Expand"}

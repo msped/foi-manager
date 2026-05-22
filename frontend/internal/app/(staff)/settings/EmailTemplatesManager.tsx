@@ -57,15 +57,17 @@ function TemplateRow({ t, onDelete, onUpdate }: {
   return (
     <div style={{ borderBottom: "1px solid var(--govuk-border-colour)", paddingBottom: 12, marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <Tag colour={t.type === "email" ? "blue" : "purple"}>{t.type}</Tag>
+        <Tag colour={t.type === "consultation" ? "blue" : "purple"}>
+          {t.type === "consultation" ? "Consultation" : "Requester"}
+        </Tag>
         <span className="govuk-body-s" style={{ fontWeight: 600, flex: 1 }}>{t.name}</span>
-        <button className="govuk-link govuk-body-s" style={{ background: "none", border: "none", cursor: "pointer", marginRight: 8 }} onClick={() => setExpanded(v => !v)}>
+        <button className="govuk-link govuk-body-s" onClick={() => setExpanded(v => !v)}>
           {expanded ? "Hide" : "View"}
         </button>
-        <button className="govuk-link govuk-body-s" style={{ background: "none", border: "none", cursor: "pointer", marginRight: 8 }} onClick={() => { setExpanded(true); setEditing(true); }}>
+        <button className="govuk-link govuk-body-s" onClick={() => { setExpanded(true); setEditing(true); }}>
           Edit
         </button>
-        <button className="govuk-link govuk-body-s" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--govuk-error-colour)" }} onClick={handleDelete} disabled={isPending}>
+        <button className="govuk-link govuk-body-s govuk-link--no-visited-state" style={{ color: "var(--govuk-error-colour)" }} onClick={handleDelete} disabled={isPending}>
           Delete
         </button>
       </div>
@@ -76,7 +78,7 @@ function TemplateRow({ t, onDelete, onUpdate }: {
 
       {expanded && !editing && (
         <div style={{ marginTop: 10, padding: 12, background: "var(--govuk-template-background-colour)", borderLeft: "3px solid var(--govuk-border-colour)" }}>
-          {t.type === "email" && t.subject && (
+          {t.type === "consultation" && t.subject && (
             <div style={{ marginBottom: 8 }}>
               <span className="govuk-body-s" style={{ fontWeight: 600 }}>Subject: </span>
               <span className="govuk-body-s foi-mono">{t.subject}</span>
@@ -95,11 +97,9 @@ function TemplateRow({ t, onDelete, onUpdate }: {
           <FormField label="Description" hint="Optional." htmlFor={`tpl-desc-${t.id}`}>
             <input id={`tpl-desc-${t.id}`} className="govuk-input" value={description} onChange={e => setDescription(e.target.value)} />
           </FormField>
-          {t.type === "email" && (
-            <FormField label="Subject" htmlFor={`tpl-subject-${t.id}`}>
-              <input id={`tpl-subject-${t.id}`} className="govuk-input" value={subject} onChange={e => setSubject(e.target.value)} />
-            </FormField>
-          )}
+          <FormField label="Subject" htmlFor={`tpl-subject-${t.id}`}>
+            <input id={`tpl-subject-${t.id}`} className="govuk-input" value={subject} onChange={e => setSubject(e.target.value)} />
+          </FormField>
           <FormField label="Body" htmlFor={`tpl-body-${t.id}`}>
             <RichTextEditor value={body} onChange={setBody} variables={VARIABLES} minHeight={180} />
           </FormField>
@@ -116,7 +116,7 @@ function TemplateRow({ t, onDelete, onUpdate }: {
 export default function EmailTemplatesManager({ initial }: Props) {
   const [templates, setTemplates] = useState(initial);
   const [showAdd, setShowAdd] = useState(false);
-  const [type, setType] = useState<"email" | "response">("email");
+  const [type, setType] = useState<"consultation" | "requester">("requester");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("");
@@ -138,13 +138,13 @@ export default function EmailTemplatesManager({ initial }: Props) {
     });
   }
 
-  const emailTemplates = templates.filter(t => t.type === "email");
-  const responseTemplates = templates.filter(t => t.type === "response");
+  const consultationTemplates = templates.filter(t => t.type === "consultation");
+  const requesterTemplates = templates.filter(t => t.type === "requester");
 
   return (
     <div className="foi-card" style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h2 className="govuk-heading-m" style={{ marginBottom: 0 }}>Email & response templates</h2>
+        <h2 className="govuk-heading-m" style={{ marginBottom: 0 }}>Templates</h2>
         {!showAdd && (
           <Button variant="secondary" size="small" onClick={() => setShowAdd(true)}>
             Add template
@@ -153,15 +153,15 @@ export default function EmailTemplatesManager({ initial }: Props) {
       </div>
 
       <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
-        <strong>Email templates</strong> are used for outbound emails (acknowledgements, consultations).
-        {" "}<strong>Response templates</strong> are injected into response drafts.
+        <strong>Requester templates</strong> are sent to the person who made the FOI request — acknowledgements, clarification requests, and final responses.
+        {" "}<strong>Consultation templates</strong> are used internally when messaging assignees or departments.
         {" "}Use <code className="foi-mono">{`{{variable}}`}</code> for substitutions.
       </p>
 
-      {emailTemplates.length > 0 && (
+      {requesterTemplates.length > 0 && (
         <>
-          <h3 className="govuk-heading-s" style={{ marginBottom: 8 }}>Email templates</h3>
-          {emailTemplates.map(t => (
+          <h3 className="govuk-heading-s" style={{ marginBottom: 8 }}>Requester templates</h3>
+          {requesterTemplates.map(t => (
             <TemplateRow
               key={t.id}
               t={t}
@@ -172,10 +172,10 @@ export default function EmailTemplatesManager({ initial }: Props) {
         </>
       )}
 
-      {responseTemplates.length > 0 && (
+      {consultationTemplates.length > 0 && (
         <>
-          <h3 className="govuk-heading-s" style={{ marginBottom: 8, marginTop: emailTemplates.length > 0 ? 16 : 0 }}>Response templates</h3>
-          {responseTemplates.map(t => (
+          <h3 className="govuk-heading-s" style={{ marginBottom: 8, marginTop: requesterTemplates.length > 0 ? 16 : 0 }}>Consultation templates</h3>
+          {consultationTemplates.map(t => (
             <TemplateRow
               key={t.id}
               t={t}
@@ -196,9 +196,9 @@ export default function EmailTemplatesManager({ initial }: Props) {
           {error && <p className="govuk-error-message">{error}</p>}
 
           <FormField label="Type" htmlFor="new-tpl-type">
-            <select id="new-tpl-type" className="govuk-select" value={type} onChange={e => setType(e.target.value as "email" | "response")}>
-              <option value="email">Email template</option>
-              <option value="response">Response template</option>
+            <select id="new-tpl-type" className="govuk-select" value={type} onChange={e => setType(e.target.value as "consultation" | "requester")}>
+              <option value="requester">Requester template</option>
+              <option value="consultation">Consultation template</option>
             </select>
           </FormField>
           <FormField label="Name" htmlFor="new-tpl-name">
@@ -207,11 +207,9 @@ export default function EmailTemplatesManager({ initial }: Props) {
           <FormField label="Description" hint="Optional." htmlFor="new-tpl-desc">
             <input id="new-tpl-desc" className="govuk-input" value={description} onChange={e => setDescription(e.target.value)} />
           </FormField>
-          {type === "email" && (
-            <FormField label="Subject" htmlFor="new-tpl-subject">
-              <input id="new-tpl-subject" className="govuk-input" value={subject} onChange={e => setSubject(e.target.value)} />
-            </FormField>
-          )}
+          <FormField label="Subject" htmlFor="new-tpl-subject">
+            <input id="new-tpl-subject" className="govuk-input" value={subject} onChange={e => setSubject(e.target.value)} />
+          </FormField>
           <FormField label="Body" htmlFor="new-tpl-body">
             <RichTextEditor value={body} onChange={setBody} variables={VARIABLES} placeholder="Template body…" minHeight={180} />
           </FormField>
