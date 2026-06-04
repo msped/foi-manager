@@ -1,7 +1,7 @@
 import djangoClient from "./django";
 import type {
-  BankHoliday, CaseConsultation, CaseDetail, CaseListItem, CaseResponse,
-  ConsultationMessage, Department, EmailTemplate, Mailbox, Paginated,
+  AssigneeConsultation, BankHoliday, CaseConsultation, CaseDetail, CaseListItem,
+  CaseResponse, ConsultationMessage, Department, EmailTemplate, Mailbox, Paginated,
 } from "@/lib/types";
 
 export async function listCases(params?: Record<string, string>): Promise<Paginated<CaseListItem>> {
@@ -159,4 +159,14 @@ export async function createBankHoliday(body: { country: string; name: string; d
 
 export async function deleteBankHoliday(id: number): Promise<void> {
   await djangoClient.delete(`/bank-holidays/${id}/`);
+}
+
+export async function listMyConsultations(): Promise<AssigneeConsultation[]> {
+  const { data } = await djangoClient.get<{ results: AssigneeConsultation[] }>("/my-consultations/");
+  return data.results;
+}
+
+export async function getMyConsultation(id: number | string): Promise<AssigneeConsultation> {
+  const { data } = await djangoClient.get<AssigneeConsultation>(`/my-consultations/${id}/`);
+  return data;
 }
