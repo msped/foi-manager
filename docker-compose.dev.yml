@@ -1,4 +1,24 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: no
+    volumes:
+      - mailpit:/data
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+
   db:
     image: pgvector/pgvector:pg16
     environment:
@@ -10,11 +30,6 @@ services:
     ports:
       - "5432:5432"
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
   # ollama:
   #   image: ollama/ollama
   #   volumes:
@@ -24,3 +39,4 @@ services:
 
 volumes:
   postgres_data:
+  mailpit:
