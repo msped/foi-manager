@@ -2,9 +2,8 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 interface Props {
   value: string;
@@ -57,14 +56,17 @@ export default function RichTextEditor({
   minHeight = 160,
   disabled = false,
 }: Props) {
+  const extensions = useMemo(() => [
+    StarterKit.configure({ heading: { levels: [2, 3] } }),
+    Placeholder.configure({ placeholder: placeholder ?? "" }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], []);
+
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ heading: { levels: [2, 3] } }),
-      Underline,
-      Placeholder.configure({ placeholder: placeholder ?? "" }),
-    ],
+    extensions,
     content: value,
     editable: !disabled,
+    immediatelyRender: true,
     onUpdate({ editor }) {
       onChange(editor.getHTML());
     },
@@ -162,7 +164,7 @@ export default function RichTextEditor({
             active={editor.isActive("blockquote")}
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
           >
-            "
+            &ldquo;
           </ToolbarBtn>
           <ToolbarBtn
             title="Clear formatting"
