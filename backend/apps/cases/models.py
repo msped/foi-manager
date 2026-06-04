@@ -245,9 +245,8 @@ class EmailTemplate(models.Model):
 
 class CaseConsultation(models.Model):
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        AWAITING_CLARIFICATION = 'awaiting_clarification', 'Awaiting Clarification'
-        RESPONDED = 'responded', 'Responded'
+        OPEN = 'open', 'Open'
+        CLOSED = 'closed', 'Closed'
         WITHDRAWN = 'withdrawn', 'Withdrawn'
 
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='consultations')
@@ -260,7 +259,7 @@ class CaseConsultation(models.Model):
         on_delete=models.SET_NULL, related_name='consultations',
     )
     scope = models.TextField()
-    status = models.CharField(max_length=30, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.OPEN)
     due_date = models.DateField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
@@ -301,7 +300,9 @@ class ConsultationMessage(models.Model):
 class CaseResponse(models.Model):
     class Status(models.TextChoices):
         DRAFT = 'draft', 'Draft'
+        SENDING = 'sending', 'Sending'
         SENT = 'sent', 'Sent'
+        FAILED = 'failed', 'Failed'
 
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='responses')
     body = models.TextField()
