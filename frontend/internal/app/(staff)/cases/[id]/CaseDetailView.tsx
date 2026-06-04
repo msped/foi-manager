@@ -14,6 +14,27 @@ import {
 } from "./actions";
 import type { ApiUser, CaseDetail, EmailTemplate } from "@/lib/types";
 
+const AUDIT_ACTION_LABEL: Record<string, string> = {
+  acknowledged: "Case acknowledged",
+  status_change: "Status changed",
+  clock_paused: "Clock paused",
+  clock_resumed: "Clock resumed",
+  email_sent: "Email sent",
+  consultation_message_sent: "Consultation message sent",
+};
+
+function fmtAuditAction(action: string, detail: Record<string, unknown>): string {
+  const label = AUDIT_ACTION_LABEL[action] ?? action.replace(/_/g, " ");
+  if (action === "status_change") {
+    return `${label}: ${detail.from} → ${detail.to}`;
+  }
+  if (action === "email_sent") {
+    const type = String(detail.type ?? "").replace(/_/g, " ");
+    return `${label} (${type}) to ${detail.to ?? "unknown"}`;
+  }
+  return label;
+}
+
 const TABS = [
   { id: "overview",      label: "Overview" },
   { id: "consultations", label: "Consultations" },
@@ -21,19 +42,6 @@ const TABS = [
   { id: "audit",         label: "Audit" },
 ];
 
-const STATUSES = [
-  { value: "new",             label: "New" },
-  { value: "acknowledged",    label: "Acknowledged" },
-  { value: "with_department", label: "With department" },
-  { value: "drafting",        label: "Drafting" },
-  { value: "review",          label: "In review" },
-  { value: "with_applicant",  label: "With applicant" },
-  { value: "internal_review", label: "Internal review" },
-  { value: "referred",        label: "Referred" },
-  { value: "published",       label: "Published" },
-  { value: "exempt",          label: "Exempt" },
-  { value: "closed",          label: "Closed" },
-];
 
 interface Props {
   c: CaseDetail;
@@ -46,9 +54,9 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [noteBody, setNoteBody] = useState("");
-  const [showTransition, setShowTransition] = useState(false);
-  const [nextStatus, setNextStatus] = useState(c.status);
   const days = daysUntil(c.statutory_deadline);
+
+  const response_sent = c.responses.find(r => r.status === "sent");
 
   function withAction(fn: () => Promise<{ error: string } | void>) {
     setActionError(null);
@@ -82,7 +90,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
         </div>
         <div className="staff-header-actions">
           <StatusTag status={c.status} />
-          <Button size="small">Open redaction →</Button>
+
         </div>
       </header>
 
@@ -138,14 +146,16 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                         {c.assignee_name ?? <span style={{ color: "var(--govuk-secondary-text-colour)" }}>Unassigned</span>}
                       </dd>
                     </div>
-                    <div className="govuk-summary-list__row">
-                      <dt className="govuk-summary-list__key">Clock</dt>
-                      <dd className="govuk-summary-list__value">
-                        {c.clock_paused
-                          ? <Tag colour="yellow">Paused ({c.clock_paused_days} days)</Tag>
-                          : <Tag colour="green">Running</Tag>}
-                      </dd>
-                    </div>
+                    {c.status !== "closed" && (
+                      <div className="govuk-summary-list__row">
+                        <dt className="govuk-summary-list__key">Clock</dt>
+                        <dd className="govuk-summary-list__value">
+                          {c.clock_paused
+                            ? <Tag colour="yellow">Paused ({c.clock_paused_days} days)</Tag>
+                            : <Tag colour="green">Running</Tag>}
+                        </dd>
+                      </div>
+                    )}
                   </dl>
                 </div>
 
@@ -171,20 +181,22 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                       </div>
                     ))
                   }
-                  <form onSubmit={handleAddNote}>
-                    <textarea
-                      className="govuk-textarea"
-                      rows={2}
-                      placeholder="Add a note…"
-                      aria-label="Internal note"
-                      value={noteBody}
-                      onChange={e => setNoteBody(e.target.value)}
-                      required
-                    />
-                    <Button type="submit" variant="secondary" size="small" disabled={isPending} style={{ marginTop: 8 }}>
-                      Add note
-                    </Button>
-                  </form>
+                  {c.status !== "closed" && (
+                    <form onSubmit={handleAddNote}>
+                      <textarea
+                        className="govuk-textarea"
+                        rows={2}
+                        placeholder="Add a note…"
+                        aria-label="Internal note"
+                        value={noteBody}
+                        onChange={e => setNoteBody(e.target.value)}
+                        required
+                      />
+                      <Button type="submit" variant="secondary" size="small" disabled={isPending} style={{ marginTop: 8 }}>
+                        Add note
+                      </Button>
+                    </form>
+                  )}
                 </div>
               </div>
             )}
@@ -193,6 +205,8 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
               <ConsultationsPanel
                 caseId={c.id}
                 consultations={c.consultations}
+                requestText={c.request_text}
+                isClosed={c.status === "closed"}
               />
             )}
 
@@ -201,6 +215,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                 caseId={c.id}
                 responses={c.responses}
                 emailTemplates={emailTemplates}
+                isClosed={c.status === "closed"}
                 templateVars={{
                   ref: c.ref,
                   requester_name: c.requester_name,
@@ -235,7 +250,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                           {fmtDate(e.timestamp)}
                         </td>
                         <td className="govuk-table__cell govuk-body-s">{e.actor_name ?? "System"}</td>
-                        <td className="govuk-table__cell govuk-body-s">{e.action}</td>
+                        <td className="govuk-table__cell govuk-body-s">{fmtAuditAction(e.action, e.detail)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -258,14 +273,14 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                     {c.acknowledged_at ? fmtDate(c.acknowledged_at) : <Tag colour="grey">Pending</Tag>}
                   </dd>
                 </div>
-                <div className="govuk-summary-list__row">
+                {response_sent ? '' : <div className="govuk-summary-list__row">
                   <dt className="govuk-summary-list__key">Due</dt>
                   <dd className="govuk-summary-list__value"><strong>{fmtDate(c.statutory_deadline)}</strong></dd>
-                </div>
+                </div>}
                 <div className="govuk-summary-list__row">
-                  <dt className="govuk-summary-list__key">Days remaining</dt>
+                  <dt className="govuk-summary-list__key">{c.status === "closed" ? "Response sent" : "Days remaining"}</dt>
                   <dd className="govuk-summary-list__value">
-                    {days !== null ? (
+                    {response_sent ? fmtDate(response_sent.sent_at) : days !== null ? (
                       <Tag colour={days < 0 ? "red" : days <= 5 ? "yellow" : "green"}>
                         {days < 0 ? `${-days}d overdue` : `${days}d`}
                       </Tag>
@@ -307,7 +322,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                     Acknowledge receipt
                   </Button>
                 )}
-                {c.clock_paused ? (
+                {c.status !== "closed" && (c.clock_paused ? (
                   <Button
                     variant="secondary"
                     disabled={isPending}
@@ -323,40 +338,16 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                   >
                     Pause clock
                   </Button>
-                )}
+                ))}
 
-                {!showTransition ? (
-                  <Button variant="secondary" onClick={() => setShowTransition(true)}>
-                    Change status
+                {c.status === "closed" && (
+                  <Button
+                    variant="secondary"
+                    disabled={isPending}
+                    onClick={() => withAction(() => transitionCaseAction(c.id, "internal_review"))}
+                  >
+                    Start internal review
                   </Button>
-                ) : (
-                  <div>
-                    <select
-                      className="govuk-select"
-                      value={nextStatus}
-                      onChange={e => setNextStatus(e.target.value as typeof c.status)}
-                      style={{ width: "100%", marginBottom: 8 }}
-                    >
-                      {STATUSES.map(s => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
-                    </select>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <Button
-                        size="small"
-                        disabled={isPending || nextStatus === c.status}
-                        onClick={() => {
-                          withAction(() => transitionCaseAction(c.id, nextStatus));
-                          setShowTransition(false);
-                        }}
-                      >
-                        Apply
-                      </Button>
-                      <Button variant="secondary" size="small" onClick={() => setShowTransition(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
                 )}
               </div>
             </div>

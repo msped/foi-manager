@@ -8,31 +8,31 @@ import RichTextEditor from "@/components/ui/RichTextEditor";
 import RecipientSearch, { type RecipientResult } from "@/components/ui/RecipientSearch";
 import { fmtDate } from "@/lib/utils";
 import {
-  sendConsultation, withdrawConsultation,
+  sendConsultation, withdrawConsultation, closeConsultation,
   sendConsultationMessageAction,
 } from "./actions";
 import type { CaseConsultation } from "@/lib/types";
 
-const STATUS_COLOUR: Record<string, "yellow" | "green" | "grey" | "orange"> = {
-  pending: "yellow",
-  awaiting_clarification: "orange",
-  responded: "green",
+const STATUS_COLOUR: Record<string, "yellow" | "green" | "grey"> = {
+  open: "yellow",
+  closed: "green",
   withdrawn: "grey",
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "Pending",
-  awaiting_clarification: "Awaiting clarification",
-  responded: "Responded",
+  open: "Open",
+  closed: "Closed",
   withdrawn: "Withdrawn",
 };
 
 interface Props {
   caseId: number;
   consultations: CaseConsultation[];
+  requestText: string;
+  isClosed?: boolean;
 }
 
-function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number }) {
+function ConsultationRow({ c, caseId, isClosed }: { c: CaseConsultation; caseId: number; isClosed?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +41,13 @@ function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number })
   function handleWithdraw() {
     startTransition(async () => {
       const result = await withdrawConsultation(caseId, c.id);
+      if (result?.error) setError(result.error);
+    });
+  }
+
+  function handleClose() {
+    startTransition(async () => {
+      const result = await closeConsultation(caseId, c.id);
       if (result?.error) setError(result.error);
     });
   }
@@ -60,12 +67,18 @@ function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number })
       ? `${c.mailbox_name} <${c.mailbox_email}>`
       : "Unknown recipient";
 
+  const lastMessage = c.messages.at(-1);
+  const hasAssigneeReply = c.status === "open" && lastMessage?.author_role === "assignee";
+
   return (
     <div className="foi-card">
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <Tag colour={STATUS_COLOUR[c.status] ?? "grey"}>
           {STATUS_LABEL[c.status] ?? c.status}
         </Tag>
+        {hasAssigneeReply && (
+          <Tag colour="green">Reply received</Tag>
+        )}
         <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{recipientLabel}</span>
         {c.due_date && (
           <span className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
@@ -100,7 +113,7 @@ function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number })
 
           {error && <p className="govuk-error-message">{error}</p>}
 
-          {c.status !== "withdrawn" && c.assignee && (
+          {c.status === "open" && !isClosed && c.assignee && (
             <form onSubmit={handleSendMessage} style={{ marginBottom: 10 }}>
               <FormField label="Send message" htmlFor={`msg-${c.id}`}>
                 <RichTextEditor
@@ -119,6 +132,15 @@ function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number })
                   variant="secondary"
                   size="small"
                   disabled={isPending}
+                  onClick={handleClose}
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  variant="warning"
+                  size="small"
+                  disabled={isPending}
                   onClick={handleWithdraw}
                 >
                   Withdraw
@@ -127,16 +149,27 @@ function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number })
             </form>
           )}
 
-          {c.status !== "withdrawn" && !c.assignee && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="small"
-              disabled={isPending}
-              onClick={handleWithdraw}
-            >
-              Withdraw
-            </Button>
+          {c.status === "open" && !isClosed && !c.assignee && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                disabled={isPending}
+                onClick={handleClose}
+              >
+                Close
+              </Button>
+              <Button
+                type="button"
+                variant="warning"
+                size="small"
+                disabled={isPending}
+                onClick={handleWithdraw}
+              >
+                Withdraw
+              </Button>
+            </div>
           )}
         </div>
       )}
@@ -144,12 +177,12 @@ function ConsultationRow({ c, caseId }: { c: CaseConsultation; caseId: number })
   );
 }
 
-export default function ConsultationsPanel({ caseId, consultations }: Readonly<Props>) {
+export default function ConsultationsPanel({ caseId, consultations, requestText, isClosed }: Readonly<Props>) {
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [recipient, setRecipient] = useState<RecipientResult | null>(null);
-  const [scope, setScope] = useState("");
+  const [scope, setScope] = useState(requestText);
   const [dueDate, setDueDate] = useState("");
 
   function handleSend(e: React.FormEvent<HTMLFormElement>) {
@@ -170,7 +203,7 @@ export default function ConsultationsPanel({ caseId, consultations }: Readonly<P
         setShowForm(false);
         setError(null);
         setRecipient(null);
-        setScope("");
+        setScope(requestText);
         setDueDate("");
       }
     });
@@ -182,7 +215,7 @@ export default function ConsultationsPanel({ caseId, consultations }: Readonly<P
     <div className="foi-col">
       <div className="foi-spread">
         <h2 className="govuk-heading-m" style={{ marginBottom: 0 }}>Consultations</h2>
-        {!showForm && (
+        {!showForm && !isClosed && (
           <Button variant="secondary" size="small" onClick={() => setShowForm(true)}>
             Send consultation →
           </Button>
@@ -198,7 +231,7 @@ export default function ConsultationsPanel({ caseId, consultations }: Readonly<P
       )}
 
       {active.map(c => (
-        <ConsultationRow key={c.id} c={c} caseId={caseId} />
+        <ConsultationRow key={c.id} c={c} caseId={caseId} isClosed={isClosed} />
       ))}
 
       {showForm && (
@@ -213,7 +246,7 @@ export default function ConsultationsPanel({ caseId, consultations }: Readonly<P
             <RecipientSearch onSelect={setRecipient} />
           </FormField>
 
-          <FormField label="Scope" hint="What specifically do you need this party to respond to?" htmlFor="cons-scope">
+          <FormField label="Scope" hint="Edit to the specific part of this request you need a response on." htmlFor="cons-scope">
             <textarea
               id="cons-scope"
               className="govuk-textarea"
@@ -242,7 +275,7 @@ export default function ConsultationsPanel({ caseId, consultations }: Readonly<P
               type="button"
               variant="secondary"
               size="small"
-              onClick={() => { setShowForm(false); setError(null); setRecipient(null); setScope(""); setDueDate(""); }}
+              onClick={() => { setShowForm(false); setError(null); setRecipient(null); setScope(requestText); setDueDate(""); }}
             >
               Cancel
             </Button>

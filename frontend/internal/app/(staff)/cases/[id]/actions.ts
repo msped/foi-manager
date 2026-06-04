@@ -84,6 +84,18 @@ export async function withdrawConsultation(
   }
 }
 
+export async function closeConsultation(
+  caseId: number,
+  consultationId: number,
+): Promise<{ error: string } | void> {
+  try {
+    await updateConsultation(caseId, consultationId, { status: "closed" });
+    revalidatePath(`/cases/${caseId}`);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 export async function addCaseNote(
   caseId: number,
   body: string,
