@@ -112,6 +112,8 @@ class CaseConsultationSerializer(serializers.ModelSerializer):
         return name or obj.created_by.email
 
     def validate(self, attrs):
+        if self.instance:
+            return attrs
         if attrs.get('assignee') and attrs.get('mailbox'):
             raise serializers.ValidationError('A consultation can have an assignee or a mailbox, not both.')
         if not attrs.get('assignee') and not attrs.get('mailbox'):
@@ -130,6 +132,18 @@ class CaseConsultationSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
             'assignee_name', 'mailbox_name', 'mailbox_email', 'created_by_name',
         ]
+
+
+class AssigneeConsultationSerializer(serializers.ModelSerializer):
+    """Read-only serializer for the assignee's view of their consultations."""
+    case_ref = serializers.CharField(source='case.ref', read_only=True)
+    case_request_text = serializers.CharField(source='case.request_text', read_only=True)
+    messages = ConsultationMessageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CaseConsultation
+        fields = ['id', 'case_ref', 'case_request_text', 'scope', 'status', 'created_at', 'messages']
+        read_only_fields = fields
 
 
 class CaseResponseSerializer(serializers.ModelSerializer):

@@ -6,11 +6,12 @@ from .views import (
 )
 from .views_notes import CaseNoteViewSet
 from .views_exemptions import CaseExemptionViewSet
-from .views_consultations import CaseConsultationViewSet, ConsultationMessageViewSet
+from .views_consultations import CaseConsultationViewSet, ConsultationMessageViewSet, MyConsultationViewSet
 from .views_responses import CaseResponseViewSet
 
 router = DefaultRouter()
 router.register(r'cases', CaseViewSet, basename='case')
+router.register(r'my-consultations', MyConsultationViewSet, basename='my-consultation')
 router.register(r'departments', DepartmentViewSet, basename='department')
 router.register(r'requester-categories', RequesterCategoryViewSet, basename='requester-category')
 router.register(r'bank-holidays', BankHolidayViewSet, basename='bank-holiday')

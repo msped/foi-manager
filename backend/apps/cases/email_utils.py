@@ -1,7 +1,11 @@
 from django.conf import settings
 from django.core.mail import EmailMessage
 
-from .models import EmailTemplate
+from .models import CaseAuditEvent, EmailTemplate
+
+
+def _audit(case, action: str, detail: dict):
+    CaseAuditEvent.objects.create(case=case, actor=None, action=action, detail=detail)
 
 
 def _base_context(case) -> dict:
@@ -34,6 +38,7 @@ def send_acknowledgement(case):
     )
     msg.content_subtype = 'html'
     msg.send(fail_silently=False)
+    _audit(case, 'email_sent', {'type': 'acknowledgement', 'to': case.requester_email})
 
 
 def send_consultation_notification(consultation):
@@ -66,6 +71,11 @@ def send_consultation_notification(consultation):
     )
     msg.content_subtype = 'html'
     msg.send(fail_silently=False)
+    _audit(case, 'email_sent', {
+        'type': 'consultation_notification',
+        'to': consultation.assignee.email,
+        'consultation_id': consultation.pk,
+    })
 
 
 def send_consultation_message_notification(message):
@@ -99,30 +109,26 @@ def send_consultation_message_notification(message):
     )
     msg.content_subtype = 'html'
     msg.send(fail_silently=False)
+    _audit(case, 'email_sent', {
+        'type': 'consultation_message',
+        'to': assignee.email,
+        'consultation_id': consultation.pk,
+    })
 
 
 def send_case_response(case_response):
     case = case_response.case
+    subject = f'Freedom of Information Response — {case.ref}'
 
-    try:
-        template = EmailTemplate.objects.get(
-            name__iexact='response_sent', type=EmailTemplate.Type.REQUESTER
-        )
-    except EmailTemplate.DoesNotExist:
-        return
-
-    context = _base_context(case)
-    subject = template.render_subject(context) or f'FOI Response — {case.ref}'
-
-    rendered_body = template.render({**context, 'response_body': case_response.body})
-    case_response.rendered_body = rendered_body
+    case_response.rendered_body = case_response.body
     case_response.save(update_fields=['rendered_body'])
 
     msg = EmailMessage(
         subject=subject,
-        body=rendered_body,
+        body=case_response.body,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[case.requester_email],
     )
     msg.content_subtype = 'html'
     msg.send(fail_silently=False)
+    _audit(case, 'email_sent', {'type': 'response', 'to': case.requester_email})
