@@ -7,7 +7,6 @@ export type CaseStatus =
   | "with_applicant"
   | "internal_review"
   | "referred"
-  | "published"
   | "exempt"
   | "closed";
 
@@ -182,4 +181,70 @@ export interface Paginated<T> {
   next: string | null;
   previous: string | null;
   results: T[];
+}
+
+// --- Disclosure log ---
+
+export interface DisclosureLogExemptionBrief {
+  id: number;
+  code: string;
+  code_display: string;
+}
+
+export interface DisclosureLogAttachmentBrief {
+  id: number;
+  original_filename: string;
+  is_public: boolean;
+}
+
+export interface DisclosureLogEntryDraft {
+  id: number;
+  title: string;
+  summary: string;
+  response_text: string;
+  date_received: string;
+  date_responded: string;
+  exemptions: number[];
+  attachments: number[];
+  is_published: boolean;
+  published_at: string | null;
+}
+
+export interface QueueSentResponse {
+  id: number;
+  rendered_body: string;
+  sent_at: string | null;
+}
+
+export interface PublishQueueItem {
+  id: number;
+  ref: string;
+  summary: string;
+  request_text: string;
+  submitted_at: string;
+  sent_response: QueueSentResponse | null;
+  exemptions: DisclosureLogExemptionBrief[];
+  documents: DisclosureLogAttachmentBrief[];
+  disclosure_log_entry: DisclosureLogEntryDraft | null;
+}
+
+export interface DisclosureLogEntry {
+  id: number;
+  case: number;
+  case_ref: string;
+  title: string;
+  summary: string;
+  response_text: string;
+  date_received: string;
+  date_responded: string;
+  exemptions: number[];
+  exemptions_detail: DisclosureLogExemptionBrief[];
+  attachments: number[];
+  attachments_detail: DisclosureLogAttachmentBrief[];
+  is_published: boolean;
+  published_by: number | null;
+  published_by_name: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
 }

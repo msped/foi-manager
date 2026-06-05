@@ -33,7 +33,6 @@ export const STATUS_META: Record<CaseStatus, StatusMeta> = {
   with_applicant:  { label: "With applicant",   govukColour: "orange" },
   internal_review: { label: "Internal review",  govukColour: "purple" },
   referred:        { label: "Referred to ICO",  govukColour: "pink" },
-  published:       { label: "Published",        govukColour: "green" },
   exempt:          { label: "Refused",          govukColour: "red" },
   closed:          { label: "Closed",           govukColour: "grey" },
 };
