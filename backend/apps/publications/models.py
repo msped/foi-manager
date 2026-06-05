@@ -32,3 +32,48 @@ class PublicationSchemeEntry(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class DisclosureLogEntry(models.Model):
+    case = models.OneToOneField(
+        'cases.Case',
+        on_delete=models.CASCADE,
+        related_name='disclosure_log_entry',
+    )
+    title = models.CharField(max_length=500)
+    summary = models.TextField()
+    response_text = models.TextField()
+    date_received = models.DateField()
+    date_responded = models.DateField()
+    exemptions = models.ManyToManyField(
+        'cases.CaseExemption',
+        blank=True,
+        related_name='disclosure_log_entries',
+    )
+    attachments = models.ManyToManyField(
+        'documents.CaseDocument',
+        blank=True,
+        related_name='disclosure_log_entries',
+    )
+    is_published = models.BooleanField(default=False)
+    published_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='published_disclosure_entries',
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='created_disclosure_entries',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date_responded']
+
+    def __str__(self):
+        return f'{self.case.ref} — {self.title}'
