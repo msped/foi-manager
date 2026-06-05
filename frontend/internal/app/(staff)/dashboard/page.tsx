@@ -10,15 +10,15 @@ import { fmtDate, daysUntil } from "@/lib/utils";
 export const metadata: Metadata = { title: "Dashboard — FOI Manager" };
 
 export default async function DashboardPage() {
-  const [user, { results: cases, count }] = await Promise.all([
+  const [user, { results: cases, count: totalCount }, { count: openCount }] = await Promise.all([
     getMe(),
     listCases(),
+    listCases({ exclude_status: "closed,published,exempt" }),
   ]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  const openCases  = cases.filter(c => c.status !== "published" && c.status !== "closed" && c.status !== "exempt");
   const overdue    = cases.filter(c => c.is_overdue);
   const inReview   = cases.filter(c => c.status === "review");
   const dueThisWeek = cases.filter(c => {
@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   });
 
   const STATS = [
-    { label: "Open cases",       value: String(count),          delta: `${openCases.length} on first page`, dir: "neutral" },
+    { label: "Open cases",       value: String(openCount),      delta: "active FOI requests",               dir: "neutral" },
     { label: "Due this week",    value: String(dueThisWeek.length), delta: "statutory deadline", dir: dueThisWeek.length > 5 ? "down" : "neutral" },
     { label: "Awaiting review",  value: String(inReview.length),   delta: "cases in review",   dir: "neutral" },
     { label: "Overdue",          value: String(overdue.length),    delta: overdue.length === 0 ? "none — on track" : "need attention", dir: overdue.length > 0 ? "down" : "up" },
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
           <div>
             <div className="foi-spread" style={{ marginBottom: 12 }}>
               <h2 className="govuk-heading-m" style={{ marginBottom: 0 }}>Recent cases</h2>
-              <Link href="/cases" className="govuk-link">View all {count} →</Link>
+              <Link href="/cases" className="govuk-link">View all {totalCount} →</Link>
             </div>
 
             <div className="foi-card" style={{ padding: 0 }}>
@@ -148,26 +148,27 @@ export default async function DashboardPage() {
 
             <div className="foi-card">
               <h3 className="govuk-heading-s">Upcoming deadlines</h3>
-              {cases
-                .filter(c => c.statutory_deadline)
-                .sort((a, b) => new Date(a.statutory_deadline!).getTime() - new Date(b.statutory_deadline!).getTime())
-                .slice(0, 5)
-                .map(c => {
-                  const d = daysUntil(c.statutory_deadline);
-                  return (
-                    <div key={c.id} style={{ display: "flex", justifyContent: "space-between", paddingBottom: 8, borderBottom: "1px solid var(--govuk-border-colour)", marginBottom: 8 }}>
-                      <Link href={`/cases/${c.id}`} className="govuk-link foi-mono" style={{ fontSize: 13 }}>
-                        {c.ref}
-                      </Link>
-                      <span style={{ fontSize: 13, color: d !== null && d <= 5 ? "var(--govuk-error-colour)" : "var(--govuk-secondary-text-colour)" }}>
-                        {fmtDate(c.statutory_deadline)}
-                      </span>
-                    </div>
-                  );
-                })}
-              {cases.filter(c => c.statutory_deadline).length === 0 && (
-                <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>No upcoming deadlines.</p>
-              )}
+              {(() => {
+                const upcoming = cases
+                  .filter(c => c.statutory_deadline && !["closed", "published", "exempt"].includes(c.status))
+                  .sort((a, b) => new Date(a.statutory_deadline!).getTime() - new Date(b.statutory_deadline!).getTime())
+                  .slice(0, 5);
+                return upcoming.length === 0
+                  ? <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>No upcoming deadlines.</p>
+                  : upcoming.map(c => {
+                      const d = daysUntil(c.statutory_deadline);
+                      return (
+                        <div key={c.id} style={{ display: "flex", justifyContent: "space-between", paddingBottom: 8, borderBottom: "1px solid var(--govuk-border-colour)", marginBottom: 8 }}>
+                          <Link href={`/cases/${c.id}`} className="govuk-link foi-mono" style={{ fontSize: 13 }}>
+                            {c.ref}
+                          </Link>
+                          <span style={{ fontSize: 13, color: d !== null && d <= 5 ? "var(--govuk-error-colour)" : "var(--govuk-secondary-text-colour)" }}>
+                            {fmtDate(c.statutory_deadline)}
+                          </span>
+                        </div>
+                      );
+                    });
+              })()}
             </div>
           </aside>
         </div>

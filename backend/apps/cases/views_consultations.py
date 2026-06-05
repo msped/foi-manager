@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from apps.users.models import Notification
 from .models import Case, CaseConsultation, ConsultationMessage
 from .permissions import IsFOITeam
-from .serializers import CaseConsultationSerializer, ConsultationMessageSerializer
+from .serializers import AssigneeConsultationSerializer, CaseConsultationSerializer, ConsultationMessageSerializer
 from .tasks import task_send_consultation_notification, task_send_consultation_message_notification
 
 
@@ -71,6 +71,18 @@ class ConsultationMessageViewSet(
         consultation = self._get_consultation()
         message = serializer.save(consultation=consultation, author=self.request.user)
 
+        from .models import CaseAuditEvent
+        CaseAuditEvent.objects.create(
+            case=consultation.case,
+            actor=self.request.user,
+            action='consultation_message_sent',
+            detail={
+                'consultation_id': consultation.pk,
+                'author': self.request.user.get_full_name() or self.request.user.email,
+                'role': self.request.user.role,
+            },
+        )
+
         if self.request.user.is_foi_team():
             task_send_consultation_message_notification.delay(message.pk)
         else:
@@ -79,6 +91,20 @@ class ConsultationMessageViewSet(
                 f'New message on {consultation.case.ref} consultation from {self.request.user.get_full_name() or self.request.user.email}',
                 link=f'/cases/{consultation.case_id}',
             )
+
+
+class MyConsultationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Assignee-facing: list and retrieve consultations assigned to the current user."""
+    serializer_class = AssigneeConsultationSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get']
+
+    def get_queryset(self):
+        return CaseConsultation.objects.filter(
+            assignee=self.request.user,
+        ).exclude(
+            status=CaseConsultation.Status.WITHDRAWN,
+        ).select_related('case').prefetch_related('messages__author').order_by('-created_at')
 
 
 def _notify_foi_team(consultation, message: str, link: str = ''):

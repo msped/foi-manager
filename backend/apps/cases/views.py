@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from django.utils.timezone import now
 
 from .models import BankHoliday, Case, Department, EmailTemplate, Mailbox, RequesterCategory
 from .permissions import IsFOITeam
@@ -49,9 +50,18 @@ class CaseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Case.objects.select_related('created_by')
-        status_filter = self.request.query_params.get('status')
-        if status_filter:
+        params = self.request.query_params
+        if status_filter := params.get('status'):
             qs = qs.filter(status=status_filter)
+        if exclude_status := params.get('exclude_status'):
+            qs = qs.exclude(status__in=[s.strip() for s in exclude_status.split(',')])
+        if assignee := params.get('assignee'):
+            qs = qs.filter(assignee=assignee)
+        if params.get('is_overdue') == 'true':
+            terminal = [Case.Status.PUBLISHED, Case.Status.EXEMPT, Case.Status.CLOSED]
+            qs = qs.filter(
+                statutory_deadline__lt=now().date()
+            ).exclude(status__in=terminal)
         return qs
 
     def get_serializer_class(self):

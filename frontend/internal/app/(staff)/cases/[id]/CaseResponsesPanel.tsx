@@ -37,10 +37,11 @@ interface Props {
   responses: CaseResponse[];
   emailTemplates: EmailTemplate[];
   templateVars: TemplateVars;
+  isClosed?: boolean;
 }
 
-function ResponseRow({ resp, caseId }: { resp: CaseResponse; caseId: number }) {
-  const [expanded, setExpanded] = useState(resp.status === "draft");
+function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: number; isClosed?: boolean }) {
+  const [expanded, setExpanded] = useState(resp.status === "draft" || resp.status === "sending" || resp.status === "failed");
   const [body, setBody] = useState(resp.body);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +71,8 @@ function ResponseRow({ resp, caseId }: { resp: CaseResponse; caseId: number }) {
   return (
     <div style={{ borderBottom: "1px solid var(--govuk-border-colour)", paddingBottom: 12, marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <Tag colour={resp.status === "sent" ? "green" : "yellow"}>
-          {resp.status === "sent" ? "Sent" : "Draft"}
+        <Tag colour={resp.status === "sent" ? "green" : resp.status === "failed" ? "red" : resp.status === "sending" ? "blue" : "yellow"}>
+          {resp.status === "sent" ? "Sent" : resp.status === "failed" ? "Failed" : resp.status === "sending" ? "Sending…" : "Draft"}
         </Tag>
         <span className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", flex: 1 }}>
           {resp.status === "sent" && resp.sent_at
@@ -90,7 +91,17 @@ function ResponseRow({ resp, caseId }: { resp: CaseResponse; caseId: number }) {
       {expanded && (
         <div>
           {error && <p className="govuk-error-message">{error}</p>}
-          {resp.status === "draft" ? (
+          {resp.status === "failed" && (
+            <p className="govuk-error-message" style={{ marginBottom: 8 }}>
+              Sending failed after multiple attempts. Check your email configuration, then try again.
+            </p>
+          )}
+          {resp.status === "sending" && (
+            <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 8 }}>
+              This response is queued for sending — please wait.
+            </p>
+          )}
+          {(resp.status === "draft" || resp.status === "failed") && !isClosed ? (
             <>
               <div style={{ marginBottom: 8 }}>
                 <RichTextEditor value={body} onChange={setBody} minHeight={180} />
@@ -104,7 +115,7 @@ function ResponseRow({ resp, caseId }: { resp: CaseResponse; caseId: number }) {
                     {isPending ? "Saving…" : "Save draft"}
                   </Button>
                   <Button size="small" disabled={isPending} onClick={handleSend}>
-                    Send to requester →
+                    {resp.status === "failed" ? "Retry send →" : "Send to requester →"}
                   </Button>
                 </div>
               </div>
@@ -122,7 +133,7 @@ function ResponseRow({ resp, caseId }: { resp: CaseResponse; caseId: number }) {
   );
 }
 
-export default function CaseResponsesPanel({ caseId, responses, emailTemplates, templateVars }: Props) {
+export default function CaseResponsesPanel({ caseId, responses, emailTemplates, templateVars, isClosed }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -156,7 +167,7 @@ export default function CaseResponsesPanel({ caseId, responses, emailTemplates, 
         <div className="foi-card">
           <h3 className="govuk-heading-s">Sent responses ({sent.length})</h3>
           {sent.map(r => (
-            <ResponseRow key={r.id} resp={r} caseId={caseId} />
+            <ResponseRow key={r.id} resp={r} caseId={caseId} isClosed={isClosed} />
           ))}
         </div>
       )}
@@ -166,7 +177,7 @@ export default function CaseResponsesPanel({ caseId, responses, emailTemplates, 
           <h3 className="govuk-heading-s" style={{ margin: 0 }}>
             {drafts.length > 0 ? `Drafts (${drafts.length})` : "Response drafts"}
           </h3>
-          {!showForm && (
+          {!showForm && !isClosed && (
             <Button variant="secondary" size="small" onClick={() => setShowForm(true)}>
               New draft
             </Button>
@@ -181,7 +192,7 @@ export default function CaseResponsesPanel({ caseId, responses, emailTemplates, 
         )}
 
         {drafts.map(r => (
-          <ResponseRow key={r.id} resp={r} caseId={caseId} />
+          <ResponseRow key={r.id} resp={r} caseId={caseId} isClosed={isClosed} />
         ))}
 
         {showForm && (

@@ -38,7 +38,16 @@ export interface BankHoliday {
   date: string;
 }
 
-export type ConsultationStatus = "pending" | "awaiting_clarification" | "responded" | "withdrawn";
+export type ConsultationStatus = "open" | "closed" | "withdrawn";
+
+export interface AssigneeConsultation {
+  id: number;
+  case_ref: string;
+  scope: string;
+  status: ConsultationStatus;
+  created_at: string;
+  messages: ConsultationMessage[];
+}
 
 export interface ConsultationMessage {
   id: number;
@@ -64,7 +73,7 @@ export interface CaseConsultation {
   messages: ConsultationMessage[];
 }
 
-export type CaseResponseStatus = "draft" | "sent";
+export type CaseResponseStatus = "draft" | "sending" | "sent" | "failed";
 
 export interface CaseResponse {
   id: number;

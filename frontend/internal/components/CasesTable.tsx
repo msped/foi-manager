@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusTag } from "./ui/Tag";
 import { fmtDate, daysUntil } from "@/lib/utils";
@@ -15,34 +16,23 @@ const TABS = [
 
 interface Props {
   cases: CaseListItem[];
-  currentUserId: number;
+  activeTab: string;
 }
 
-export default function CasesTable({ cases, currentUserId }: Props) {
-  const [tab, setTab] = useState("all");
+export default function CasesTable({ cases, activeTab }: Props) {
+  const router = useRouter();
   const [q, setQ] = useState("");
 
-  let filtered = cases;
-  if (tab === "mine")    filtered = filtered.filter(c => c.assignee === currentUserId);
-  if (tab === "review")  filtered = filtered.filter(c => c.status === "review");
-  if (tab === "overdue") filtered = filtered.filter(c => c.is_overdue);
-
-  if (q) {
-    const ql = q.toLowerCase();
-    filtered = filtered.filter(c =>
-      c.ref.toLowerCase().includes(ql) ||
-      c.summary.toLowerCase().includes(ql) ||
-      c.requester_name.toLowerCase().includes(ql)
-    );
-  }
-
-  const tabCount = (id: string) => {
-    if (id === "all")     return cases.length;
-    if (id === "mine")    return cases.filter(c => c.assignee === currentUserId).length;
-    if (id === "review")  return cases.filter(c => c.status === "review").length;
-    if (id === "overdue") return cases.filter(c => c.is_overdue).length;
-    return 0;
-  };
+  const filtered = q
+    ? cases.filter(c => {
+        const ql = q.toLowerCase();
+        return (
+          c.ref.toLowerCase().includes(ql) ||
+          c.summary.toLowerCase().includes(ql) ||
+          c.requester_name.toLowerCase().includes(ql)
+        );
+      })
+    : cases;
 
   return (
     <>
@@ -51,17 +41,11 @@ export default function CasesTable({ cases, currentUserId }: Props) {
           <button
             key={t.id}
             role="tab"
-            aria-selected={tab === t.id}
-            className={`foi-tab-btn${tab === t.id ? " active" : ""}`}
-            onClick={() => setTab(t.id)}
+            aria-selected={activeTab === t.id}
+            className={`foi-tab-btn${activeTab === t.id ? " active" : ""}`}
+            onClick={() => router.push(`/cases?tab=${t.id}`)}
           >
             {t.label}
-            <span
-              className="govuk-tag govuk-tag--grey"
-              style={{ marginLeft: 8, fontSize: 11, verticalAlign: "middle" }}
-            >
-              {tabCount(t.id)}
-            </span>
           </button>
         ))}
       </div>

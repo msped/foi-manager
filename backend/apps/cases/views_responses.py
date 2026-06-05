@@ -34,10 +34,12 @@ class CaseResponseViewSet(
     @action(detail=True, methods=['post'])
     def send(self, request, case_pk=None, pk=None):
         case_response = self.get_object()
-        if case_response.status == CaseResponse.Status.SENT:
+        if case_response.status in (CaseResponse.Status.SENT, CaseResponse.Status.SENDING):
             return Response(
-                {'detail': 'This response has already been sent.'},
+                {'detail': 'This response has already been sent or is currently sending.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        case_response.status = CaseResponse.Status.SENDING
+        case_response.save(update_fields=['status'])
         task_send_case_response.delay(case_response.pk)
         return Response({'detail': 'Response queued for sending.'})

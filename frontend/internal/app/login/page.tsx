@@ -30,7 +30,10 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      const session = await authClient.getSession();
+      const role = (session.data?.user as any)?.foiRole;
+      const dest = role === "assignee" ? "/consultations" : "/dashboard";
+      router.push(dest);
       router.refresh();
     } catch {
       setError("Could not connect to the server. Please try again.");
@@ -116,7 +119,7 @@ export default function LoginPage() {
                 type="button"
                 className="govuk-link"
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit" }}
-                onClick={() => authClient.signIn.oauth2({ providerId: "microsoft", callbackURL: "/dashboard" })}
+                onClick={() => authClient.signIn.oauth2({ providerId: "microsoft", callbackURL: "/auth/role-redirect" })}
               >
                 Sign in with Microsoft
               </button>

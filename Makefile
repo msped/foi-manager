@@ -1,7 +1,7 @@
-.PHONY: dev prod migrate makemigrations createsuperuser shell logs
+.PHONY: dev prod migrate makemigrations createsuperuser shell logs celery
 
 dev:
-	docker compose -f docker-compose.dev.yml up
+	docker compose -f docker-compose.dev.yml up -d
 
 prod:
 	docker compose -f docker-compose.prod.yml up -d
@@ -17,6 +17,9 @@ createsuperuser:
 
 shell:
 	cd backend && uv run python manage.py shell
+
+celery:
+	cd backend && uv run celery -A config worker -l info
 
 logs:
 	docker compose -f docker-compose.dev.yml logs -f

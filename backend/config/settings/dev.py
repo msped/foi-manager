@@ -9,4 +9,4 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3001',
 ]
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
