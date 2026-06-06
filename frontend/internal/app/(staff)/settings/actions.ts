@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import djangoClient from "@/lib/services/django";
-import type { ApiUser, BankHoliday, EmailTemplate, Mailbox } from "@/lib/types";
+import type { ApiUser, BankHoliday, EmailTemplate, Mailbox, UserSearchResult } from "@/lib/types";
 
 export async function createRequesterCategory(name: string): Promise<{ error?: string }> {
   try {
@@ -133,5 +133,14 @@ export async function updateUserAction(
     return { data };
   } catch {
     return { error: "Failed to update user." };
+  }
+}
+
+export async function searchUsersAction(query: string): Promise<{ data?: UserSearchResult[]; error?: string }> {
+  try {
+    const { data } = await djangoClient.get<UserSearchResult[]>(`/users/search/?search=${encodeURIComponent(query)}`);
+    return { data };
+  } catch {
+    return { error: "Search failed." };
   }
 }

@@ -9,7 +9,7 @@ class User(AbstractUser):
         ASSIGNEE = 'assignee', 'Assignee'
 
     email = models.EmailField(unique=True)
-    role = models.CharField(max_length=20, choices=Role.choices, default=Role.FOI_TEAM)
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.ASSIGNEE)
     department = models.CharField(max_length=200, blank=True)
 
     USERNAME_FIELD = 'email'
