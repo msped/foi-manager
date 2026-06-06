@@ -16,8 +16,6 @@ const NAV_MAIN = [
 
 const NAV_LIBRARY = [
   { href: "/disclosure", label: "Disclosure log" },
-  { href: "/templates",  label: "Templates" },
-  { href: "/team",       label: "Team & departments" },
 ];
 
 const NAV_ADMIN = [
