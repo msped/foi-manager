@@ -5,7 +5,10 @@ import {
   createDisclosureLogEntry,
   deleteDisclosureLogEntry,
   publishDisclosureLogEntry,
+  rejectCaseDisclosureLog,
+  rejectDisclosureLogEntry,
   unpublishDisclosureLogEntry,
+  unrejectDisclosureLogEntry,
   updateDisclosureLogEntry,
 } from "@/lib/services/publications";
 import type { DisclosureLogEntry } from "@/lib/types";
@@ -42,11 +45,31 @@ export async function saveEntryAction(data: EntryFormData): Promise<DisclosureLo
 export async function publishEntryAction(id: number): Promise<DisclosureLogEntry> {
   const entry = await publishDisclosureLogEntry(id);
   revalidatePath("/publish");
+  revalidatePath("/disclosure");
   return entry;
 }
 
 export async function unpublishEntryAction(id: number): Promise<DisclosureLogEntry> {
   const entry = await unpublishDisclosureLogEntry(id);
+  revalidatePath("/publish");
+  revalidatePath("/disclosure");
+  return entry;
+}
+
+export async function rejectEntryAction(
+  caseId: number,
+  entryId: number | null,
+  reason: string
+): Promise<DisclosureLogEntry> {
+  const entry = entryId
+    ? await rejectDisclosureLogEntry(entryId, reason)
+    : await rejectCaseDisclosureLog(caseId, reason);
+  revalidatePath("/publish");
+  return entry;
+}
+
+export async function unrejectEntryAction(id: number): Promise<DisclosureLogEntry> {
+  const entry = await unrejectDisclosureLogEntry(id);
   revalidatePath("/publish");
   return entry;
 }
