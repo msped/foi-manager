@@ -49,7 +49,12 @@ class CaseViewSet(viewsets.ModelViewSet):
     serializer_class = CaseDetailSerializer
 
     def get_queryset(self):
-        qs = Case.objects.select_related('created_by')
+        qs = Case.objects.select_related(
+            'created_by',
+            'disclosure_log_entry',
+            'disclosure_log_entry__published_by',
+            'disclosure_log_entry__rejected_by',
+        )
         params = self.request.query_params
         if status_filter := params.get('status'):
             qs = qs.filter(status=status_filter)

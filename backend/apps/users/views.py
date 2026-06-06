@@ -31,7 +31,7 @@ class UserListView(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        return User.objects.all().order_by('first_name', 'last_name', 'email')
+        return User.objects.filter(role=User.Role.FOI_TEAM).order_by('first_name', 'last_name', 'email')
 
 
 class UserUpdateView(generics.UpdateAPIView):

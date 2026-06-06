@@ -7,6 +7,7 @@ import { StatusTag, Tag } from "@/components/ui/Tag";
 import AiPanel from "@/components/ui/AiPanel";
 import ConsultationsPanel from "./ConsultationsPanel";
 import CaseResponsesPanel from "./CaseResponsesPanel";
+import DisclosureLogPanel from "./DisclosureLogPanel";
 import { fmtDate, daysUntil } from "@/lib/utils";
 import {
   acknowledgeCaseAction, addCaseNote, assignCaseAction,
@@ -351,6 +352,10 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                 )}
               </div>
             </div>
+
+            {c.disclosure_log_entry && (
+              <DisclosureLogPanel entry={c.disclosure_log_entry} caseId={c.id} />
+            )}
           </aside>
         </div>
       </div>

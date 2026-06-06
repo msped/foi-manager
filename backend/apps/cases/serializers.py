@@ -191,12 +191,29 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     audit_events = CaseAuditEventSerializer(many=True, read_only=True)
     consultations = CaseConsultationSerializer(many=True, read_only=True)
     responses = CaseResponseSerializer(many=True, read_only=True)
+    disclosure_log_entry = serializers.SerializerMethodField()
 
     def get_assignee_name(self, obj):
         if not obj.assignee:
             return None
         name = f'{obj.assignee.first_name} {obj.assignee.last_name}'.strip()
         return name or obj.assignee.email
+
+    def get_disclosure_log_entry(self, obj):
+        try:
+            entry = obj.disclosure_log_entry
+            return {
+                'id': entry.id,
+                'status': entry.status,
+                'title': entry.title,
+                'rejection_reason': entry.rejection_reason,
+                'published_at': entry.published_at.isoformat() if entry.published_at else None,
+                'published_by_name': entry.published_by.get_full_name() if entry.published_by else None,
+                'rejected_at': entry.rejected_at.isoformat() if entry.rejected_at else None,
+                'rejected_by_name': entry.rejected_by.get_full_name() if entry.rejected_by else None,
+            }
+        except Exception:
+            return None
 
     def validate_assignee(self, value):
         if value is not None and not value.is_foi_team():
@@ -214,11 +231,12 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             'outcome', 'created_at', 'updated_at',
             'assignee', 'assignee_name',
             'notes', 'audit_events', 'consultations', 'responses',
+            'disclosure_log_entry',
         ]
         read_only_fields = [
             'ref', 'status', 'acknowledged_at', 'statutory_deadline',
             'clock_paused', 'clock_paused_days', 'created_at', 'updated_at',
-            'assignee_name',
+            'assignee_name', 'disclosure_log_entry',
         ]
 
 

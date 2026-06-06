@@ -7,7 +7,6 @@ export type CaseStatus =
   | "with_applicant"
   | "internal_review"
   | "referred"
-  | "published"
   | "exempt"
   | "closed";
 
@@ -150,6 +149,17 @@ export interface CaseListItem {
   assignee_name: string | null;
 }
 
+export interface CaseDisclosureLogEntry {
+  id: number;
+  status: "draft" | "published" | "rejected";
+  title: string;
+  rejection_reason: string;
+  published_at: string | null;
+  published_by_name: string | null;
+  rejected_at: string | null;
+  rejected_by_name: string | null;
+}
+
 /** Shape returned by CaseDetailSerializer (nested department, notes, audit) */
 export interface CaseDetail {
   id: number;
@@ -174,6 +184,7 @@ export interface CaseDetail {
   audit_events: CaseAuditEvent[];
   consultations: CaseConsultation[];
   responses: CaseResponse[];
+  disclosure_log_entry: CaseDisclosureLogEntry | null;
 }
 
 /** DRF paginated list response */
@@ -182,4 +193,94 @@ export interface Paginated<T> {
   next: string | null;
   previous: string | null;
   results: T[];
+}
+
+// --- Disclosure log ---
+
+export interface DisclosureLogExemptionBrief {
+  id: number;
+  code: string;
+  code_display: string;
+}
+
+export interface DisclosureLogAttachmentBrief {
+  id: number;
+  original_filename: string;
+  is_public: boolean;
+}
+
+export interface DisclosureLogEntryDraft {
+  id: number;
+  title: string;
+  summary: string;
+  response_text: string;
+  date_received: string;
+  date_responded: string;
+  exemptions: number[];
+  attachments: number[];
+  status: "draft" | "published" | "rejected";
+  published_at: string | null;
+}
+
+export interface QueueSentResponse {
+  id: number;
+  rendered_body: string;
+  sent_at: string | null;
+}
+
+export interface PublishQueueItem {
+  id: number;
+  ref: string;
+  summary: string;
+  request_text: string;
+  submitted_at: string;
+  sent_response: QueueSentResponse | null;
+  exemptions: DisclosureLogExemptionBrief[];
+  documents: DisclosureLogAttachmentBrief[];
+  disclosure_log_entry: DisclosureLogEntryDraft | null;
+}
+
+export interface DisclosureLogEntry {
+  id: number;
+  case: number;
+  case_ref: string;
+  title: string;
+  summary: string;
+  response_text: string;
+  date_received: string;
+  date_responded: string;
+  exemptions: number[];
+  exemptions_detail: DisclosureLogExemptionBrief[];
+  attachments: number[];
+  attachments_detail: DisclosureLogAttachmentBrief[];
+  status: "draft" | "published" | "rejected";
+  published_by: number | null;
+  published_by_name: string | null;
+  published_at: string | null;
+  rejection_reason: string;
+  rejected_by: number | null;
+  rejected_by_name: string | null;
+  rejected_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RejectedEntry {
+  id: number;
+  case_id: number;
+  case_ref: string;
+  title: string;
+  rejection_reason: string;
+  rejected_by_name: string | null;
+  rejected_at: string | null;
+}
+
+export interface DisclosureLogListItem {
+  id: number;
+  case_id: number;
+  case_ref: string;
+  title: string;
+  date_responded: string;
+  published_by_name: string | null;
+  published_at: string | null;
 }

@@ -57,7 +57,6 @@ class Case(models.Model):
         WITH_APPLICANT = 'with_applicant', 'With Applicant'
         INTERNAL_REVIEW = 'internal_review', 'Internal Review'
         REFERRED = 'referred', 'Referred'
-        PUBLISHED = 'published', 'Published'
         EXEMPT = 'exempt', 'Refused / Exempt'
         CLOSED = 'closed', 'Closed'
 
@@ -147,7 +146,7 @@ class Case(models.Model):
         if not self.statutory_deadline:
             return False
         return date.today() > self.statutory_deadline and self.status not in (
-            self.Status.PUBLISHED, self.Status.EXEMPT, self.Status.CLOSED
+            self.Status.EXEMPT, self.Status.CLOSED
         )
 
     def acknowledge(self, actor=None):

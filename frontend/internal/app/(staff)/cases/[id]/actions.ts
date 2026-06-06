@@ -7,6 +7,10 @@ import {
   sendCaseResponse as svcSendCaseResponse, sendConsultationMessage,
   transitionCase, updateConsultation,
 } from "@/lib/services/cases";
+import {
+  unpublishDisclosureLogEntry,
+  unrejectDisclosureLogEntry,
+} from "@/lib/services/publications";
 import djangoClient from "@/lib/services/django";
 import type { CaseNote, CaseResponse } from "@/lib/types";
 
@@ -188,6 +192,33 @@ export async function sendCaseResponseAction(
   try {
     await svcSendCaseResponse(caseId, responseId);
     revalidatePath(`/cases/${caseId}`);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function unpublishCaseEntryAction(
+  entryId: number,
+  caseId: number,
+): Promise<{ error: string } | void> {
+  try {
+    await unpublishDisclosureLogEntry(entryId);
+    revalidatePath(`/cases/${caseId}`);
+    revalidatePath("/disclosure");
+    revalidatePath("/publish");
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function unrejectCaseEntryAction(
+  entryId: number,
+  caseId: number,
+): Promise<{ error: string } | void> {
+  try {
+    await unrejectDisclosureLogEntry(entryId);
+    revalidatePath(`/cases/${caseId}`);
+    revalidatePath("/publish");
   } catch (error) {
     return handleError(error);
   }
