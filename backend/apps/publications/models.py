@@ -35,16 +35,21 @@ class PublicationSchemeEntry(models.Model):
 
 
 class DisclosureLogEntry(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        PUBLISHED = 'published', 'Published'
+        REJECTED = 'rejected', 'Rejected'
+
     case = models.OneToOneField(
         'cases.Case',
         on_delete=models.CASCADE,
         related_name='disclosure_log_entry',
     )
-    title = models.CharField(max_length=500)
-    summary = models.TextField()
-    response_text = models.TextField()
-    date_received = models.DateField()
-    date_responded = models.DateField()
+    title = models.CharField(max_length=500, blank=True)
+    summary = models.TextField(blank=True)
+    response_text = models.TextField(blank=True)
+    date_received = models.DateField(null=True, blank=True)
+    date_responded = models.DateField(null=True, blank=True)
     exemptions = models.ManyToManyField(
         'cases.CaseExemption',
         blank=True,
@@ -55,7 +60,9 @@ class DisclosureLogEntry(models.Model):
         blank=True,
         related_name='disclosure_log_entries',
     )
-    is_published = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.DRAFT
+    )
     published_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True, blank=True,
@@ -63,6 +70,14 @@ class DisclosureLogEntry(models.Model):
         related_name='published_disclosure_entries',
     )
     published_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    rejected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='rejected_disclosure_entries',
+    )
+    rejected_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True, blank=True,

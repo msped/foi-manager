@@ -297,6 +297,22 @@
   padding: 20px;
 }
 
+/* Summary lists inside the sidebar aside get a smaller font and non-wrapping keys */
+aside .govuk-summary-list__key,
+aside .govuk-summary-list__value {
+  font-size: 13pt;
+  white-space: nowrap;
+}
+
+aside .govuk-summary-list__key {
+  width: auto;
+  padding-right: 12px;
+}
+
+aside .govuk-summary-list__value {
+  white-space: normal;
+}
+
 /* ─── Layout helpers ─────────────────────────────────────────────────────── */
 
 .foi-grid-4 {

@@ -43,7 +43,7 @@ class QueueDisclosureLogEntrySerializer(serializers.ModelSerializer):
             'id', 'title', 'summary', 'response_text',
             'date_received', 'date_responded',
             'exemptions', 'attachments',
-            'is_published', 'published_at',
+            'status', 'published_at',
         ]
 
 
@@ -77,6 +77,22 @@ class PublishQueueItemSerializer(serializers.ModelSerializer):
             return None
 
 
+class RejectedQueueItemSerializer(serializers.ModelSerializer):
+    case_ref = serializers.CharField(source='case.ref', read_only=True)
+    case_id = serializers.IntegerField(source='case.id', read_only=True)
+    rejected_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DisclosureLogEntry
+        fields = [
+            'id', 'case_id', 'case_ref', 'title',
+            'rejection_reason', 'rejected_by_name', 'rejected_at',
+        ]
+
+    def get_rejected_by_name(self, obj):
+        return obj.rejected_by.get_full_name() if obj.rejected_by else None
+
+
 class DisclosureLogEntrySerializer(serializers.ModelSerializer):
     exemptions = serializers.PrimaryKeyRelatedField(
         many=True, queryset=CaseExemption.objects.all()
@@ -86,6 +102,7 @@ class DisclosureLogEntrySerializer(serializers.ModelSerializer):
     )
     case_ref = serializers.CharField(source='case.ref', read_only=True)
     published_by_name = serializers.SerializerMethodField()
+    rejected_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = DisclosureLogEntry
@@ -94,16 +111,22 @@ class DisclosureLogEntrySerializer(serializers.ModelSerializer):
             'title', 'summary', 'response_text',
             'date_received', 'date_responded',
             'exemptions', 'attachments',
-            'is_published', 'published_by', 'published_by_name', 'published_at',
+            'status', 'published_by', 'published_by_name', 'published_at',
+            'rejection_reason', 'rejected_by', 'rejected_by_name', 'rejected_at',
             'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'case_ref', 'is_published', 'published_by', 'published_by_name',
-            'published_at', 'created_at', 'updated_at',
+            'case_ref', 'status',
+            'published_by', 'published_by_name', 'published_at',
+            'rejected_by', 'rejected_by_name', 'rejected_at',
+            'created_at', 'updated_at',
         ]
 
     def get_published_by_name(self, obj):
         return obj.published_by.get_full_name() if obj.published_by else None
+
+    def get_rejected_by_name(self, obj):
+        return obj.rejected_by.get_full_name() if obj.rejected_by else None
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -120,3 +143,20 @@ class DisclosureLogEntrySerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['created_by'] = self.context['request'].user
         return super().create(validated_data)
+
+
+class DisclosureLogListSerializer(serializers.ModelSerializer):
+    case_ref = serializers.CharField(source='case.ref', read_only=True)
+    case_id = serializers.IntegerField(source='case.id', read_only=True)
+    published_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DisclosureLogEntry
+        fields = [
+            'id', 'case_id', 'case_ref',
+            'title', 'date_responded',
+            'published_by_name', 'published_at',
+        ]
+
+    def get_published_by_name(self, obj):
+        return obj.published_by.get_full_name() if obj.published_by else None
