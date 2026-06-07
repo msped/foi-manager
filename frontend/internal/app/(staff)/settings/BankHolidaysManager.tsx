@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
-import { createBankHoliday, deleteBankHoliday } from "./actions";
+import { createBankHoliday, deleteBankHoliday } from "@/lib/services/cases";
 import type { BankHoliday, BankHolidayCountry } from "@/lib/types";
 
 const COUNTRY_LABELS: Record<BankHolidayCountry, string> = {
@@ -26,6 +27,7 @@ function groupByYear(holidays: BankHoliday[]) {
 }
 
 export default function BankHolidaysManager({ initial }: { initial: BankHoliday[] }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({ country: "england" as BankHolidayCountry, name: "", date: "" });
@@ -34,18 +36,26 @@ export default function BankHolidaysManager({ initial }: { initial: BankHoliday[
     e.preventDefault();
     if (!form.name.trim() || !form.date) return;
     startTransition(async () => {
-      const res = await createBankHoliday({ country: form.country, name: form.name.trim(), date: form.date });
-      if (res.error) { setError(res.error); return; }
-      setError(null);
-      setForm(f => ({ ...f, name: "", date: "" }));
+      try {
+        await createBankHoliday({ country: form.country, name: form.name.trim(), date: form.date });
+        setError(null);
+        setForm(f => ({ ...f, name: "", date: "" }));
+        router.refresh();
+      } catch {
+        setError("Failed to add bank holiday.");
+      }
     });
   }
 
   function handleDelete(id: number, name: string) {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
     startTransition(async () => {
-      const res = await deleteBankHoliday(id);
-      if (res.error) setError(res.error);
+      try {
+        await deleteBankHoliday(id);
+        router.refresh();
+      } catch {
+        setError("Failed to delete bank holiday.");
+      }
     });
   }
 

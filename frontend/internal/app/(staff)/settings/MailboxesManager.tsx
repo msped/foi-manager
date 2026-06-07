@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Button from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
-import { createMailbox, deleteMailboxAction, updateMailboxAction } from "./actions";
+import { createMailbox, deleteMailbox, updateMailbox } from "@/lib/services/cases";
 import type { Mailbox } from "@/lib/types";
 
 interface Props {
@@ -24,13 +24,13 @@ function MailboxRow({ m, onDelete, onUpdate }: {
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await updateMailboxAction(m.id, name, email);
-      if (result.error) {
-        setError(result.error);
-      } else {
+      try {
+        await updateMailbox(m.id, { name: name.trim(), email: email.trim() });
         onUpdate(m.id, name, email);
         setEditing(false);
         setError(null);
+      } catch {
+        setError("Failed to update mailbox.");
       }
     });
   }
@@ -38,9 +38,12 @@ function MailboxRow({ m, onDelete, onUpdate }: {
   function handleDelete() {
     if (!confirm(`Delete mailbox "${m.name}"?`)) return;
     startTransition(async () => {
-      const result = await deleteMailboxAction(m.id);
-      if (result.error) setError(result.error);
-      else onDelete(m.id);
+      try {
+        await deleteMailbox(m.id);
+        onDelete(m.id);
+      } catch {
+        setError("Failed to delete mailbox.");
+      }
     });
   }
 
@@ -108,15 +111,15 @@ export default function MailboxesManager({ initial }: Props) {
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await createMailbox(name, email);
-      if (result.error) {
-        setError(result.error);
-      } else if (result.data) {
-        setMailboxes(prev => [...prev, result.data!]);
+      try {
+        const mailbox = await createMailbox({ name: name.trim(), email: email.trim() });
+        setMailboxes(prev => [...prev, mailbox]);
         setName("");
         setEmail("");
         setShowAdd(false);
         setError(null);
+      } catch {
+        setError("Failed to create mailbox.");
       }
     });
   }

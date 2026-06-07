@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useCallback } from "react";
 import { Tag } from "@/components/ui/Tag";
-import { updateUserAction, searchUsersAction } from "./actions";
+import { updateUser, searchUsers } from "@/lib/services/users";
 import type { ApiUser, UserSearchResult } from "@/lib/types";
 
 interface Props {
@@ -22,17 +22,25 @@ function FOITeamRow({ u, currentUserId, onUpdate, onRemove }: {
 
   function handleToggleActive() {
     startTransition(async () => {
-      const result = await updateUserAction(u.id, { is_active: !u.is_active });
-      if (result.error) setError(result.error);
-      else if (result.data) { onUpdate(result.data); setError(null); }
+      try {
+        const updated = await updateUser(u.id, { is_active: !u.is_active });
+        onUpdate(updated);
+        setError(null);
+      } catch {
+        setError("Failed to update user.");
+      }
     });
   }
 
   function handleRemove() {
     startTransition(async () => {
-      const result = await updateUserAction(u.id, { role: "assignee" });
-      if (result.error) setError(result.error);
-      else { onRemove(u.id); setError(null); }
+      try {
+        await updateUser(u.id, { role: "assignee" });
+        onRemove(u.id);
+        setError(null);
+      } catch {
+        setError("Failed to update user.");
+      }
     });
   }
 
@@ -128,26 +136,30 @@ export default function UsersManager({ initial, currentUserId }: Props) {
     if (!value.trim()) { setResults([]); setSearchError(null); return; }
     debounceRef.current = setTimeout(async () => {
       setIsSearching(true);
-      const res = await searchUsersAction(value);
-      setIsSearching(false);
-      if (res.error) { setSearchError(res.error); setResults([]); }
-      else {
+      try {
+        const data = await searchUsers(value);
         setSearchError(null);
-        setResults((res.data ?? []).filter(r => r.role === "assignee" && !foiTeamIds.has(r.id)));
+        setResults(data.filter(r => r.role === "assignee" && !foiTeamIds.has(r.id)));
+      } catch {
+        setSearchError("Search failed.");
+        setResults([]);
+      } finally {
+        setIsSearching(false);
       }
     }, 300);
   }, [foiTeamIds]);
 
   function handleAdd(result: UserSearchResult) {
     startPromotion(async () => {
-      const res = await updateUserAction(result.id, { role: "foi_team" });
-      if (res.error) { setPromoteError(res.error); return; }
-      if (res.data) {
-        setFoiTeam(prev => [...prev, res.data!].sort((a, b) =>
+      try {
+        const updated = await updateUser(result.id, { role: "foi_team" });
+        setFoiTeam(prev => [...prev, updated].sort((a, b) =>
           (a.first_name || a.email).localeCompare(b.first_name || b.email)
         ));
         setResults(prev => prev.filter(r => r.id !== result.id));
         setPromoteError(null);
+      } catch {
+        setPromoteError("Failed to add user to FOI team.");
       }
     });
   }

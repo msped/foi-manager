@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import FormField from "@/components/ui/FormField";
 import RichTextEditor from "@/components/ui/RichTextEditor";
-import { createEmailTemplateAction, deleteEmailTemplateAction, updateEmailTemplateAction } from "./actions";
+import { createEmailTemplate, deleteEmailTemplate, updateEmailTemplate } from "@/lib/services/cases";
 import type { EmailTemplate } from "@/lib/types";
 
 const VARIABLES = [
@@ -34,13 +34,13 @@ function TemplateRow({ t, onDelete, onUpdate }: {
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await updateEmailTemplateAction(t.id, { name, description, subject, body });
-      if (result.error) {
-        setError(result.error);
-      } else {
+      try {
+        await updateEmailTemplate(t.id, { name, description, subject, body });
         onUpdate({ ...t, name, description, subject, body });
         setEditing(false);
         setError(null);
+      } catch {
+        setError("Failed to update template.");
       }
     });
   }
@@ -48,9 +48,12 @@ function TemplateRow({ t, onDelete, onUpdate }: {
   function handleDelete() {
     if (!confirm(`Delete template "${t.name}"?`)) return;
     startTransition(async () => {
-      const result = await deleteEmailTemplateAction(t.id);
-      if (result.error) setError(result.error);
-      else onDelete(t.id);
+      try {
+        await deleteEmailTemplate(t.id);
+        onDelete(t.id);
+      } catch {
+        setError("Failed to delete template.");
+      }
     });
   }
 
@@ -127,13 +130,13 @@ export default function EmailTemplatesManager({ initial }: Props) {
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await createEmailTemplateAction({ name, type, description, subject, body });
-      if (result.error) {
-        setError(result.error);
-      } else if (result.data) {
-        setTemplates(prev => [...prev, result.data!]);
+      try {
+        const template = await createEmailTemplate({ name, type, description, subject, body });
+        setTemplates(prev => [...prev, template]);
         setName(""); setDescription(""); setSubject(""); setBody("");
         setShowAdd(false); setError(null);
+      } catch {
+        setError("Failed to create template.");
       }
     });
   }

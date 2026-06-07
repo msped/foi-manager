@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import { StatusTag, Tag } from "@/components/ui/Tag";
@@ -10,9 +11,9 @@ import CaseResponsesPanel from "./CaseResponsesPanel";
 import DisclosureLogPanel from "./DisclosureLogPanel";
 import { fmtDate, daysUntil } from "@/lib/utils";
 import {
-  acknowledgeCaseAction, addCaseNote, assignCaseAction,
-  pauseClockAction, resumeClockAction, transitionCaseAction,
-} from "./actions";
+  acknowledgeCase, addCaseNote, assignCase,
+  pauseClock, resumeClock, transitionCase,
+} from "@/lib/services/cases";
 import type { ApiUser, CaseDetail, EmailTemplate } from "@/lib/types";
 
 const AUDIT_ACTION_LABEL: Record<string, string> = {
@@ -51,6 +52,7 @@ interface Props {
 }
 
 export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
+  const router = useRouter();
   const [tab, setTab] = useState("overview");
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -59,20 +61,24 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
 
   const response_sent = c.responses.find(r => r.status === "sent");
 
-  function withAction(fn: () => Promise<{ error: string } | void>) {
+  function withAction(fn: () => Promise<void>) {
     setActionError(null);
     startTransition(async () => {
-      const result = await fn();
-      if (result?.error) setActionError(result.error);
+      try {
+        await fn();
+        router.refresh();
+      } catch (err) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        setActionError(detail ?? "Something went wrong.");
+      }
     });
   }
 
   function handleAddNote(e: React.FormEvent) {
     e.preventDefault();
     withAction(async () => {
-      const result = await addCaseNote(c.id, noteBody);
-      if (!result?.error) setNoteBody("");
-      return result;
+      await addCaseNote(c.id, noteBody);
+      setNoteBody("");
     });
   }
 
@@ -299,7 +305,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                 style={{ width: "100%", marginBottom: 8 }}
                 onChange={e => {
                   const val = e.target.value;
-                  withAction(() => assignCaseAction(c.id, val ? Number(val) : null));
+                  withAction(() => assignCase(c.id, val ? Number(val) : null));
                 }}
               >
                 <option value="">— Unassigned —</option>
@@ -318,7 +324,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                 {c.status === "new" && (
                   <Button
                     disabled={isPending}
-                    onClick={() => withAction(() => acknowledgeCaseAction(c.id))}
+                    onClick={() => withAction(() => acknowledgeCase(c.id))}
                   >
                     Acknowledge receipt
                   </Button>
@@ -327,7 +333,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                   <Button
                     variant="secondary"
                     disabled={isPending}
-                    onClick={() => withAction(() => resumeClockAction(c.id))}
+                    onClick={() => withAction(() => resumeClock(c.id))}
                   >
                     Resume clock
                   </Button>
@@ -335,7 +341,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                   <Button
                     variant="secondary"
                     disabled={isPending}
-                    onClick={() => withAction(() => pauseClockAction(c.id))}
+                    onClick={() => withAction(() => pauseClock(c.id))}
                   >
                     Pause clock
                   </Button>
@@ -345,7 +351,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
                   <Button
                     variant="secondary"
                     disabled={isPending}
-                    onClick={() => withAction(() => transitionCaseAction(c.id, "internal_review"))}
+                    onClick={() => withAction(() => transitionCase(c.id, "internal_review"))}
                   >
                     Start internal review
                   </Button>

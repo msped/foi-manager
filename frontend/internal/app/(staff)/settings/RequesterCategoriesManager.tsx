@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
-import { createRequesterCategory, updateRequesterCategory, deleteRequesterCategory } from "./actions";
+import {
+  createRequesterCategory, updateRequesterCategory, deleteRequesterCategory,
+} from "@/lib/services/cases";
 
 interface Category {
   id: number;
@@ -11,6 +14,7 @@ interface Category {
 }
 
 export default function RequesterCategoriesManager({ initial }: { initial: Category[] }) {
+  const router = useRouter();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [newName, setNewName] = useState("");
@@ -32,26 +36,39 @@ export default function RequesterCategoriesManager({ initial }: { initial: Categ
   function handleSaveEdit(id: number) {
     if (!editName.trim()) return;
     startTransition(async () => {
-      const res = await updateRequesterCategory(id, editName);
-      if (res.error) { setError(res.error); return; }
-      setEditingId(null);
+      try {
+        await updateRequesterCategory(id, editName);
+        setEditingId(null);
+        router.refresh();
+      } catch {
+        setError("Failed to update category.");
+      }
     });
   }
 
   function handleDelete(id: number, name: string) {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
     startTransition(async () => {
-      const res = await deleteRequesterCategory(id);
-      if (res.error) setError(res.error);
+      try {
+        await deleteRequesterCategory(id);
+        router.refresh();
+      } catch {
+        setError("Failed to delete category.");
+      }
     });
   }
 
   function handleAdd() {
     if (!newName.trim()) return;
+    const nextOrder = initial.length > 0 ? Math.max(...initial.map(c => c.order)) + 1 : 0;
     startTransition(async () => {
-      const res = await createRequesterCategory(newName);
-      if (res.error) { setError(res.error); return; }
-      setNewName("");
+      try {
+        await createRequesterCategory(newName, nextOrder);
+        setNewName("");
+        router.refresh();
+      } catch {
+        setError("Failed to create category.");
+      }
     });
   }
 

@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import FormField from "@/components/ui/FormField";
 import Button from "@/components/ui/Button";
-import { createCase } from "./actions";
+import { createCase } from "@/lib/services/cases";
 
 interface Props {
   requesterCategories: { id: number; name: string }[];
 }
 
 export default function NewCaseForm({ requesterCategories }: Props) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -31,9 +33,23 @@ export default function NewCaseForm({ requesterCategories }: Props) {
     setErrors({});
     setServerError(null);
 
+    const submittedAt = fd.get("submitted_at") as string;
     startTransition(async () => {
-      const result = await createCase(fd);
-      if (result?.error) setServerError(result.error);
+      try {
+        const result = await createCase({
+          requester_name: (fd.get("requester_name") as string).trim(),
+          requester_email: (fd.get("requester_email") as string).trim(),
+          requester_type: fd.get("requester_type") as string,
+          received_by: fd.get("received_by") as string,
+          submitted_at: submittedAt || new Date().toISOString().split("T")[0],
+          request_text: (fd.get("request_text") as string).trim(),
+          summary: (fd.get("summary") as string).trim(),
+        });
+        router.push(`/cases/${result.id}`);
+      } catch (err) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        setServerError(detail ?? "Failed to create case.");
+      }
     });
   }
 

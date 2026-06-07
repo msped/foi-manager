@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { fmtDate } from "@/lib/utils";
-import { sendMessageAction } from "./actions";
+import { sendConsultationMessage } from "@/lib/services/cases";
 import type { AssigneeConsultation } from "@/lib/types";
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function AssigneeConsultationDetail({ consultation }: Props) {
+  const router = useRouter();
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -21,13 +23,15 @@ export default function AssigneeConsultationDetail({ consultation }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isEmpty) { setError("Message cannot be empty."); return; }
     setError(null);
     startTransition(async () => {
-      const result = await sendMessageAction(consultation.id, body);
-      if (result?.error) {
-        setError(result.error);
-      } else {
+      try {
+        await sendConsultationMessage(consultation.id, body);
         setBody("");
+        router.refresh();
+      } catch {
+        setError("Failed to send message. Please try again.");
       }
     });
   }

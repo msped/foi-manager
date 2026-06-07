@@ -34,7 +34,6 @@ export default function LoginPage() {
       const role = (session.data?.user as any)?.foiRole;
       const dest = role === "assignee" ? "/consultations" : "/dashboard";
       router.push(dest);
-      router.refresh();
     } catch {
       setError("Could not connect to the server. Please try again.");
     } finally {

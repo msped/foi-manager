@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PublishQueueItem, RejectedEntry } from "@/lib/types";
 import {
-  saveEntryAction,
-  publishEntryAction,
-  rejectEntryAction,
-  unrejectEntryAction,
-} from "./actions";
+  createDisclosureLogEntry,
+  updateDisclosureLogEntry,
+  publishDisclosureLogEntry,
+  rejectCaseDisclosureLog,
+  rejectDisclosureLogEntry,
+  unrejectDisclosureLogEntry,
+} from "@/lib/services/publications";
 import { fmtDate } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
@@ -97,16 +99,28 @@ export default function PublishQueueView({ queue, rejected }: Props) {
     setForm((prev) => (prev ? { ...prev, ...patch } : null));
   }
 
+  async function saveEntry() {
+    if (!selectedItem || !form) throw new Error("No item selected");
+    const base = {
+      title: form.title,
+      summary: form.summary,
+      response_text: form.response_text,
+      date_received: form.date_received,
+      date_responded: form.date_responded,
+      exemptions: form.exemption_ids,
+      attachments: form.attachment_ids,
+    };
+    return entryId
+      ? updateDisclosureLogEntry(entryId, base)
+      : createDisclosureLogEntry({ ...base, case: selectedItem.id });
+  }
+
   async function handleSave() {
     if (!selectedItem || !form) return;
     setSaving(true);
     setError(null);
     try {
-      const entry = await saveEntryAction({
-        case_id: selectedItem.id,
-        entry_id: entryId,
-        ...form,
-      });
+      const entry = await saveEntry();
       setEntryId(entry.id);
       router.refresh();
     } catch {
@@ -121,12 +135,8 @@ export default function PublishQueueView({ queue, rejected }: Props) {
     setPublishing(true);
     setError(null);
     try {
-      const entry = await saveEntryAction({
-        case_id: selectedItem.id,
-        entry_id: entryId,
-        ...form,
-      });
-      await publishEntryAction(entry.id);
+      const entry = await saveEntry();
+      await publishDisclosureLogEntry(entry.id);
       setSelectedRef(null);
       setForm(null);
       setEntryId(null);
@@ -147,7 +157,9 @@ export default function PublishQueueView({ queue, rejected }: Props) {
     setRejecting(true);
     setError(null);
     try {
-      await rejectEntryAction(selectedItem.id, entryId, rejectReason.trim());
+      entryId
+        ? await rejectDisclosureLogEntry(entryId, rejectReason.trim())
+        : await rejectCaseDisclosureLog(selectedItem.id, rejectReason.trim());
       setSelectedRef(null);
       setForm(null);
       setEntryId(null);
@@ -164,7 +176,7 @@ export default function PublishQueueView({ queue, rejected }: Props) {
   async function handleUnreject(id: number) {
     setUnrejecting(id);
     try {
-      await unrejectEntryAction(id);
+      await unrejectDisclosureLogEntry(id);
       router.refresh();
     } catch {
       setError("Failed to move back to queue. Please try again.");
