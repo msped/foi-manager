@@ -7,7 +7,7 @@ export default async function AssigneeLayout({ children }: { children: React.Rea
   try {
     user = await getMe();
   } catch {
-    redirect("/login");
+    redirect("/api/force-logout");
   }
 
   if (user.role !== "assignee") redirect("/dashboard");

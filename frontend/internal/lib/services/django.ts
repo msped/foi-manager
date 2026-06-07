@@ -1,6 +1,5 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
-
-const isServer = typeof window === "undefined";
+import { authClient } from "@/lib/auth-client";
 
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
@@ -15,96 +14,114 @@ function onRefreshed(token: string) {
   refreshSubscribers = [];
 }
 
-const baseURL = isServer
-  ? `${process.env.DJANGO_API_URL ?? "http://localhost:8000"}/api/v1`
-  : `${process.env.NEXT_PUBLIC_DJANGO_API_URL ?? "http://localhost:8000"}/api/v1`;
-
-const djangoClient = axios.create({
-  baseURL,
-  headers: { "Content-Type": "application/json" },
-});
-
-djangoClient.interceptors.request.use(async (config) => {
-  let token: string | undefined;
-
-  if (isServer) {
-    try {
-      const { headers } = await import("next/headers");
-      const { auth } = await import("@/lib/auth");
-      const session = await auth.api.getSession({ headers: await headers() });
-      token = (session?.user as { access_token?: string })?.access_token;
-    } catch {
-      // outside a request context — no token
-    }
-  } else {
-    if (clientToken !== null) {
-      token = clientToken;
-    } else {
-      const { authClient } = await import("@/lib/auth-client");
-      const { data } = await authClient.getSession();
-      token = (data?.user as { access_token?: string })?.access_token ?? undefined;
-      clientToken = token ?? null;
-    }
-  }
-
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+const REFRESH_TIMEOUT_MS = 15000;
 
 interface RetryConfig extends InternalAxiosRequestConfig {
   _retried?: boolean;
 }
 
-djangoClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    // Server-side: no refresh attempt — let server component catch and redirect
-    if (isServer || error.response?.status !== 401) {
-      return Promise.reject(error);
+type SessionUser = { access_token?: string };
+
+const djangoClient = () => {
+  const host =
+    typeof window === "undefined"
+      ? (process.env.DJANGO_API_URL ?? "http://localhost:8000")
+      : (process.env.NEXT_PUBLIC_DJANGO_API_URL ?? "http://localhost:8000");
+
+  const instance = axios.create({
+    baseURL: `${host}/api/v1`,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  });
+
+  instance.interceptors.request.use(async (config) => {
+    let token: string | undefined;
+
+    if (typeof window === "undefined") {
+      try {
+        const { getSession } = await import("@/lib/auth");
+        const session = await getSession();
+        token = (session?.user as SessionUser | undefined)?.access_token;
+      } catch {
+        // outside Next.js request context
+      }
+    } else {
+      if (clientToken !== null) {
+        token = clientToken;
+      } else {
+        const { data } = await authClient.getSession();
+        token = (data?.user as SessionUser | undefined)?.access_token ?? undefined;
+        clientToken = token ?? null;
+      }
     }
 
-    const original = error.config as RetryConfig;
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  });
 
-    if (original._retried) {
-      clientToken = null;
-      window.location.href = "/login";
-      return Promise.reject(error);
-    }
+  instance.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      if (
+        typeof window === "undefined" ||
+        (window as Window & { Cypress?: unknown }).Cypress ||
+        error.response?.status !== 401
+      ) {
+        return Promise.reject(error);
+      }
 
-    if (isRefreshing) {
-      return new Promise((resolve) => {
-        refreshSubscribers.push((token) => {
-          original.headers.Authorization = `Bearer ${token}`;
-          resolve(djangoClient(original));
+      const original = error.config as RetryConfig;
+
+      if (original._retried) {
+        window.location.href = "/api/force-logout";
+        return new Promise(() => {});
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          refreshSubscribers.push((token) => {
+            original.headers.Authorization = `Bearer ${token}`;
+            resolve(instance(original));
+          });
         });
-      });
+      }
+
+      original._retried = true;
+      isRefreshing = true;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+
+      try {
+        const result = await authClient.$fetch("/refresh-django-token", {
+          method: "POST",
+          fetchOptions: { signal: controller.signal },
+        });
+
+        if ((result as { error?: unknown }).error) throw new Error("Refresh failed");
+
+        const newToken = (result as { data?: { access_token?: string } }).data?.access_token;
+        if (!newToken) throw new Error("No token");
+
+        clientToken = newToken;
+        onRefreshed(newToken);
+        original.headers.Authorization = `Bearer ${newToken}`;
+        return instance(original);
+      } catch {
+        clientToken = null;
+        refreshSubscribers = [];
+        window.location.href = "/api/force-logout";
+        return new Promise(() => {});
+      } finally {
+        clearTimeout(timeout);
+        isRefreshing = false;
+      }
     }
+  );
 
-    original._retried = true;
-    isRefreshing = true;
+  return instance;
+};
 
-    try {
-      const { authClient } = await import("@/lib/auth-client");
-      const result = await authClient.$fetch("/refresh-django-token", { method: "POST" });
-      const newToken =
-        (result as { data?: { access_token?: string }; access_token?: string })?.data?.access_token ??
-        (result as { access_token?: string })?.access_token;
-
-      if (!newToken) throw new Error("No token in refresh response");
-
-      clientToken = newToken;
-      onRefreshed(newToken);
-      original.headers.Authorization = `Bearer ${newToken}`;
-      return djangoClient(original);
-    } catch {
-      clientToken = null;
-      refreshSubscribers = [];
-      window.location.href = "/login";
-      return Promise.reject(error);
-    } finally {
-      isRefreshing = false;
-    }
-  }
-);
-
-export default djangoClient;
+export default djangoClient();
