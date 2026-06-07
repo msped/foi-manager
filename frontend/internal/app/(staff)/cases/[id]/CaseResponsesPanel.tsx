@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import FormField from "@/components/ui/FormField";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { fmtDate } from "@/lib/utils";
-import { saveCaseResponseAction, sendCaseResponseAction } from "./actions";
+import { createCaseResponse, updateCaseResponse, sendCaseResponse } from "@/lib/services/cases";
 import type { CaseResponse, EmailTemplate } from "@/lib/types";
 
 interface TemplateVars {
@@ -41,6 +42,7 @@ interface Props {
 }
 
 function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: number; isClosed?: boolean }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(resp.status === "draft" || resp.status === "sending" || resp.status === "failed");
   const [body, setBody] = useState(resp.body);
   const [isPending, startTransition] = useTransition();
@@ -49,13 +51,15 @@ function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: n
 
   function handleSave() {
     startTransition(async () => {
-      const result = await saveCaseResponseAction(caseId, body, resp.id);
-      if ("error" in result) {
-        setError(result.error);
-      } else {
+      try {
+        await updateCaseResponse(caseId, resp.id, body);
         setSaved(true);
         setError(null);
         setTimeout(() => setSaved(false), 2000);
+        router.refresh();
+      } catch (err) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        setError(detail ?? "Failed to save.");
       }
     });
   }
@@ -63,8 +67,13 @@ function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: n
   function handleSend() {
     if (!confirm(`Send this response to the requester? This cannot be undone.`)) return;
     startTransition(async () => {
-      const result = await sendCaseResponseAction(caseId, resp.id);
-      if (result?.error) setError(result.error);
+      try {
+        await sendCaseResponse(caseId, resp.id);
+        router.refresh();
+      } catch (err) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        setError(detail ?? "Failed to send.");
+      }
     });
   }
 
@@ -134,6 +143,7 @@ function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: n
 }
 
 export default function CaseResponsesPanel({ caseId, responses, emailTemplates, templateVars, isClosed }: Props) {
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -147,13 +157,15 @@ export default function CaseResponsesPanel({ caseId, responses, emailTemplates, 
   function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await saveCaseResponseAction(caseId, body);
-      if ("error" in result) {
-        setError(result.error);
-      } else {
+      try {
+        await createCaseResponse(caseId, body);
         setShowForm(false);
         setBody("");
         setError(null);
+        router.refresh();
+      } catch (err) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        setError(detail ?? "Failed to save draft.");
       }
     });
   }

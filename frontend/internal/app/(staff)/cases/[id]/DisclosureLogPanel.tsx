@@ -6,7 +6,7 @@ import type { CaseDisclosureLogEntry } from "@/lib/types";
 import { fmtDate } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
-import { unpublishCaseEntryAction, unrejectCaseEntryAction } from "./actions";
+import { unpublishDisclosureLogEntry, unrejectDisclosureLogEntry } from "@/lib/services/publications";
 
 interface Props {
   entry: CaseDisclosureLogEntry;
@@ -22,7 +22,7 @@ export default function DisclosureLogPanel({ entry, caseId }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await unpublishCaseEntryAction(entry.id, caseId);
+      await unpublishDisclosureLogEntry(entry.id);
       router.refresh();
     } catch {
       setError("Failed to unpublish. Please try again.");
@@ -35,7 +35,7 @@ export default function DisclosureLogPanel({ entry, caseId }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await unrejectCaseEntryAction(entry.id, caseId);
+      await unrejectDisclosureLogEntry(entry.id);
       router.refresh();
     } catch {
       setError("Failed to move back to queue. Please try again.");

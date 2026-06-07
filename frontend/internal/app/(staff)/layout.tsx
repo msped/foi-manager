@@ -7,7 +7,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   try {
     user = await getMe();
   } catch {
-    redirect("/login");
+    redirect("/api/force-logout");
   }
 
   return (

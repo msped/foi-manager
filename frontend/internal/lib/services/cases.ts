@@ -1,8 +1,21 @@
 import djangoClient from "./django";
 import type {
-  AssigneeConsultation, BankHoliday, CaseConsultation, CaseDetail, CaseListItem,
+  AssigneeConsultation, BankHoliday, CaseConsultation, CaseDetail, CaseListItem, CaseNote,
   CaseResponse, ConsultationMessage, Department, EmailTemplate, Mailbox, Paginated,
 } from "@/lib/types";
+
+export async function createCase(body: {
+  requester_name: string;
+  requester_email: string;
+  requester_type?: string;
+  received_by?: string;
+  submitted_at?: string;
+  request_text: string;
+  summary?: string;
+}): Promise<CaseDetail> {
+  const { data } = await djangoClient.post<CaseDetail>("/cases/", body);
+  return data;
+}
 
 export async function listCases(params?: Record<string, string>): Promise<Paginated<CaseListItem>> {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
@@ -169,4 +182,23 @@ export async function listMyConsultations(): Promise<AssigneeConsultation[]> {
 export async function getMyConsultation(id: number | string): Promise<AssigneeConsultation> {
   const { data } = await djangoClient.get<AssigneeConsultation>(`/my-consultations/${id}/`);
   return data;
+}
+
+export async function addCaseNote(caseId: number | string, body: string): Promise<CaseNote> {
+  const { data } = await djangoClient.post<CaseNote>(`/cases/${caseId}/notes/`, { body });
+  return data;
+}
+
+export async function createRequesterCategory(name: string, order: number): Promise<{ id: number; name: string; order: number }> {
+  const { data } = await djangoClient.post<{ id: number; name: string; order: number }>("/requester-categories/", { name: name.trim(), order });
+  return data;
+}
+
+export async function updateRequesterCategory(id: number, name: string): Promise<{ id: number; name: string; order: number }> {
+  const { data } = await djangoClient.patch<{ id: number; name: string; order: number }>(`/requester-categories/${id}/`, { name: name.trim() });
+  return data;
+}
+
+export async function deleteRequesterCategory(id: number): Promise<void> {
+  await djangoClient.delete(`/requester-categories/${id}/`);
 }

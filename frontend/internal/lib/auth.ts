@@ -1,250 +1,321 @@
 import { betterAuth } from "better-auth";
+import type { GenericEndpointContext, HookEndpointContext } from "@better-auth/core";
 import { APIError, createAuthEndpoint, createAuthMiddleware } from "better-auth/api";
-import { setCookieCache, setSessionCookie } from "better-auth/cookies";
+import { getChunkedCookie, setCookieCache, setSessionCookie } from "better-auth/cookies";
+import { symmetricDecodeJWT } from "better-auth/crypto";
 import { customSession, genericOAuth } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import * as z from "zod";
 
-const DJANGO = process.env.DJANGO_API_URL ?? "http://localhost:8000";
-const REFRESH_COOKIE = "foi_refresh";
-const SESSION_LIFETIME = 8 * 60 * 60;
+export const getSession = async () => {
+    const { headers } = await import("next/headers");
+    const { authClient } = await import("@/lib/auth-client");
+    const result = await authClient.getSession({
+        fetchOptions: { headers: await headers() },
+    });
+    return result.data;
+};
 
-async function callDjangoAuth(email: string, password: string) {
-  const res = await fetch(`${DJANGO}/api/v1/auth/login/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as any).non_field_errors?.[0] ?? (err as any).detail ?? "Invalid credentials");
-  }
-  return res.json() as Promise<{
-    access: string;
-    refresh: string;
-    user: { id: number; email: string; first_name: string; last_name: string; role: string; department: string };
-  }>;
+const SESSION_LIFETIME = 8 * 60 * 60; // 8 hours in seconds
+
+function getApiBase() {
+    return `${process.env.DJANGO_API_URL ?? "http://localhost:8000"}/api/v1`;
 }
 
-function setRefreshCookie(ctx: any, value: string) {
-  ctx.setCookie(REFRESH_COOKIE, value, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60,
-    path: "/",
-  });
+async function callDjango(path: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const res = await fetch(`${getApiBase()}/${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { detail?: string };
+        throw new Error(err.detail || "Authentication failed");
+    }
+    return res.json() as Promise<Record<string, unknown>>;
+}
+
+const REFRESH_COOKIE = "django_rt";
+const REFRESH_COOKIE_MAX_AGE = 24 * 60 * 60;
+
+function setRefreshCookie(ctx: GenericEndpointContext, value: string) {
+    ctx.setCookie(REFRESH_COOKIE, value, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: REFRESH_COOKIE_MAX_AGE,
+        path: "/",
+    });
 }
 
 function parseRefreshCookie(cookieHeader: string | null): string | null {
-  if (!cookieHeader) return null;
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${REFRESH_COOKIE}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+    if (!cookieHeader) return null;
+    const match = cookieHeader.match(
+        new RegExp(`(?:^|;\\s*)${REFRESH_COOKIE}=([^;]*)`)
+    );
+    return match ? decodeURIComponent(match[1]) : null;
 }
 
 function djangoCredentialsPlugin() {
-  return {
-    id: "django-credentials",
-    endpoints: {
-      signInEmail: createAuthEndpoint(
-        "/sign-in/email",
-        {
-          method: "POST",
-          body: z.object({ email: z.string(), password: z.string() }),
+    return {
+        id: "django-credentials",
+        endpoints: {
+            signInEmail: createAuthEndpoint(
+                "/sign-in/email",
+                {
+                    method: "POST",
+                    body: z.object({
+                        email: z.string().email(),
+                        password: z.string(),
+                    }),
+                },
+                async (ctx) => {
+                    const { email, password } = ctx.body;
+
+                    let djangoData: Record<string, unknown>;
+                    try {
+                        djangoData = await callDjango("auth/login/", {
+                            email,
+                            password,
+                        });
+                    } catch {
+                        throw new APIError("UNAUTHORIZED", {
+                            message: "Invalid email or password",
+                        });
+                    }
+
+                    const djangoUser = djangoData.user as Record<string, unknown> | undefined;
+                    const resolvedEmail = (djangoUser?.email as string | undefined) || email;
+                    const name = (djangoUser?.username as string | undefined) || email.split("@")[0];
+
+                    const existing =
+                        await ctx.context.internalAdapter.findUserByEmail(resolvedEmail);
+                    let user;
+                    const isAdmin =
+                        ((djangoUser?.is_staff as boolean | undefined) ||
+                            (djangoUser?.is_superuser as boolean | undefined)) ?? false;
+
+                    if (existing?.user) {
+                        const updateFields: Record<string, unknown> = {
+                            djangoAccessToken: djangoData.access,
+                            djangoRefreshToken: djangoData.refresh,
+                            isAdmin,
+                        };
+                        user =
+                            (await ctx.context.internalAdapter.updateUser(
+                                existing.user.id,
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                updateFields as any
+                            )) || existing.user;
+                    } else {
+                        user = await ctx.context.internalAdapter.createUser({
+                            email: resolvedEmail,
+                            name,
+                            emailVerified: true,
+                            djangoAccessToken: djangoData.access as string,
+                            djangoRefreshToken: djangoData.refresh as string,
+                            isAdmin,
+                        });
+                    }
+
+                    const session =
+                        await ctx.context.internalAdapter.createSession(
+                            user.id
+                        );
+                    await setSessionCookie(ctx, { session, user });
+
+                    return ctx.json({ user, token: session.token });
+                }
+            ),
+            refreshDjangoToken: createAuthEndpoint(
+                "/refresh-django-token",
+                { method: "POST" },
+                async (ctx) => {
+                    const cookieHeader = ctx.request?.headers.get("cookie") ?? null;
+                    const refreshToken = parseRefreshCookie(cookieHeader);
+                    if (!refreshToken) {
+                        throw new APIError("UNAUTHORIZED", { message: "No refresh token" });
+                    }
+
+                    const sessionDataCookie = getChunkedCookie(
+                        ctx,
+                        ctx.context.authCookies.sessionData.name
+                    );
+                    if (!sessionDataCookie) {
+                        throw new APIError("UNAUTHORIZED", { message: "No session" });
+                    }
+
+                    const payload = await symmetricDecodeJWT(
+                        sessionDataCookie,
+                        ctx.context.secretConfig,
+                        "better-auth-session"
+                    );
+                    if (!payload?.session || !payload?.user) {
+                        throw new APIError("UNAUTHORIZED", { message: "Invalid session" });
+                    }
+
+                    let djangoData: Record<string, unknown>;
+                    try {
+                        djangoData = await callDjango("auth/token/refresh/", {
+                            refresh: refreshToken,
+                        });
+                    } catch {
+                        throw new APIError("UNAUTHORIZED", {
+                            message: "Django token refresh failed",
+                        });
+                    }
+
+                    type CookieSession = Parameters<typeof setCookieCache>[1];
+                    const updatedUser = Object.assign(
+                        {},
+                        payload.user as CookieSession["user"],
+                        { djangoAccessToken: djangoData.access as string }
+                    );
+                    await setCookieCache(
+                        ctx,
+                        {
+                            session: payload.session as CookieSession["session"],
+                            user: updatedUser,
+                        },
+                        false
+                    );
+
+                    if (djangoData.refresh) {
+                        setRefreshCookie(ctx, djangoData.refresh as string);
+                    }
+
+                    return ctx.json({ access_token: djangoData.access });
+                }
+            ),
         },
-        async (ctx: any) => {
-          const { email, password } = ctx.body;
-
-          let result: Awaited<ReturnType<typeof callDjangoAuth>>;
-          try {
-            result = await callDjangoAuth(email, password);
-          } catch (e: any) {
-            throw APIError.from("UNAUTHORIZED", { code: "INVALID_CREDENTIALS", message: e.message ?? "Invalid email or password" });
-          }
-
-          const { access, refresh, user: djangoUser } = result;
-          const name = `${djangoUser.first_name} ${djangoUser.last_name}`.trim();
-          const existing = await ctx.context.internalAdapter.findUserByEmail(email);
-
-          let user: any;
-          if (existing?.user) {
-            user =
-              (await ctx.context.internalAdapter.updateUser(existing.user.id, {
-                djangoAccessToken: access,
-                djangoRefreshToken: refresh,
-                foiRole: djangoUser.role,
-                department: djangoUser.department,
-                djangoId: djangoUser.id,
-              })) ?? existing.user;
-          } else {
-            user = await ctx.context.internalAdapter.createUser({
-              email,
-              name,
-              emailVerified: true,
-              djangoAccessToken: access,
-              djangoRefreshToken: refresh,
-              foiRole: djangoUser.role,
-              department: djangoUser.department,
-              djangoId: djangoUser.id,
-            });
-          }
-
-          const session = await ctx.context.internalAdapter.createSession(user.id);
-          await setSessionCookie(ctx, { session, user }, false);
-          setRefreshCookie(ctx, refresh);
-
-          return ctx.json({ user, token: session.token });
-        }
-      ),
-
-      refreshDjangoToken: createAuthEndpoint(
-        "/refresh-django-token",
-        { method: "POST" },
-        async (ctx: any) => {
-          const cookieHeader = ctx.request.headers.get("cookie");
-          const refreshToken = parseRefreshCookie(cookieHeader);
-          if (!refreshToken) throw APIError.from("UNAUTHORIZED", { code: "NO_REFRESH_TOKEN", message: "No refresh token" });
-
-          const { symmetricDecodeJWT } = await import("better-auth/crypto");
-          const { getChunkedCookie } = await import("better-auth/cookies");
-
-          const sessionDataCookie = getChunkedCookie(
-            ctx,
-            ctx.context.authCookies.sessionData.name
-          );
-          if (!sessionDataCookie) throw APIError.from("UNAUTHORIZED", { code: "NO_SESSION", message: "No session" });
-
-          const payload = await symmetricDecodeJWT(
-            sessionDataCookie,
-            ctx.context.secretConfig,
-            "better-auth-session"
-          );
-          if (!payload?.session || !payload?.user) {
-            throw APIError.from("UNAUTHORIZED", { code: "INVALID_SESSION", message: "Invalid session" });
-          }
-
-          const res = await fetch(`${DJANGO}/api/v1/auth/token/refresh/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refresh: refreshToken }),
-          });
-          if (!res.ok) throw APIError.from("UNAUTHORIZED", { code: "REFRESH_FAILED", message: "Token refresh failed" });
-
-          const data = await res.json() as { access: string; refresh?: string };
-
-          await setCookieCache(ctx, {
-            session: payload.session,
-            user: { ...payload.user, djangoAccessToken: data.access },
-          }, false);
-
-          if (data.refresh) setRefreshCookie(ctx, data.refresh);
-
-          return ctx.json({ access_token: data.access });
-        }
-      ),
-    },
-
-    hooks: {
-      after: [
-        {
-          matcher: (ctx: any) => !!ctx.context.newSession?.user?.djangoRefreshToken,
-          handler: createAuthMiddleware(async (ctx: any) => {
-            setRefreshCookie(ctx, ctx.context.newSession.user.djangoRefreshToken);
-          }),
+        hooks: {
+            after: [
+                {
+                    matcher: (ctx: HookEndpointContext) =>
+                        !!(ctx.context.newSession?.user as Record<string, unknown> | undefined)?.djangoRefreshToken,
+                    handler: createAuthMiddleware(async (ctx) => {
+                        const token = (ctx.context.newSession?.user as Record<string, unknown> | undefined)?.djangoRefreshToken as string | undefined;
+                        if (token) setRefreshCookie(ctx as GenericEndpointContext, token);
+                    }),
+                },
+            ],
         },
-      ],
-    },
-  };
+    };
 }
 
 function buildMicrosoftProvider() {
-  if (!process.env.BETTER_AUTH_MICROSOFT_CLIENT_ID || !process.env.BETTER_AUTH_MICROSOFT_CLIENT_SECRET) {
-    return null;
-  }
-  const tenantId = process.env.BETTER_AUTH_MICROSOFT_TENANT_ID ?? "common";
-  return genericOAuth({
-    config: [
-      {
-        providerId: "microsoft",
-        clientId: process.env.BETTER_AUTH_MICROSOFT_CLIENT_ID,
-        clientSecret: process.env.BETTER_AUTH_MICROSOFT_CLIENT_SECRET,
-        authorizationUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`,
-        tokenUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-        scopes: ["openid", "profile", "email", "User.Read"],
-        getUserInfo: async (oauthTokens: any) => {
-          const accessToken: string = oauthTokens.accessToken ?? "";
-          const graphRes = await fetch("https://graph.microsoft.com/v1.0/me", {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          if (!graphRes.ok) throw APIError.from("BAD_REQUEST", { code: "GRAPH_FAILED", message: "Microsoft Graph request failed" });
-          const graphUser = await graphRes.json() as any;
+    if (
+        !process.env.BETTER_AUTH_MICROSOFT_CLIENT_ID ||
+        !process.env.BETTER_AUTH_MICROSOFT_CLIENT_SECRET
+    )
+        return null;
 
-          let tokens: { access: string; refresh: string };
-          try {
-            const res = await fetch(`${DJANGO}/api/v1/auth/microsoft/`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ access_token: accessToken }),
-            });
-            if (!res.ok) throw new Error();
-            tokens = await res.json();
-          } catch {
-            throw APIError.from("UNAUTHORIZED", { code: "MICROSOFT_EXCHANGE_FAILED", message: "Microsoft SSO exchange failed" });
-          }
+    const tenantId =
+        process.env.BETTER_AUTH_MICROSOFT_TENANT_ID || "common";
 
-          return {
-            id: graphUser.id,
-            email: graphUser.mail ?? graphUser.userPrincipalName,
-            name: graphUser.displayName,
-            emailVerified: true,
-            djangoAccessToken: tokens.access,
-            djangoRefreshToken: tokens.refresh,
-          };
-        },
-      },
-    ],
-  });
+    return genericOAuth({
+        config: [
+            {
+                providerId: "microsoft",
+                clientId: process.env.BETTER_AUTH_MICROSOFT_CLIENT_ID,
+                clientSecret:
+                    process.env.BETTER_AUTH_MICROSOFT_CLIENT_SECRET,
+                authorizationUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`,
+                tokenUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+                scopes: ["openid", "profile", "email", "User.Read"],
+                getUserInfo: async ({ accessToken }) => {
+                    const graphRes = await fetch(
+                        "https://graph.microsoft.com/v1.0/me",
+                        {
+                            headers: {
+                                Authorization: `Bearer ${accessToken}`,
+                            },
+                        }
+                    );
+                    if (!graphRes.ok)
+                        throw new APIError("BAD_REQUEST", {
+                            message: "Microsoft Graph request failed",
+                        });
+                    const graphUser = await graphRes.json() as Record<string, string>;
+
+                    const djangoData = await callDjango("auth/microsoft/", {
+                        access_token: accessToken,
+                    });
+
+                    const djangoUser = djangoData.user as Record<string, unknown> | undefined;
+
+                    return {
+                        id: graphUser.id,
+                        email: graphUser.mail || graphUser.userPrincipalName,
+                        name: graphUser.displayName,
+                        emailVerified: true,
+                        djangoAccessToken: djangoData.access as string,
+                        djangoRefreshToken: djangoData.refresh as string,
+                        isAdmin:
+                            ((djangoUser?.is_staff as boolean | undefined) ||
+                                (djangoUser?.is_superuser as boolean | undefined)) ?? false,
+                    };
+                },
+            },
+        ],
+    });
 }
 
 const microsoftProvider = buildMicrosoftProvider();
 
 export const auth = betterAuth({
-  secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-  rateLimit: {
-    window: 60,
-    max: 100,
-    customRules: {
-      "/sign-in/email": { window: 60, max: 5 },
+    secret: process.env.BETTER_AUTH_SECRET,
+    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+    rateLimit: {
+        window: 60,
+        max: 100,
+        customRules: {
+            "/sign-in/username": { window: 60, max: 5 },
+        },
     },
-  },
-  session: {
-    expiresIn: SESSION_LIFETIME,
-    cookieCache: {
-      enabled: true,
-      maxAge: SESSION_LIFETIME,
-      strategy: "jwe",
+    session: {
+        expiresIn: SESSION_LIFETIME,
+        cookieCache: {
+            enabled: true,
+            maxAge: SESSION_LIFETIME,
+            strategy: "jwe",
+        },
     },
-  },
-  user: {
-    additionalFields: {
-      djangoAccessToken: { type: "string", required: false, returned: true },
-      djangoRefreshToken: { type: "string", required: false, returned: false },
-      foiRole: { type: "string", required: false, returned: true },
-      department: { type: "string", required: false, returned: true },
-      djangoId: { type: "number", required: false, returned: true },
+    user: {
+        additionalFields: {
+            djangoAccessToken: {
+                type: "string",
+                required: false,
+                returned: true,
+            },
+            djangoRefreshToken: {
+                type: "string",
+                required: false,
+                returned: false,
+            },
+            isAdmin: {
+                type: "boolean",
+                required: false,
+                returned: true,
+                defaultValue: false,
+            },
+        },
     },
-  },
-  plugins: [
-    djangoCredentialsPlugin(),
-    customSession(async ({ user, session }: { user: any; session: any }) => {
-      const { djangoRefreshToken: _r, djangoAccessToken, ...safeUser } = user;
-      return {
-        user: { ...safeUser, access_token: djangoAccessToken },
-        session,
-      };
-    }),
-    nextCookies(),
-    ...(microsoftProvider ? [microsoftProvider] : []),
-  ],
+    plugins: [
+        djangoCredentialsPlugin(),
+        customSession(async ({ user, session }) => {
+            const u = user as typeof user & { djangoAccessToken?: string; djangoRefreshToken?: string };
+            const { djangoAccessToken, djangoRefreshToken: _dr, ...safeUser } = u;
+            void _dr;
+            return {
+                user: {
+                    ...safeUser,
+                    access_token: djangoAccessToken,
+                },
+                session,
+            };
+        }),
+        nextCookies(),
+        ...(microsoftProvider ? [microsoftProvider] : []),
+    ],
 });

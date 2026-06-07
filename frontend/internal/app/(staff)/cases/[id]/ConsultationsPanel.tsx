@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import FormField from "@/components/ui/FormField";
@@ -8,9 +9,8 @@ import RichTextEditor from "@/components/ui/RichTextEditor";
 import RecipientSearch, { type RecipientResult } from "@/components/ui/RecipientSearch";
 import { fmtDate } from "@/lib/utils";
 import {
-  sendConsultation, withdrawConsultation, closeConsultation,
-  sendConsultationMessageAction,
-} from "./actions";
+  createConsultation, updateConsultation, sendConsultationMessage,
+} from "@/lib/services/cases";
 import type { CaseConsultation } from "@/lib/types";
 
 const STATUS_COLOUR: Record<string, "yellow" | "green" | "grey"> = {
@@ -33,6 +33,7 @@ interface Props {
 }
 
 function ConsultationRow({ c, caseId, isClosed }: { c: CaseConsultation; caseId: number; isClosed?: boolean }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -40,24 +41,38 @@ function ConsultationRow({ c, caseId, isClosed }: { c: CaseConsultation; caseId:
 
   function handleWithdraw() {
     startTransition(async () => {
-      const result = await withdrawConsultation(caseId, c.id);
-      if (result?.error) setError(result.error);
+      try {
+        await updateConsultation(caseId, c.id, { status: "withdrawn" });
+        router.refresh();
+      } catch (err) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        setError(detail ?? "Something went wrong.");
+      }
     });
   }
 
   function handleClose() {
     startTransition(async () => {
-      const result = await closeConsultation(caseId, c.id);
-      if (result?.error) setError(result.error);
+      try {
+        await updateConsultation(caseId, c.id, { status: "closed" });
+        router.refresh();
+      } catch (err) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        setError(detail ?? "Something went wrong.");
+      }
     });
   }
 
   function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await sendConsultationMessageAction(caseId, c.id, msgBody);
-      if (result?.error) setError(result.error);
-      else setMsgBody("");
+      try {
+        await sendConsultationMessage(c.id, msgBody);
+        setMsgBody("");
+        router.refresh();
+      } catch {
+        setError("Failed to send message.");
+      }
     });
   }
 
@@ -178,6 +193,7 @@ function ConsultationRow({ c, caseId, isClosed }: { c: CaseConsultation; caseId:
 }
 
 export default function ConsultationsPanel({ caseId, consultations, requestText, isClosed }: Readonly<Props>) {
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -188,23 +204,25 @@ export default function ConsultationsPanel({ caseId, consultations, requestText,
   function handleSend(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!recipient) { setError("Select a recipient."); return; }
-
-    const fd = new FormData();
-    if (recipient.type === "mailbox") fd.set("mailbox", String(recipient.data.id));
-    else fd.set("assignee", String(recipient.data.id));
-    fd.set("scope", scope);
-    if (dueDate) fd.set("due_date", dueDate);
+    if (!scope.trim()) { setError("Scope is required."); return; }
 
     startTransition(async () => {
-      const result = await sendConsultation(caseId, fd);
-      if (result?.error) {
-        setError(result.error);
-      } else {
+      try {
+        await createConsultation(caseId, {
+          mailbox: recipient.type === "mailbox" ? recipient.data.id : null,
+          assignee: recipient.type === "user" ? recipient.data.id : null,
+          scope,
+          due_date: dueDate || null,
+        });
         setShowForm(false);
         setError(null);
         setRecipient(null);
         setScope(requestText);
         setDueDate("");
+        router.refresh();
+      } catch (err) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        setError(detail ?? "Failed to send consultation.");
       }
     });
   }
