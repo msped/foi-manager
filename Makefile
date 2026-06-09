@@ -1,4 +1,4 @@
-.PHONY: dev prod migrate makemigrations createsuperuser shell logs celery
+.PHONY: dev prod migrate makemigrations createsuperuser shell logs celery lint format
 
 dev:
 	docker compose -f docker-compose.dev.yml up -d
@@ -26,3 +26,9 @@ logs:
 
 down:
 	docker compose -f docker-compose.dev.yml down
+
+lint:
+	cd backend && uv run ruff check .
+
+format:
+	cd backend && uv run ruff format .
