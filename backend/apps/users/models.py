@@ -5,15 +5,15 @@ from django.db import models
 
 class User(AbstractUser):
     class Role(models.TextChoices):
-        FOI_TEAM = 'foi_team', 'FOI Team'
-        ASSIGNEE = 'assignee', 'Assignee'
+        FOI_TEAM = "foi_team", "FOI Team"
+        ASSIGNEE = "assignee", "Assignee"
 
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.ASSIGNEE)
     department = models.CharField(max_length=200, blank=True)
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username"]
 
     def is_foi_team(self):
         return self.role == self.Role.FOI_TEAM
@@ -22,9 +22,21 @@ class User(AbstractUser):
         return self.get_full_name() or self.email
 
 
+class NotificationPreferences(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_preferences",
+    )
+    notify_on_case_assignment = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Preferences for {self.user}"
+
+
 class Notification(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications'
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications"
     )
     message = models.CharField(max_length=500)
     link = models.CharField(max_length=500, blank=True)
@@ -32,7 +44,7 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
 
     def __str__(self):
-        return f'{self.user} — {self.message[:60]}'
+        return f"{self.user} — {self.message[:60]}"
