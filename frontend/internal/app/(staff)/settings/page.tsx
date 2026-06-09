@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { listRequesterCategories, listBankHolidays, listMailboxes, listEmailTemplates } from "@/lib/services/cases";
+import { listRequesterCategories, listBankHolidays, listMailboxes, listEmailTemplatePurposes } from "@/lib/services/cases";
 import { getMe, listUsers } from "@/lib/services/users";
 import RequesterCategoriesManager from "./RequesterCategoriesManager";
 import BankHolidaysManager from "./BankHolidaysManager";
@@ -14,11 +14,11 @@ export default async function SettingsPage() {
   const me = await getMe();
   if (me.role !== "foi_team") redirect("/dashboard");
 
-  const [categories, bankHolidays, mailboxes, emailTemplates, users] = await Promise.all([
+  const [categories, bankHolidays, mailboxes, emailTemplatePurposes, users] = await Promise.all([
     listRequesterCategories().catch(() => []),
     listBankHolidays().catch(() => []),
     listMailboxes().catch(() => []),
-    listEmailTemplates().catch(() => []),
+    listEmailTemplatePurposes().catch(() => []),
     listUsers().catch(() => []),
   ]);
 
@@ -31,7 +31,7 @@ export default async function SettingsPage() {
       <div className="staff-body">
         <div style={{ maxWidth: 900 }}>
           <MailboxesManager initial={mailboxes} />
-          <EmailTemplatesManager initial={emailTemplates} />
+          <EmailTemplatesManager initial={emailTemplatePurposes} />
           <UsersManager initial={users} currentUserId={me.id} />
           <RequesterCategoriesManager initial={categories} />
           <BankHolidaysManager initial={bankHolidays} />
