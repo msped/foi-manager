@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class PublicationsConfig(AppConfig):
-    name = 'apps.publications'
+    name = "apps.publications"

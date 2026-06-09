@@ -4,15 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0012_alter_caseconsultation_status'),
+        ("cases", "0012_alter_caseconsultation_status"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='caseresponse',
-            name='status',
-            field=models.CharField(choices=[('draft', 'Draft'), ('sending', 'Sending'), ('sent', 'Sent'), ('failed', 'Failed')], default='draft', max_length=10),
+            model_name="caseresponse",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("draft", "Draft"),
+                    ("sending", "Sending"),
+                    ("sent", "Sent"),
+                    ("failed", "Failed"),
+                ],
+                default="draft",
+                max_length=10,
+            ),
         ),
     ]

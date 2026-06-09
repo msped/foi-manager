@@ -1,27 +1,29 @@
 from datetime import date
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
 from apps.cases.utils import add_working_days, working_days_between
 
 
 class BankHoliday(models.Model):
     class Country(models.TextChoices):
-        ENGLAND = 'england', 'England'
-        WALES = 'wales', 'Wales'
-        SCOTLAND = 'scotland', 'Scotland'
-        NORTHERN_IRELAND = 'northern_ireland', 'Northern Ireland'
+        ENGLAND = "england", "England"
+        WALES = "wales", "Wales"
+        SCOTLAND = "scotland", "Scotland"
+        NORTHERN_IRELAND = "northern_ireland", "Northern Ireland"
 
     country = models.CharField(max_length=20, choices=Country.choices)
     name = models.CharField(max_length=100)
     date = models.DateField()
 
     class Meta:
-        ordering = ['date', 'country']
-        unique_together = [['date', 'country']]
+        ordering = ["date", "country"]
+        unique_together = [["date", "country"]]
 
     def __str__(self):
-        return f'{self.date} — {self.name} ({self.get_country_display()})'
+        return f"{self.date} — {self.name} ({self.get_country_display()})"
 
 
 class RequesterCategory(models.Model):
@@ -29,8 +31,8 @@ class RequesterCategory(models.Model):
     order = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
-        ordering = ['order', 'name']
-        verbose_name_plural = 'requester categories'
+        ordering = ["order", "name"]
+        verbose_name_plural = "requester categories"
 
     def __str__(self):
         return self.name
@@ -41,7 +43,7 @@ class Department(models.Model):
     internal_deadline_days = models.PositiveSmallIntegerField(default=10)
 
     class Meta:
-        ordering = ['name']
+        ordering = ["name"]
 
     def __str__(self):
         return self.name
@@ -49,22 +51,22 @@ class Department(models.Model):
 
 class Case(models.Model):
     class Status(models.TextChoices):
-        NEW = 'new', 'New'
-        ACKNOWLEDGED = 'acknowledged', 'Acknowledged'
-        WITH_DEPARTMENT = 'with_department', 'With Department'
-        DRAFTING = 'drafting', 'Drafting'
-        REVIEW = 'review', 'In Review'
-        WITH_APPLICANT = 'with_applicant', 'With Applicant'
-        INTERNAL_REVIEW = 'internal_review', 'Internal Review'
-        REFERRED = 'referred', 'Referred'
-        EXEMPT = 'exempt', 'Refused / Exempt'
-        CLOSED = 'closed', 'Closed'
+        NEW = "new", "New"
+        ACKNOWLEDGED = "acknowledged", "Acknowledged"
+        WITH_DEPARTMENT = "with_department", "With Department"
+        DRAFTING = "drafting", "Drafting"
+        REVIEW = "review", "In Review"
+        WITH_APPLICANT = "with_applicant", "With Applicant"
+        INTERNAL_REVIEW = "internal_review", "Internal Review"
+        REFERRED = "referred", "Referred"
+        EXEMPT = "exempt", "Refused / Exempt"
+        CLOSED = "closed", "Closed"
 
     class ReceivedBy(models.TextChoices):
-        PORTAL = 'portal', 'Public Portal'
-        EMAIL = 'email', 'Email'
-        POST = 'post', 'Post'
-        OTHER = 'other', 'Other'
+        PORTAL = "portal", "Public Portal"
+        EMAIL = "email", "Email"
+        POST = "post", "Post"
+        OTHER = "other", "Other"
 
     # Reference
     ref = models.CharField(max_length=20, unique=True, editable=False)
@@ -80,9 +82,7 @@ class Case(models.Model):
     summary = models.TextField(blank=True)
 
     # Status and workflow
-    status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.NEW
-    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW)
     received_by = models.CharField(
         max_length=10, choices=ReceivedBy.choices, default=ReceivedBy.PORTAL
     )
@@ -98,12 +98,18 @@ class Case(models.Model):
     clock_paused_days = models.PositiveSmallIntegerField(default=0)
 
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='created_cases',
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_cases",
     )
     assignee = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='assigned_cases',
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_cases",
     )
 
     # Outcome
@@ -113,40 +119,47 @@ class Case(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-submitted_at']
+        ordering = ["-submitted_at"]
 
     def __str__(self):
-        return f'{self.ref}: {self.request_text[:60]}'
+        return f"{self.ref}: {self.request_text[:60]}"
 
     def save(self, *args, **kwargs):
         if not self.ref:
             self.ref = self._generate_ref()
         if not self.statutory_deadline and self.submitted_at:
-            submitted_date = self.submitted_at.date() if hasattr(self.submitted_at, 'date') else self.submitted_at
-            self.statutory_deadline = add_working_days(submitted_date, settings.FOI_STATUTORY_DAYS)
+            submitted_date = (
+                self.submitted_at.date()
+                if hasattr(self.submitted_at, "date")
+                else self.submitted_at
+            )
+            self.statutory_deadline = add_working_days(
+                submitted_date, settings.FOI_STATUTORY_DAYS
+            )
         super().save(*args, **kwargs)
 
     @classmethod
     def _generate_ref(cls):
-        prefix = getattr(settings, 'FOI_REFERENCE_PREFIX', 'FOI')
+        prefix = getattr(settings, "FOI_REFERENCE_PREFIX", "FOI")
         year = timezone.now().year
         last = (
-            cls.objects.filter(ref__startswith=f'{prefix}-{year}-')
-            .order_by('-ref')
+            cls.objects.filter(ref__startswith=f"{prefix}-{year}-")
+            .order_by("-ref")
             .first()
         )
         if last:
-            seq = int(last.ref.split('-')[-1]) + 1
+            seq = int(last.ref.split("-")[-1]) + 1
         else:
             seq = 1
-        return f'{prefix}-{year}-{seq:04d}'
+        return f"{prefix}-{year}-{seq:04d}"
 
     @property
     def is_overdue(self) -> bool:
         if not self.statutory_deadline:
             return False
         return date.today() > self.statutory_deadline and self.status not in (
-            self.Status.EXEMPT, self.Status.CLOSED
+            self.Status.EXEMPT,
+            self.Status.CLOSED,
         )
 
     def acknowledge(self, actor=None):
@@ -155,15 +168,15 @@ class Case(models.Model):
         self.statutory_deadline = add_working_days(today, settings.FOI_STATUTORY_DAYS)
         self.status = self.Status.ACKNOWLEDGED
         self.save()
-        self._log(action='acknowledged', actor=actor, detail={})
+        self._log(action="acknowledged", actor=actor, detail={})
 
-    def pause_clock(self, reason: str = '', actor=None):
+    def pause_clock(self, reason: str = "", actor=None):
         if self.clock_paused:
             return
         self.clock_paused = True
         self.clock_paused_at = date.today()
         self.save()
-        self._log(action='clock_paused', actor=actor, detail={'reason': reason})
+        self._log(action="clock_paused", actor=actor, detail={"reason": reason})
 
     def resume_clock(self, actor=None):
         if not self.clock_paused or not self.clock_paused_at:
@@ -177,16 +190,18 @@ class Case(models.Model):
                 self.statutory_deadline, paused_days
             )
         self.save()
-        self._log(action='clock_resumed', actor=actor, detail={'paused_days': paused_days})
+        self._log(
+            action="clock_resumed", actor=actor, detail={"paused_days": paused_days}
+        )
 
     def transition_to(self, new_status: str, actor=None):
         old_status = self.status
         self.status = new_status
         self.save()
         self._log(
-            action='status_change',
+            action="status_change",
             actor=actor,
-            detail={'from': old_status, 'to': new_status},
+            detail={"from": old_status, "to": new_status},
         )
 
     def _log(self, action: str, actor, detail: dict):
@@ -203,20 +218,105 @@ class Mailbox(models.Model):
     email = models.EmailField(unique=True)
 
     class Meta:
-        ordering = ['name']
-        verbose_name_plural = 'mailboxes'
+        ordering = ["name"]
+        verbose_name_plural = "mailboxes"
 
     def __str__(self):
-        return f'{self.name} <{self.email}>'
+        return f"{self.name} <{self.email}>"
 
 
 class EmailTemplate(models.Model):
     class Type(models.TextChoices):
-        CONSULTATION = 'consultation', 'Consultation'
-        REQUESTER = 'requester', 'Requester'
+        ASSIGNEE = "assignee", "Assignee"
+        CONSULTATION = "consultation", "Consultation"
+        REQUESTER = "requester", "Requester"
 
-    name = models.CharField(max_length=200, unique=True)
-    type = models.CharField(max_length=20, choices=Type.choices)
+    class Purpose(models.TextChoices):
+        ACKNOWLEDGEMENT = "acknowledgement", "Acknowledgement"
+        CASE_RESPONSE = "case_response", "Case Response"
+        CONSULTATION_NOTIFICATION = (
+            "consultation_notification",
+            "Consultation Notification",
+        )
+        CONSULTATION_MESSAGE = "consultation_message", "Consultation Message"
+        CASE_ASSIGNMENT = "case_assignment", "Case Assignment"
+
+    PURPOSE_TYPE_MAP = {
+        Purpose.ACKNOWLEDGEMENT: Type.REQUESTER,
+        Purpose.CASE_RESPONSE: Type.REQUESTER,
+        Purpose.CONSULTATION_NOTIFICATION: Type.CONSULTATION,
+        Purpose.CONSULTATION_MESSAGE: Type.CONSULTATION,
+        Purpose.CASE_ASSIGNMENT: Type.ASSIGNEE,
+    }
+
+    PURPOSE_META = {
+        Purpose.ACKNOWLEDGEMENT: {
+            "label": "Acknowledgement",
+            "description": "Sent to the requester when their FOI request is acknowledged.",
+            "variables": [
+                "ref",
+                "requester_name",
+                "submitted_at",
+                "statutory_deadline",
+                "organisation_name",
+                "foi_contact_email",
+            ],
+        },
+        Purpose.CASE_RESPONSE: {
+            "label": "Case Response",
+            "description": "Sent to the requester when a final response is issued. Use {{response_body}} to embed the response content.",
+            "variables": [
+                "ref",
+                "requester_name",
+                "response_body",
+                "submitted_at",
+                "organisation_name",
+                "foi_contact_email",
+            ],
+        },
+        Purpose.CONSULTATION_NOTIFICATION: {
+            "label": "Consultation Notification",
+            "description": "Sent to an assignee when they are added to a consultation.",
+            "variables": [
+                "ref",
+                "requester_name",
+                "assignee_name",
+                "scope",
+                "due_date",
+                "consultation_url",
+                "organisation_name",
+            ],
+        },
+        Purpose.CONSULTATION_MESSAGE: {
+            "label": "Consultation Message",
+            "description": "Sent to an assignee when a new message is posted on their consultation.",
+            "variables": [
+                "ref",
+                "requester_name",
+                "assignee_name",
+                "message_body",
+                "consultation_url",
+                "organisation_name",
+            ],
+        },
+        Purpose.CASE_ASSIGNMENT: {
+            "label": "Case Assignment",
+            "description": "Sent to a staff member when a case is assigned to them.",
+            "variables": [
+                "ref",
+                "requester_name",
+                "assignee_name",
+                "case_url",
+                "organisation_name",
+            ],
+        },
+    }
+
+    purpose = models.CharField(
+        max_length=40, choices=Purpose.choices, unique=True, null=True, blank=True
+    )
+    name = models.CharField(max_length=200)
+    type = models.CharField(max_length=20, choices=Type.choices, blank=True)
     description = models.TextField(blank=True)
     subject = models.CharField(max_length=500, blank=True)
     body = models.TextField()
@@ -224,64 +324,84 @@ class EmailTemplate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['type', 'name']
+        ordering = ["type", "name"]
 
     def __str__(self):
-        return f'[{self.get_type_display()}] {self.name}'
+        return f"[{self.get_type_display()}] {self.name}"
+
+    def save(self, *args, **kwargs):
+        if self.purpose:
+            self.type = self.PURPOSE_TYPE_MAP[self.purpose]
+        super().save(*args, **kwargs)
 
     def render(self, context: dict) -> str:
         result = self.body
         for key, value in context.items():
-            result = result.replace(f'{{{{{key}}}}}', str(value))
+            result = result.replace(f"{{{{{key}}}}}", str(value))
         return result
 
     def render_subject(self, context: dict) -> str:
         result = self.subject
         for key, value in context.items():
-            result = result.replace(f'{{{{{key}}}}}', str(value))
+            result = result.replace(f"{{{{{key}}}}}", str(value))
         return result
 
 
 class CaseConsultation(models.Model):
     class Status(models.TextChoices):
-        OPEN = 'open', 'Open'
-        CLOSED = 'closed', 'Closed'
-        WITHDRAWN = 'withdrawn', 'Withdrawn'
+        OPEN = "open", "Open"
+        CLOSED = "closed", "Closed"
+        WITHDRAWN = "withdrawn", "Withdrawn"
 
-    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='consultations')
+    case = models.ForeignKey(
+        Case, on_delete=models.CASCADE, related_name="consultations"
+    )
     assignee = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='consultations',
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="consultations",
     )
     mailbox = models.ForeignKey(
-        Mailbox, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='consultations',
+        Mailbox,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="consultations",
     )
     scope = models.TextField()
-    status = models.CharField(max_length=30, choices=Status.choices, default=Status.OPEN)
+    status = models.CharField(
+        max_length=30, choices=Status.choices, default=Status.OPEN
+    )
     due_date = models.DateField(null=True, blank=True)
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='created_consultations',
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_consultations",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['created_at']
+        ordering = ["created_at"]
 
     def __str__(self):
         recipient = (
-            self.assignee.get_full_name() if self.assignee
-            else self.mailbox.name if self.mailbox
-            else 'Unassigned'
+            self.assignee.get_full_name()
+            if self.assignee
+            else self.mailbox.name
+            if self.mailbox
+            else "Unassigned"
         )
-        return f'{self.case.ref} → {recipient}'
+        return f"{self.case.ref} → {recipient}"
 
 
 class ConsultationMessage(models.Model):
     consultation = models.ForeignKey(
-        CaseConsultation, on_delete=models.CASCADE, related_name='messages'
+        CaseConsultation, on_delete=models.CASCADE, related_name="messages"
     )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
@@ -290,81 +410,86 @@ class ConsultationMessage(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['created_at']
+        ordering = ["created_at"]
 
     def __str__(self):
-        return f'{self.consultation} — {self.created_at:%Y-%m-%d %H:%M}'
+        return f"{self.consultation} — {self.created_at:%Y-%m-%d %H:%M}"
 
 
 class CaseResponse(models.Model):
     class Status(models.TextChoices):
-        DRAFT = 'draft', 'Draft'
-        SENDING = 'sending', 'Sending'
-        SENT = 'sent', 'Sent'
-        FAILED = 'failed', 'Failed'
+        DRAFT = "draft", "Draft"
+        SENDING = "sending", "Sending"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
 
-    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='responses')
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="responses")
     body = models.TextField()
     rendered_body = models.TextField(blank=True)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT
+    )
     sent_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='created_responses',
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_responses",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
 
     def __str__(self):
-        return f'{self.case.ref} response ({self.status})'
+        return f"{self.case.ref} response ({self.status})"
 
 
 class CaseExemption(models.Model):
     class Code(models.TextChoices):
-        S12_COST_LIMIT = 's12', 's.12 — Cost of compliance limit'
-        S14_VEXATIOUS = 's14', 's.14 — Vexatious or repeated request'
-        S21_PUBLICLY_AVAILABLE = 's21', 's.21 — Information accessible by other means'
-        S22_FUTURE_PUBLICATION = 's22', 's.22 — Intended for future publication'
-        S23_SECURITY_BODIES = 's23', 's.23 — Information supplied by security bodies'
-        S24_NATIONAL_SECURITY = 's24', 's.24 — National security'
-        S26_DEFENCE = 's26', 's.26 — Defence'
-        S27_INTERNATIONAL_RELATIONS = 's27', 's.27 — International relations'
-        S28_RELATIONS_WITHIN_UK = 's28', 's.28 — Relations within the UK'
-        S29_ECONOMY = 's29', 's.29 — The economy'
-        S30_INVESTIGATIONS = 's30', 's.30 — Investigations and proceedings'
-        S31_LAW_ENFORCEMENT = 's31', 's.31 — Law enforcement'
-        S32_COURT_RECORDS = 's32', 's.32 — Court records'
-        S33_AUDIT = 's33', 's.33 — Audit functions'
-        S34_PARLIAMENTARY_PRIVILEGE = 's34', 's.34 — Parliamentary privilege'
-        S35_POLICY_FORMULATION = 's35', 's.35 — Formulation of government policy'
-        S36_PREJUDICE = 's36', 's.36 — Prejudice to effective conduct of public affairs'
-        S37_COMMUNICATIONS = 's37', 's.37 — Communications with the Crown'
-        S38_HEALTH_AND_SAFETY = 's38', 's.38 — Health and safety'
-        S39_ENVIRONMENTAL = 's39', 's.39 — Environmental information'
-        S40_PERSONAL_INFO = 's40', 's.40 — Personal information'
-        S41_CONFIDENTIAL = 's41', 's.41 — Information provided in confidence'
-        S42_LEGAL_PRIVILEGE = 's42', 's.42 — Legal professional privilege'
-        S43_COMMERCIAL = 's43', 's.43 — Commercial interests'
-        S44_PROHIBITIONS = 's44', 's.44 — Prohibitions on disclosure'
+        S12_COST_LIMIT = "s12", "s.12 — Cost of compliance limit"
+        S14_VEXATIOUS = "s14", "s.14 — Vexatious or repeated request"
+        S21_PUBLICLY_AVAILABLE = "s21", "s.21 — Information accessible by other means"
+        S22_FUTURE_PUBLICATION = "s22", "s.22 — Intended for future publication"
+        S23_SECURITY_BODIES = "s23", "s.23 — Information supplied by security bodies"
+        S24_NATIONAL_SECURITY = "s24", "s.24 — National security"
+        S26_DEFENCE = "s26", "s.26 — Defence"
+        S27_INTERNATIONAL_RELATIONS = "s27", "s.27 — International relations"
+        S28_RELATIONS_WITHIN_UK = "s28", "s.28 — Relations within the UK"
+        S29_ECONOMY = "s29", "s.29 — The economy"
+        S30_INVESTIGATIONS = "s30", "s.30 — Investigations and proceedings"
+        S31_LAW_ENFORCEMENT = "s31", "s.31 — Law enforcement"
+        S32_COURT_RECORDS = "s32", "s.32 — Court records"
+        S33_AUDIT = "s33", "s.33 — Audit functions"
+        S34_PARLIAMENTARY_PRIVILEGE = "s34", "s.34 — Parliamentary privilege"
+        S35_POLICY_FORMULATION = "s35", "s.35 — Formulation of government policy"
+        S36_PREJUDICE = "s36", "s.36 — Prejudice to effective conduct of public affairs"
+        S37_COMMUNICATIONS = "s37", "s.37 — Communications with the Crown"
+        S38_HEALTH_AND_SAFETY = "s38", "s.38 — Health and safety"
+        S39_ENVIRONMENTAL = "s39", "s.39 — Environmental information"
+        S40_PERSONAL_INFO = "s40", "s.40 — Personal information"
+        S41_CONFIDENTIAL = "s41", "s.41 — Information provided in confidence"
+        S42_LEGAL_PRIVILEGE = "s42", "s.42 — Legal professional privilege"
+        S43_COMMERCIAL = "s43", "s.43 — Commercial interests"
+        S44_PROHIBITIONS = "s44", "s.44 — Prohibitions on disclosure"
 
-    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='exemptions')
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="exemptions")
     code = models.CharField(max_length=10, choices=Code.choices)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['code']
-        unique_together = [['case', 'code']]
+        ordering = ["code"]
+        unique_together = [["case", "code"]]
 
     def __str__(self):
-        return f'{self.code} — {self.case.ref}'
+        return f"{self.code} — {self.case.ref}"
 
 
 class CaseNote(models.Model):
-    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='notes')
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="notes")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
     )
@@ -372,15 +497,15 @@ class CaseNote(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['created_at']
+        ordering = ["created_at"]
 
     def __repr__(self):
-        return f'<CaseNote: {self.body[:40]}>'
+        return f"<CaseNote: {self.body[:40]}>"
 
 
 class CaseAuditEvent(models.Model):
     case = models.ForeignKey(
-        Case, on_delete=models.CASCADE, related_name='audit_events'
+        Case, on_delete=models.CASCADE, related_name="audit_events"
     )
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
@@ -390,7 +515,7 @@ class CaseAuditEvent(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['timestamp']
+        ordering = ["timestamp"]
 
     def __str__(self):
-        return f'{self.timestamp:%Y-%m-%d %H:%M} — {self.action}'
+        return f"{self.timestamp:%Y-%m-%d %H:%M} — {self.action}"

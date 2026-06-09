@@ -4,11 +4,9 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0012_alter_case_status'),
-        ('cases', '0013_alter_caseresponse_status'),
+        ("cases", "0012_alter_case_status"),
+        ("cases", "0013_alter_caseresponse_status"),
     ]
 
-    operations = [
-    ]
+    operations = []

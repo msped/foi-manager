@@ -1,12 +1,19 @@
+from django.shortcuts import get_object_or_404
+from django.utils.timezone import now
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-from django.utils.timezone import now
 
-from .models import BankHoliday, Case, Department, EmailTemplate, Mailbox, RequesterCategory
+from .models import (
+    BankHoliday,
+    Case,
+    Department,
+    EmailTemplate,
+    Mailbox,
+    RequesterCategory,
+)
 from .permissions import IsFOITeam
 from .serializers import (
     BankHolidaySerializer,
@@ -20,7 +27,7 @@ from .serializers import (
     PublicCaseTrackSerializer,
     RequesterCategorySerializer,
 )
-from .tasks import task_send_acknowledgement
+from .tasks import task_send_acknowledgement, task_send_case_assignment_notification
 
 
 class PublicCaseSubmitView(APIView):
@@ -30,15 +37,17 @@ class PublicCaseSubmitView(APIView):
         serializer = PublicCaseSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         case = serializer.save(received_by=Case.ReceivedBy.PORTAL)
-        return Response({'ref': case.ref, 'status': case.status}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"ref": case.ref, "status": case.status}, status=status.HTTP_201_CREATED
+        )
 
 
 class PublicCaseTrackView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        ref = request.query_params.get('ref', '')
-        email = request.query_params.get('email', '')
+        ref = request.query_params.get("ref", "")
+        email = request.query_params.get("email", "")
         case = get_object_or_404(Case, ref=ref, requester_email__iexact=email)
         serializer = PublicCaseTrackSerializer(case)
         return Response(serializer.data)
@@ -50,62 +59,81 @@ class CaseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Case.objects.select_related(
-            'created_by',
-            'disclosure_log_entry',
-            'disclosure_log_entry__published_by',
-            'disclosure_log_entry__rejected_by',
+            "created_by",
+            "disclosure_log_entry",
+            "disclosure_log_entry__published_by",
+            "disclosure_log_entry__rejected_by",
         )
         params = self.request.query_params
-        if status_filter := params.get('status'):
+        if status_filter := params.get("status"):
             qs = qs.filter(status=status_filter)
-        if exclude_status := params.get('exclude_status'):
-            qs = qs.exclude(status__in=[s.strip() for s in exclude_status.split(',')])
-        if assignee := params.get('assignee'):
+        if exclude_status := params.get("exclude_status"):
+            qs = qs.exclude(status__in=[s.strip() for s in exclude_status.split(",")])
+        if assignee := params.get("assignee"):
             qs = qs.filter(assignee=assignee)
-        if params.get('is_overdue') == 'true':
+        if params.get("is_overdue") == "true":
             terminal = [Case.Status.PUBLISHED, Case.Status.EXEMPT, Case.Status.CLOSED]
-            qs = qs.filter(
-                statutory_deadline__lt=now().date()
-            ).exclude(status__in=terminal)
+            qs = qs.filter(statutory_deadline__lt=now().date()).exclude(
+                status__in=terminal
+            )
         return qs
 
     def get_serializer_class(self):
-        if self.action == 'list':
+        if self.action == "list":
             return CaseListSerializer
         return CaseDetailSerializer
 
     def get_object(self):
-        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs['pk'])
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
         self.check_object_permissions(self.request, obj)
         return obj
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsFOITeam])
+    def perform_update(self, serializer):
+        old_assignee_id = serializer.instance.assignee_id
+        instance = serializer.save()
+        new_assignee_id = instance.assignee_id
+        if new_assignee_id and new_assignee_id != old_assignee_id:
+            task_send_case_assignment_notification.delay(instance.pk, new_assignee_id)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsFOITeam])
     def acknowledge(self, request, pk=None):
         case = get_object_or_404(Case, pk=pk)
         if case.status == Case.Status.ACKNOWLEDGED:
-            return Response({'detail': 'Case is already acknowledged.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Case is already acknowledged."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not EmailTemplate.objects.filter(
+            purpose=EmailTemplate.Purpose.ACKNOWLEDGEMENT
+        ).exists():
+            return Response(
+                {
+                    "detail": 'The "Acknowledgement" email template is not configured. Set it up in Settings → Email Templates before continuing.'
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         case.acknowledge(actor=request.user)
         task_send_acknowledgement.delay(case.pk)
         return Response(CaseDetailSerializer(case).data)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsFOITeam])
+    @action(detail=True, methods=["post"], permission_classes=[IsFOITeam])
     def transition(self, request, pk=None):
         case = get_object_or_404(Case, pk=pk)
         serializer = CaseTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        case.transition_to(serializer.validated_data['status'], actor=request.user)
+        case.transition_to(serializer.validated_data["status"], actor=request.user)
         return Response(CaseDetailSerializer(case).data)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsFOITeam])
+    @action(detail=True, methods=["post"], permission_classes=[IsFOITeam])
     def pause_clock(self, request, pk=None):
         case = get_object_or_404(Case, pk=pk)
-        case.pause_clock(reason=request.data.get('reason', ''), actor=request.user)
+        case.pause_clock(reason=request.data.get("reason", ""), actor=request.user)
         return Response(CaseDetailSerializer(case).data)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsFOITeam])
+    @action(detail=True, methods=["post"], permission_classes=[IsFOITeam])
     def resume_clock(self, request, pk=None):
         case = get_object_or_404(Case, pk=pk)
         case.resume_clock(actor=request.user)
@@ -125,7 +153,7 @@ class RequesterCategoryViewSet(viewsets.ModelViewSet):
     pagination_class = None
 
     def get_permissions(self):
-        if self.action in ('list', 'retrieve'):
+        if self.action in ("list", "retrieve"):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsFOITeam()]
 
@@ -137,10 +165,10 @@ class BankHolidayViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = BankHoliday.objects.all()
-        country = self.request.query_params.get('country')
+        country = self.request.query_params.get("country")
         if country:
             qs = qs.filter(country=country)
-        year = self.request.query_params.get('year')
+        year = self.request.query_params.get("year")
         if year:
             qs = qs.filter(date__year=year)
         return qs
@@ -151,13 +179,13 @@ class MailboxViewSet(viewsets.ModelViewSet):
     pagination_class = None
 
     def get_permissions(self):
-        if self.action in ('list',):
+        if self.action in ("list",):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsFOITeam()]
 
     def get_queryset(self):
         qs = Mailbox.objects.all()
-        search = self.request.query_params.get('search', '').strip()
+        search = self.request.query_params.get("search", "").strip()
         if search:
             qs = qs.filter(name__icontains=search) | qs.filter(email__icontains=search)
         return qs.distinct()
@@ -170,7 +198,29 @@ class EmailTemplateViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = EmailTemplate.objects.all()
-        type_filter = self.request.query_params.get('type')
+        type_filter = self.request.query_params.get("type")
         if type_filter:
             qs = qs.filter(type=type_filter)
         return qs
+
+    @action(detail=False, methods=["get"])
+    def purposes(self, request):
+        templates_by_purpose = {
+            t.purpose: t for t in EmailTemplate.objects.exclude(purpose__isnull=True)
+        }
+        result = []
+        for purpose, meta in EmailTemplate.PURPOSE_META.items():
+            template = templates_by_purpose.get(purpose)
+            result.append(
+                {
+                    "purpose": purpose,
+                    "label": meta["label"],
+                    "description": meta["description"],
+                    "type": EmailTemplate.PURPOSE_TYPE_MAP[purpose],
+                    "variables": meta["variables"],
+                    "template": EmailTemplateSerializer(template).data
+                    if template
+                    else None,
+                }
+            )
+        return Response(result)

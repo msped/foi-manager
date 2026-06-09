@@ -8,7 +8,7 @@ import FormField from "@/components/ui/FormField";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { fmtDate } from "@/lib/utils";
 import { createCaseResponse, updateCaseResponse, sendCaseResponse } from "@/lib/services/cases";
-import type { CaseResponse, EmailTemplate } from "@/lib/types";
+import type { CaseResponse } from "@/lib/types";
 
 interface TemplateVars {
   ref: string;
@@ -19,24 +19,9 @@ interface TemplateVars {
   request_summary: string;
 }
 
-function escHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function applyVars(template: string, vars: TemplateVars): string {
-  return template
-    .replace(/\{\{ref\}\}/g, escHtml(vars.ref))
-    .replace(/\{\{requester_name\}\}/g, escHtml(vars.requester_name))
-    .replace(/\{\{requester_email\}\}/g, escHtml(vars.requester_email))
-    .replace(/\{\{submitted_at\}\}/g, escHtml(vars.submitted_at))
-    .replace(/\{\{statutory_deadline\}\}/g, escHtml(vars.statutory_deadline))
-    .replace(/\{\{request_summary\}\}/g, escHtml(vars.request_summary));
-}
-
 interface Props {
   caseId: number;
   responses: CaseResponse[];
-  emailTemplates: EmailTemplate[];
   templateVars: TemplateVars;
   isClosed?: boolean;
 }
@@ -142,19 +127,14 @@ function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: n
   );
 }
 
-export default function CaseResponsesPanel({ caseId, responses, emailTemplates, templateVars, isClosed }: Props) {
+export default function CaseResponsesPanel({ caseId, responses, templateVars, isClosed }: Props) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function applyTemplate(templateId: string) {
-    const t = emailTemplates.find(t => String(t.id) === templateId);
-    if (t) setBody(applyVars(t.body, templateVars));
-  }
-
-  function handleCreate(e: React.FormEvent<HTMLFormElement>) {
+  function handleCreate(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     startTransition(async () => {
       try {
@@ -210,27 +190,6 @@ export default function CaseResponsesPanel({ caseId, responses, emailTemplates, 
         {showForm && (
           <form onSubmit={handleCreate} style={{ borderTop: drafts.length > 0 ? "1px solid var(--govuk-border-colour)" : undefined, paddingTop: drafts.length > 0 ? 12 : 0 }}>
             {error && <p className="govuk-error-message">{error}</p>}
-
-            {emailTemplates.length > 0 && (
-              <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                <select
-                  className="govuk-select"
-                  defaultValue=""
-                  style={{ width: "auto" }}
-                  onChange={e => applyTemplate(e.target.value)}
-                >
-                  <option value="">Insert template…</option>
-                  {emailTemplates
-                    .filter(t => t.type === "requester")
-                    .map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                </select>
-                <span className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
-                  Templates replace the current draft text.
-                </span>
-              </div>
-            )}
 
             <FormField label="Response body" htmlFor="resp-body">
               <RichTextEditor

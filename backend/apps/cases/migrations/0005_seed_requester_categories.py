@@ -4,23 +4,24 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0004_requester_category'),
+        ("cases", "0004_requester_category"),
     ]
 
     def seed(apps, schema_editor):
-        RequesterCategory = apps.get_model('cases', 'RequesterCategory')
+        RequesterCategory = apps.get_model("cases", "RequesterCategory")
         categories = [
-            ('Individual', 0),
-            ('Journalist', 1),
-            ('Business', 2),
-            ('Researcher', 3),
-            ('Campaign / Advocacy Group', 4),
-            ('Other', 5),
+            ("Individual", 0),
+            ("Journalist", 1),
+            ("Business", 2),
+            ("Researcher", 3),
+            ("Campaign / Advocacy Group", 4),
+            ("Other", 5),
         ]
         for name, order in categories:
-            RequesterCategory.objects.get_or_create(name=name, defaults={'order': order})
+            RequesterCategory.objects.get_or_create(
+                name=name, defaults={"order": order}
+            )
 
     operations = [
         migrations.RunPython(seed, migrations.RunPython.noop),

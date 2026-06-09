@@ -5,72 +5,156 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Case',
+            name="Case",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('ref', models.CharField(editable=False, max_length=20, unique=True)),
-                ('requester_name', models.CharField(max_length=300)),
-                ('requester_email', models.EmailField(max_length=254)),
-                ('requester_type', models.CharField(blank=True, choices=[('individual', 'Individual'), ('journalist', 'Journalist'), ('business', 'Business'), ('researcher', 'Researcher'), ('campaign', 'Campaign / Advocacy Group'), ('other', 'Other')], max_length=20)),
-                ('preferred_response_format', models.CharField(blank=True, max_length=50)),
-                ('request_text', models.TextField()),
-                ('summary', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('new', 'New'), ('acknowledged', 'Acknowledged'), ('with_department', 'With Department'), ('drafting', 'Drafting'), ('review', 'In Review'), ('with_applicant', 'With Applicant'), ('internal_review', 'Internal Review'), ('referred', 'Referred'), ('published', 'Published'), ('exempt', 'Refused / Exempt'), ('closed', 'Closed')], default='new', max_length=20)),
-                ('received_by', models.CharField(choices=[('portal', 'Public Portal'), ('email', 'Email'), ('post', 'Post'), ('other', 'Other')], default='portal', max_length=10)),
-                ('submitted_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('acknowledged_at', models.DateField(blank=True, null=True)),
-                ('statutory_deadline', models.DateField(blank=True, null=True)),
-                ('clock_paused', models.BooleanField(default=False)),
-                ('clock_paused_at', models.DateField(blank=True, null=True)),
-                ('clock_paused_days', models.PositiveSmallIntegerField(default=0)),
-                ('outcome', models.CharField(blank=True, max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("ref", models.CharField(editable=False, max_length=20, unique=True)),
+                ("requester_name", models.CharField(max_length=300)),
+                ("requester_email", models.EmailField(max_length=254)),
+                (
+                    "requester_type",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("individual", "Individual"),
+                            ("journalist", "Journalist"),
+                            ("business", "Business"),
+                            ("researcher", "Researcher"),
+                            ("campaign", "Campaign / Advocacy Group"),
+                            ("other", "Other"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "preferred_response_format",
+                    models.CharField(blank=True, max_length=50),
+                ),
+                ("request_text", models.TextField()),
+                ("summary", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("new", "New"),
+                            ("acknowledged", "Acknowledged"),
+                            ("with_department", "With Department"),
+                            ("drafting", "Drafting"),
+                            ("review", "In Review"),
+                            ("with_applicant", "With Applicant"),
+                            ("internal_review", "Internal Review"),
+                            ("referred", "Referred"),
+                            ("published", "Published"),
+                            ("exempt", "Refused / Exempt"),
+                            ("closed", "Closed"),
+                        ],
+                        default="new",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "received_by",
+                    models.CharField(
+                        choices=[
+                            ("portal", "Public Portal"),
+                            ("email", "Email"),
+                            ("post", "Post"),
+                            ("other", "Other"),
+                        ],
+                        default="portal",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "submitted_at",
+                    models.DateTimeField(default=django.utils.timezone.now),
+                ),
+                ("acknowledged_at", models.DateField(blank=True, null=True)),
+                ("statutory_deadline", models.DateField(blank=True, null=True)),
+                ("clock_paused", models.BooleanField(default=False)),
+                ("clock_paused_at", models.DateField(blank=True, null=True)),
+                ("clock_paused_days", models.PositiveSmallIntegerField(default=0)),
+                ("outcome", models.CharField(blank=True, max_length=20)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['-submitted_at'],
+                "ordering": ["-submitted_at"],
             },
         ),
         migrations.CreateModel(
-            name='CaseAuditEvent',
+            name="CaseAuditEvent",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('action', models.CharField(max_length=50)),
-                ('detail', models.JSONField(default=dict)),
-                ('timestamp', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("action", models.CharField(max_length=50)),
+                ("detail", models.JSONField(default=dict)),
+                ("timestamp", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['timestamp'],
+                "ordering": ["timestamp"],
             },
         ),
         migrations.CreateModel(
-            name='CaseNote',
+            name="CaseNote",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('body', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("body", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['created_at'],
+                "ordering": ["created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Department',
+            name="Department",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200, unique=True)),
-                ('internal_deadline_days', models.PositiveSmallIntegerField(default=10)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200, unique=True)),
+                (
+                    "internal_deadline_days",
+                    models.PositiveSmallIntegerField(default=10),
+                ),
             ],
             options={
-                'ordering': ['name'],
+                "ordering": ["name"],
             },
         ),
     ]

@@ -4,18 +4,17 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0007_bankholiday'),
+        ("cases", "0007_bankholiday"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='case',
-            name='assignee',
+            model_name="case",
+            name="assignee",
         ),
         migrations.RemoveField(
-            model_name='case',
-            name='department',
+            model_name="case",
+            name="department",
         ),
     ]

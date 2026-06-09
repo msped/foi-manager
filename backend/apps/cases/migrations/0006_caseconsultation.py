@@ -6,30 +6,82 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0005_seed_requester_categories'),
+        ("cases", "0005_seed_requester_categories"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CaseConsultation',
+            name="CaseConsultation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('scope', models.TextField()),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('responded', 'Responded'), ('withdrawn', 'Withdrawn')], default='pending', max_length=20)),
-                ('due_date', models.DateField(blank=True, null=True)),
-                ('response', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('assignee', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='consultations', to=settings.AUTH_USER_MODEL)),
-                ('case', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='consultations', to='cases.case')),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_consultations', to=settings.AUTH_USER_MODEL)),
-                ('department', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='consultations', to='cases.department')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("scope", models.TextField()),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("responded", "Responded"),
+                            ("withdrawn", "Withdrawn"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                ("due_date", models.DateField(blank=True, null=True)),
+                ("response", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "assignee",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="consultations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "case",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="consultations",
+                        to="cases.case",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="created_consultations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "department",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="consultations",
+                        to="cases.department",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['created_at'],
+                "ordering": ["created_at"],
             },
         ),
     ]

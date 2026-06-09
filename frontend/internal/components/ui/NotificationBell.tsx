@@ -48,14 +48,14 @@ export default function NotificationBell() {
           border: "none",
           color: "#ffffff",
           cursor: "pointer",
-          padding: 4,
+          padding: 6,
           position: "relative",
           lineHeight: 1,
           display: "flex",
           alignItems: "center",
         }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="white" aria-hidden="true">
           <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
         </svg>
         {unread > 0 && (
@@ -83,7 +83,7 @@ export default function NotificationBell() {
       {open && (
         <div style={{
           position: "absolute",
-          bottom: "calc(100% + 8px)",
+          top: "calc(100% + 8px)",
           left: 0,
           width: 300,
           background: "#fff",

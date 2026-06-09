@@ -63,7 +63,7 @@ function ConsultationRow({ c, caseId, isClosed }: { c: CaseConsultation; caseId:
     });
   }
 
-  function handleSendMessage(e: React.FormEvent) {
+  function handleSendMessage(e: React.SubmitEvent) {
     e.preventDefault();
     startTransition(async () => {
       try {
@@ -201,7 +201,7 @@ export default function ConsultationsPanel({ caseId, consultations, requestText,
   const [scope, setScope] = useState(requestText);
   const [dueDate, setDueDate] = useState("");
 
-  function handleSend(e: React.FormEvent<HTMLFormElement>) {
+  function handleSend(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!recipient) { setError("Select a recipient."); return; }
     if (!scope.trim()) { setError("Scope is required."); return; }

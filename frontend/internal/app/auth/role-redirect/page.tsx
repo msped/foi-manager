@@ -1,10 +1,13 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getMe } from "@/lib/services/users";
 
 export default async function RoleRedirectPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect("/login");
-  const role = (session.user as any).foiRole;
-  redirect(role === "assignee" ? "/consultations" : "/dashboard");
+  let user;
+  try {
+    user = await getMe();
+  } catch {
+    redirect("/login");
+  }
+
+  redirect(user.role === "foi_team" ? "/dashboard" : "/consultations");
 }

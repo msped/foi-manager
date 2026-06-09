@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('users', '0002_notification'),
+        ("users", "0002_notification"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='user',
-            name='role',
-            field=models.CharField(choices=[('foi_team', 'FOI Team'), ('assignee', 'Assignee')], default='assignee', max_length=20),
+            model_name="user",
+            name="role",
+            field=models.CharField(
+                choices=[("foi_team", "FOI Team"), ("assignee", "Assignee")],
+                default="assignee",
+                max_length=20,
+            ),
         ),
     ]

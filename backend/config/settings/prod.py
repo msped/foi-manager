@@ -1,13 +1,16 @@
-from .base import *
 from decouple import config
+
+from .base import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=lambda v: [h.strip() for h in v.split(',')])
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS", cast=lambda v: [h.strip() for h in v.split(",")]
+)
 
 CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    cast=lambda v: [h.strip() for h in v.split(',')],
+    "CORS_ALLOWED_ORIGINS",
+    cast=lambda v: [h.strip() for h in v.split(",")],
 )
 
 SECURE_SSL_REDIRECT = True

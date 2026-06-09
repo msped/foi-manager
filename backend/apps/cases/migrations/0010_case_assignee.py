@@ -6,16 +6,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0009_emailtemplate_mailbox_and_more'),
+        ("cases", "0009_emailtemplate_mailbox_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='case',
-            name='assignee',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_cases', to=settings.AUTH_USER_MODEL),
+            model_name="case",
+            name="assignee",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="assigned_cases",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
     ]

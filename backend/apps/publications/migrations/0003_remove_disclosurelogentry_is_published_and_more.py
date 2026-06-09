@@ -6,60 +6,73 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('publications', '0002_disclosurelogentry'),
+        ("publications", "0002_disclosurelogentry"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='disclosurelogentry',
-            name='is_published',
+            model_name="disclosurelogentry",
+            name="is_published",
         ),
         migrations.AddField(
-            model_name='disclosurelogentry',
-            name='rejected_at',
+            model_name="disclosurelogentry",
+            name="rejected_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='disclosurelogentry',
-            name='rejected_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='rejected_disclosure_entries', to=settings.AUTH_USER_MODEL),
+            model_name="disclosurelogentry",
+            name="rejected_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="rejected_disclosure_entries",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='disclosurelogentry',
-            name='rejection_reason',
+            model_name="disclosurelogentry",
+            name="rejection_reason",
             field=models.TextField(blank=True),
         ),
         migrations.AddField(
-            model_name='disclosurelogentry',
-            name='status',
-            field=models.CharField(choices=[('draft', 'Draft'), ('published', 'Published'), ('rejected', 'Rejected')], default='draft', max_length=20),
+            model_name="disclosurelogentry",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("draft", "Draft"),
+                    ("published", "Published"),
+                    ("rejected", "Rejected"),
+                ],
+                default="draft",
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='disclosurelogentry',
-            name='date_received',
+            model_name="disclosurelogentry",
+            name="date_received",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='disclosurelogentry',
-            name='date_responded',
+            model_name="disclosurelogentry",
+            name="date_responded",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='disclosurelogentry',
-            name='response_text',
+            model_name="disclosurelogentry",
+            name="response_text",
             field=models.TextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='disclosurelogentry',
-            name='summary',
+            model_name="disclosurelogentry",
+            name="summary",
             field=models.TextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='disclosurelogentry',
-            name='title',
+            model_name="disclosurelogentry",
+            name="title",
             field=models.CharField(blank=True, max_length=500),
         ),
     ]
