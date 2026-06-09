@@ -14,7 +14,7 @@ import {
   acknowledgeCase, addCaseNote, assignCase,
   pauseClock, resumeClock, transitionCase,
 } from "@/lib/services/cases";
-import type { ApiUser, CaseDetail, EmailTemplate } from "@/lib/types";
+import type { ApiUser, CaseDetail } from "@/lib/types";
 
 const AUDIT_ACTION_LABEL: Record<string, string> = {
   acknowledged: "Case acknowledged",
@@ -47,11 +47,10 @@ const TABS = [
 
 interface Props {
   c: CaseDetail;
-  emailTemplates: EmailTemplate[];
   foiTeam: ApiUser[];
 }
 
-export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
+export default function CaseDetailView({ c, foiTeam }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState("overview");
   const [isPending, startTransition] = useTransition();
@@ -74,7 +73,7 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
     });
   }
 
-  function handleAddNote(e: React.FormEvent) {
+  function handleAddNote(e: React.SubmitEvent) {
     e.preventDefault();
     withAction(async () => {
       await addCaseNote(c.id, noteBody);
@@ -221,7 +220,6 @@ export default function CaseDetailView({ c, emailTemplates, foiTeam }: Props) {
               <CaseResponsesPanel
                 caseId={c.id}
                 responses={c.responses}
-                emailTemplates={emailTemplates}
                 isClosed={c.status === "closed"}
                 templateVars={{
                   ref: c.ref,

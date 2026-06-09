@@ -1,7 +1,8 @@
 import djangoClient from "./django";
 import type {
   AssigneeConsultation, BankHoliday, CaseConsultation, CaseDetail, CaseListItem, CaseNote,
-  CaseResponse, ConsultationMessage, Department, EmailTemplate, Mailbox, Paginated,
+  CaseResponse, ConsultationMessage, Department, EmailTemplate, EmailTemplatePurposeInfo,
+  Mailbox, Paginated,
 } from "@/lib/types";
 
 export async function createCase(body: {
@@ -114,14 +115,13 @@ export async function deleteMailbox(id: number): Promise<void> {
   await djangoClient.delete(`/mailboxes/${id}/`);
 }
 
-export async function listEmailTemplates(type?: "consultation" | "requester"): Promise<EmailTemplate[]> {
-  const qs = type ? `?type=${type}` : "";
-  const { data } = await djangoClient.get<EmailTemplate[]>(`/email-templates/${qs}`);
+export async function listEmailTemplatePurposes(): Promise<EmailTemplatePurposeInfo[]> {
+  const { data } = await djangoClient.get<EmailTemplatePurposeInfo[]>("/email-templates/purposes/");
   return data;
 }
 
 export async function createEmailTemplate(
-  body: { name: string; type: "consultation" | "requester"; description?: string; subject: string; body: string },
+  body: { purpose: string; name: string; description?: string; subject: string; body: string },
 ): Promise<EmailTemplate> {
   const { data } = await djangoClient.post<EmailTemplate>("/email-templates/", body);
   return data;
@@ -129,7 +129,7 @@ export async function createEmailTemplate(
 
 export async function updateEmailTemplate(
   id: number,
-  body: Partial<{ name: string; type: "consultation" | "requester"; description: string; subject: string; body: string }>,
+  body: Partial<{ name: string; description: string; subject: string; body: string }>,
 ): Promise<EmailTemplate> {
   const { data } = await djangoClient.patch<EmailTemplate>(`/email-templates/${id}/`, body);
   return data;
