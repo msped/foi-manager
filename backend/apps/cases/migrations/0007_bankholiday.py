@@ -4,23 +4,41 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0006_caseconsultation'),
+        ("cases", "0006_caseconsultation"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='BankHoliday',
+            name="BankHoliday",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('country', models.CharField(choices=[('england', 'England'), ('wales', 'Wales'), ('scotland', 'Scotland'), ('northern_ireland', 'Northern Ireland')], max_length=20)),
-                ('name', models.CharField(max_length=100)),
-                ('date', models.DateField()),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "country",
+                    models.CharField(
+                        choices=[
+                            ("england", "England"),
+                            ("wales", "Wales"),
+                            ("scotland", "Scotland"),
+                            ("northern_ireland", "Northern Ireland"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                ("date", models.DateField()),
             ],
             options={
-                'ordering': ['date', 'country'],
-                'unique_together': {('date', 'country')},
+                "ordering": ["date", "country"],
+                "unique_together": {("date", "country")},
             },
         ),
     ]

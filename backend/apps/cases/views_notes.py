@@ -1,6 +1,6 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
 
 from .models import Case, CaseNote
 from .serializers import CaseNoteSerializer
@@ -19,7 +19,7 @@ class CaseNoteViewSet(
         qs = Case.objects.all()
         if not user.is_foi_team():
             qs = qs.filter(assignee=user)
-        return get_object_or_404(qs, pk=self.kwargs['case_pk'])
+        return get_object_or_404(qs, pk=self.kwargs["case_pk"])
 
     def get_queryset(self):
         return CaseNote.objects.filter(case=self._get_case())

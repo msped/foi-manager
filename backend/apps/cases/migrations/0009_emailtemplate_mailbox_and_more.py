@@ -6,87 +6,176 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0008_remove_case_assignee_remove_case_department'),
+        ("cases", "0008_remove_case_assignee_remove_case_department"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EmailTemplate',
+            name="EmailTemplate",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200, unique=True)),
-                ('type', models.CharField(choices=[('email', 'Email'), ('response', 'Response Template')], max_length=20)),
-                ('description', models.TextField(blank=True)),
-                ('subject', models.CharField(blank=True, max_length=500)),
-                ('body', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200, unique=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[("email", "Email"), ("response", "Response Template")],
+                        max_length=20,
+                    ),
+                ),
+                ("description", models.TextField(blank=True)),
+                ("subject", models.CharField(blank=True, max_length=500)),
+                ("body", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['type', 'name'],
+                "ordering": ["type", "name"],
             },
         ),
         migrations.CreateModel(
-            name='Mailbox',
+            name="Mailbox",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200, unique=True)),
-                ('email', models.EmailField(max_length=254, unique=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200, unique=True)),
+                ("email", models.EmailField(max_length=254, unique=True)),
             ],
             options={
-                'verbose_name_plural': 'mailboxes',
-                'ordering': ['name'],
+                "verbose_name_plural": "mailboxes",
+                "ordering": ["name"],
             },
         ),
         migrations.RemoveField(
-            model_name='caseconsultation',
-            name='department',
+            model_name="caseconsultation",
+            name="department",
         ),
         migrations.RemoveField(
-            model_name='caseconsultation',
-            name='response',
+            model_name="caseconsultation",
+            name="response",
         ),
         migrations.AlterField(
-            model_name='caseconsultation',
-            name='status',
-            field=models.CharField(choices=[('pending', 'Pending'), ('awaiting_clarification', 'Awaiting Clarification'), ('responded', 'Responded'), ('withdrawn', 'Withdrawn')], default='pending', max_length=30),
+            model_name="caseconsultation",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "Pending"),
+                    ("awaiting_clarification", "Awaiting Clarification"),
+                    ("responded", "Responded"),
+                    ("withdrawn", "Withdrawn"),
+                ],
+                default="pending",
+                max_length=30,
+            ),
         ),
         migrations.CreateModel(
-            name='CaseResponse',
+            name="CaseResponse",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('body', models.TextField()),
-                ('rendered_body', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('sent', 'Sent')], default='draft', max_length=10)),
-                ('sent_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('case', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='responses', to='cases.case')),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_responses', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("body", models.TextField()),
+                ("rendered_body", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("draft", "Draft"), ("sent", "Sent")],
+                        default="draft",
+                        max_length=10,
+                    ),
+                ),
+                ("sent_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "case",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="responses",
+                        to="cases.case",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="created_responses",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='ConsultationMessage',
+            name="ConsultationMessage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('body', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('author', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('consultation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='messages', to='cases.caseconsultation')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("body", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "author",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "consultation",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="messages",
+                        to="cases.caseconsultation",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['created_at'],
+                "ordering": ["created_at"],
             },
         ),
         migrations.AddField(
-            model_name='caseconsultation',
-            name='mailbox',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='consultations', to='cases.mailbox'),
+            model_name="caseconsultation",
+            name="mailbox",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="consultations",
+                to="cases.mailbox",
+            ),
         ),
     ]

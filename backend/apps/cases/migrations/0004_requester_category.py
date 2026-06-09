@@ -4,27 +4,34 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0003_caseexemption'),
+        ("cases", "0003_caseexemption"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='RequesterCategory',
+            name="RequesterCategory",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, unique=True)),
-                ('order', models.PositiveSmallIntegerField(default=0)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100, unique=True)),
+                ("order", models.PositiveSmallIntegerField(default=0)),
             ],
             options={
-                'verbose_name_plural': 'requester categories',
-                'ordering': ['order', 'name'],
+                "verbose_name_plural": "requester categories",
+                "ordering": ["order", "name"],
             },
         ),
         migrations.AlterField(
-            model_name='case',
-            name='requester_type',
+            model_name="case",
+            name="requester_type",
             field=models.CharField(blank=True, max_length=100),
         ),
     ]

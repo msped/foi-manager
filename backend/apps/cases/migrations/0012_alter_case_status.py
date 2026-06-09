@@ -4,15 +4,29 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cases', '0011_alter_emailtemplate_type'),
+        ("cases", "0011_alter_emailtemplate_type"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='case',
-            name='status',
-            field=models.CharField(choices=[('new', 'New'), ('acknowledged', 'Acknowledged'), ('with_department', 'With Department'), ('drafting', 'Drafting'), ('review', 'In Review'), ('with_applicant', 'With Applicant'), ('internal_review', 'Internal Review'), ('referred', 'Referred'), ('exempt', 'Refused / Exempt'), ('closed', 'Closed')], default='new', max_length=20),
+            model_name="case",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("new", "New"),
+                    ("acknowledged", "Acknowledged"),
+                    ("with_department", "With Department"),
+                    ("drafting", "Drafting"),
+                    ("review", "In Review"),
+                    ("with_applicant", "With Applicant"),
+                    ("internal_review", "Internal Review"),
+                    ("referred", "Referred"),
+                    ("exempt", "Refused / Exempt"),
+                    ("closed", "Closed"),
+                ],
+                default="new",
+                max_length=20,
+            ),
         ),
     ]
