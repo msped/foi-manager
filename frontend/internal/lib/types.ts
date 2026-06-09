@@ -90,10 +90,22 @@ export interface Mailbox {
   email: string;
 }
 
-export type EmailTemplateType = "consultation" | "requester";
+export type EmailTemplateType = "assignee" | "consultation" | "requester";
+
+export type EmailTemplatePurpose =
+  | "acknowledgement"
+  | "case_response"
+  | "consultation_notification"
+  | "consultation_message"
+  | "case_assignment";
+
+export interface NotificationPreferences {
+  notify_on_case_assignment: boolean;
+}
 
 export interface EmailTemplate {
   id: number;
+  purpose: EmailTemplatePurpose;
   name: string;
   type: EmailTemplateType;
   description: string;
@@ -101,6 +113,15 @@ export interface EmailTemplate {
   body: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface EmailTemplatePurposeInfo {
+  purpose: EmailTemplatePurpose;
+  label: string;
+  description: string;
+  type: EmailTemplateType;
+  variables: string[];
+  template: EmailTemplate | null;
 }
 
 export interface Notification {

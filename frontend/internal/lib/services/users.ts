@@ -1,5 +1,5 @@
 import djangoClient from "./django";
-import type { ApiUser, Notification, Paginated, UserSearchResult } from "@/lib/types";
+import type { ApiUser, Notification, NotificationPreferences, Paginated, UserSearchResult } from "@/lib/types";
 
 export async function getMe(): Promise<ApiUser> {
   const { data } = await djangoClient.get<ApiUser>("/auth/user/");
@@ -35,4 +35,16 @@ export async function markNotificationRead(id: number): Promise<void> {
 
 export async function markAllNotificationsRead(): Promise<void> {
   await djangoClient.post("/notifications/mark_all_read/");
+}
+
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  const { data } = await djangoClient.get<NotificationPreferences>("/notifications/preferences/");
+  return data;
+}
+
+export async function updateNotificationPreferences(
+  prefs: Partial<NotificationPreferences>,
+): Promise<NotificationPreferences> {
+  const { data } = await djangoClient.patch<NotificationPreferences>("/notifications/preferences/", prefs);
+  return data;
 }
