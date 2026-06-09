@@ -21,7 +21,7 @@ export default function AssigneeConsultationDetail({ consultation }: Props) {
 
   const isEmpty = body.replace(/<[^>]+>/g, "").trim() === "";
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     if (isEmpty) { setError("Message cannot be empty."); return; }
     setError(null);

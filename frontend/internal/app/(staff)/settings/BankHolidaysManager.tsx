@@ -32,7 +32,7 @@ export default function BankHolidaysManager({ initial }: { initial: BankHoliday[
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({ country: "england" as BankHolidayCountry, name: "", date: "" });
 
-  function handleAdd(e: React.FormEvent) {
+  function handleAdd(e: React.SubmitEvent) {
     e.preventDefault();
     if (!form.name.trim() || !form.date) return;
     startTransition(async () => {

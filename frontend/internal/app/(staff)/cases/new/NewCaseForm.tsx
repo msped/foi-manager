@@ -17,7 +17,7 @@ export default function NewCaseForm({ requesterCategories }: Props) {
   const [serverError, setServerError] = useState<string | null>(null);
   const today = new Date().toISOString().split("T")[0];
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
 

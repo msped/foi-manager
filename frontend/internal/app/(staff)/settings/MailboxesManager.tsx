@@ -21,7 +21,7 @@ function MailboxRow({ m, onDelete, onUpdate }: {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function handleSave(e: React.FormEvent) {
+  function handleSave(e: React.SubmitEvent) {
     e.preventDefault();
     startTransition(async () => {
       try {
@@ -108,7 +108,7 @@ export default function MailboxesManager({ initial }: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function handleAdd(e: React.FormEvent) {
+  function handleAdd(e: React.SubmitEvent) {
     e.preventDefault();
     startTransition(async () => {
       try {
