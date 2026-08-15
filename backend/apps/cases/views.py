@@ -9,10 +9,12 @@ from rest_framework.views import APIView
 from .models import (
     BankHoliday,
     Case,
+    CaseClarification,
     Department,
     EmailTemplate,
     Mailbox,
     RequesterCategory,
+    ResponseTemplate,
 )
 from .permissions import IsFOITeam
 from .serializers import (
@@ -25,9 +27,16 @@ from .serializers import (
     MailboxSerializer,
     PublicCaseSubmitSerializer,
     PublicCaseTrackSerializer,
+    ReceiveClarificationSerializer,
     RequesterCategorySerializer,
+    ResponseTemplateSerializer,
+    SendClarificationSerializer,
 )
-from .tasks import task_send_acknowledgement, task_send_case_assignment_notification
+from .tasks import (
+    task_send_acknowledgement,
+    task_send_case_assignment_notification,
+    task_send_clarification_request,
+)
 
 
 class PublicCaseSubmitView(APIView):
@@ -138,6 +147,100 @@ class CaseViewSet(viewsets.ModelViewSet):
         case = get_object_or_404(Case, pk=pk)
         case.resume_clock(actor=request.user)
         return Response(CaseDetailSerializer(case).data)
+
+    @action(detail=True, methods=["get"], permission_classes=[IsFOITeam])
+    def response_seed(self, request, pk=None):
+        """Base letter + pre-rendered response blocks for seeding a new draft.
+
+        Degrades gracefully when no case_response template exists so a config
+        gap can never block statutory work.
+        """
+        from .email_utils import build_response_seed
+
+        case = get_object_or_404(Case, pk=pk)
+        return Response(build_response_seed(case))
+
+    @action(detail=True, methods=["post"], permission_classes=[IsFOITeam])
+    def send_clarification(self, request, pk=None):
+        case = get_object_or_404(Case, pk=pk)
+        if case.status == Case.Status.CLOSED:
+            return Response(
+                {"detail": "Cannot send clarification on a closed case."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if hasattr(case, "clarification") and case.clarification.received_at:
+            return Response(
+                {"detail": "Clarification has already been received for this case."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not EmailTemplate.objects.filter(
+            purpose=EmailTemplate.Purpose.CLARIFICATION_REQUEST
+        ).exists():
+            return Response(
+                {"detail": 'The "Clarification Request" email template is not configured. Set it up in Settings → Email Templates before continuing.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = SendClarificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        body = serializer.validated_data["body"]
+
+        from datetime import date
+        clarification, _ = CaseClarification.objects.get_or_create(case=case)
+        clarification.sent_at = date.today()
+        clarification.save(update_fields=["sent_at"])
+
+        case.pause_clock(reason="clarification_requested", actor=request.user)
+        case.transition_to(Case.Status.WITH_APPLICANT, actor=request.user)
+        task_send_clarification_request.delay(case.pk, body)
+        return Response(CaseDetailSerializer(case).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsFOITeam])
+    def receive_clarification(self, request, pk=None):
+        case = get_object_or_404(Case, pk=pk)
+        if case.status != Case.Status.WITH_APPLICANT:
+            return Response(
+                {"detail": "Case is not awaiting clarification."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = ReceiveClarificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        received_at = serializer.validated_data["received_at"]
+        notes = serializer.validated_data["notes"]
+
+        clarification, _ = CaseClarification.objects.get_or_create(case=case)
+        clarification.received_at = received_at
+        clarification.notes = notes
+        clarification.save(update_fields=["received_at", "notes"])
+
+        # Reset clock: unpause and recalculate deadline from clarification date
+        from django.conf import settings as django_settings
+
+        from apps.cases.utils import add_working_days
+        case.clock_paused = False
+        case.clock_paused_at = None
+        case.statutory_deadline = add_working_days(received_at, django_settings.FOI_STATUTORY_DAYS)
+        case.status = Case.Status.ACKNOWLEDGED
+        case.save()
+        case._log(
+            action="clarification_received",
+            actor=request.user,
+            detail={"received_at": received_at.isoformat()},
+        )
+        return Response(CaseDetailSerializer(case).data)
+
+
+class ResponseTemplateViewSet(viewsets.ModelViewSet):
+    serializer_class = ResponseTemplateSerializer
+    permission_classes = [IsAuthenticated, IsFOITeam]
+    pagination_class = None
+
+    def get_queryset(self):
+        return ResponseTemplate.objects.all()
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsFOITeam()]
 
 
 class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):

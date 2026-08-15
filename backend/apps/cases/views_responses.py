@@ -4,7 +4,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Case, CaseResponse, EmailTemplate
+from .email_utils import unresolved_variables
+from .models import Case, CaseResponse
 from .permissions import IsFOITeam
 from .serializers import CaseResponseSerializer
 from .tasks import task_send_case_response
@@ -44,12 +45,15 @@ class CaseResponseViewSet(
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if not EmailTemplate.objects.filter(
-            purpose=EmailTemplate.Purpose.CASE_RESPONSE
-        ).exists():
+        leftover = unresolved_variables(case_response.body)
+        if leftover:
+            names = ", ".join(f"{{{{{n}}}}}" for n in leftover)
             return Response(
                 {
-                    "detail": 'The "Case Response" email template is not configured. Set it up in Settings → Email Templates before continuing.'
+                    "detail": (
+                        f"This response still contains unresolved variables: {names}. "
+                        "Remove or replace them before sending."
+                    )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )

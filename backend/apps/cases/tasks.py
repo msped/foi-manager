@@ -62,6 +62,18 @@ def task_send_case_assignment_notification(self, case_id: int, assignee_id: int)
 
 
 @app.task(bind=True, max_retries=3, default_retry_delay=60)
+def task_send_clarification_request(self, case_id: int, body: str):
+    from .email_utils import send_clarification_request
+    from .models import Case
+
+    try:
+        case = Case.objects.get(pk=case_id)
+        send_clarification_request(case, body)
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+@app.task(bind=True, max_retries=3, default_retry_delay=60)
 def task_send_case_response(self, case_response_id: int):
     from .email_utils import send_case_response
     from .models import CaseResponse
