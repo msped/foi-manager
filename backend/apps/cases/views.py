@@ -81,9 +81,8 @@ class CaseViewSet(viewsets.ModelViewSet):
         if assignee := params.get("assignee"):
             qs = qs.filter(assignee=assignee)
         if params.get("is_overdue") == "true":
-            terminal = [Case.Status.PUBLISHED, Case.Status.EXEMPT, Case.Status.CLOSED]
             qs = qs.filter(statutory_deadline__lt=now().date()).exclude(
-                status__in=terminal
+                status__in=Case.TERMINAL_STATUSES
             )
         return qs
 
