@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import FormField from "@/components/ui/FormField";
@@ -179,6 +180,7 @@ interface Props {
 }
 
 export default function EmailTemplatesManager({ initial }: Props) {
+  const router = useRouter();
   const [purposes, setPurposes] = useState(initial);
 
   const missing = purposes.filter(p => !p.template);
@@ -190,6 +192,8 @@ export default function EmailTemplatesManager({ initial }: Props) {
 
   function handleConfigured(purpose: string, template: EmailTemplate) {
     setPurposes(prev => prev.map(p => p.purpose === purpose ? { ...p, template } : p));
+    // Re-render the staff layout so its "Action needed" badge recomputes.
+    router.refresh();
   }
 
   function handleUpdated(purpose: string, template: EmailTemplate) {
@@ -198,6 +202,7 @@ export default function EmailTemplatesManager({ initial }: Props) {
 
   function handleDeleted(purpose: string) {
     setPurposes(prev => prev.map(p => p.purpose === purpose ? { ...p, template: null } : p));
+    router.refresh();
   }
 
   return (
