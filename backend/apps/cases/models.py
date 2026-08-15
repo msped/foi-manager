@@ -56,7 +56,7 @@ class Case(models.Model):
         WITH_DEPARTMENT = "with_department", "With Department"
         DRAFTING = "drafting", "Drafting"
         REVIEW = "review", "In Review"
-        WITH_APPLICANT = "with_applicant", "With Applicant"
+        WITH_APPLICANT = "with_applicant", "Awaiting Clarification"
         INTERNAL_REVIEW = "internal_review", "Internal Review"
         REFERRED = "referred", "Referred"
         EXEMPT = "exempt", "Refused / Exempt"
@@ -240,6 +240,7 @@ class EmailTemplate(models.Model):
         )
         CONSULTATION_MESSAGE = "consultation_message", "Consultation Message"
         CASE_ASSIGNMENT = "case_assignment", "Case Assignment"
+        CLARIFICATION_REQUEST = "clarification_request", "Clarification Request"
 
     PURPOSE_TYPE_MAP = {
         Purpose.ACKNOWLEDGEMENT: Type.REQUESTER,
@@ -247,15 +248,17 @@ class EmailTemplate(models.Model):
         Purpose.CONSULTATION_NOTIFICATION: Type.CONSULTATION,
         Purpose.CONSULTATION_MESSAGE: Type.CONSULTATION,
         Purpose.CASE_ASSIGNMENT: Type.ASSIGNEE,
+        Purpose.CLARIFICATION_REQUEST: Type.REQUESTER,
     }
 
     PURPOSE_META = {
         Purpose.ACKNOWLEDGEMENT: {
             "label": "Acknowledgement",
-            "description": "Sent to the requester when their FOI request is acknowledged.",
+            "description": "Sent to the requester when their FOI request is acknowledged. Use {{request_text}} to quote their request back to them.",
             "variables": [
                 "ref",
                 "requester_name",
+                "request_text",
                 "submitted_at",
                 "statutory_deadline",
                 "organisation_name",
@@ -264,12 +267,14 @@ class EmailTemplate(models.Model):
         },
         Purpose.CASE_RESPONSE: {
             "label": "Case Response",
-            "description": "Sent to the requester when a final response is issued. Use {{response_body}} to embed the response content.",
+            "description": "Seeds a new response draft. Write the full letter — greeting, appeal rights and sign-off included. Use {{request_text}} to quote the requester's original request back to them, and {{response_body}} to mark where the officer starts writing (it is removed when the draft is created and the cursor placed there).",
             "variables": [
                 "ref",
                 "requester_name",
+                "request_text",
                 "response_body",
                 "submitted_at",
+                "statutory_deadline",
                 "organisation_name",
                 "foi_contact_email",
             ],
@@ -308,6 +313,19 @@ class EmailTemplate(models.Model):
                 "assignee_name",
                 "case_url",
                 "organisation_name",
+            ],
+        },
+        Purpose.CLARIFICATION_REQUEST: {
+            "label": "Clarification Request",
+            "description": "Sent to the requester when further information is needed to process their FOI request. Use {{request_text}} to quote their original request and {{clarification_body}} to embed what the officer wrote in the clarification form. Sending this email pauses the statutory clock.",
+            "variables": [
+                "ref",
+                "requester_name",
+                "request_text",
+                "clarification_body",
+                "submitted_at",
+                "organisation_name",
+                "foi_contact_email",
             ],
         },
     }
@@ -519,3 +537,37 @@ class CaseAuditEvent(models.Model):
 
     def __str__(self):
         return f"{self.timestamp:%Y-%m-%d %H:%M} — {self.action}"
+
+
+class CaseClarification(models.Model):
+    case = models.OneToOneField(
+        Case, on_delete=models.CASCADE, related_name="clarification"
+    )
+    sent_at = models.DateField(null=True, blank=True)
+    received_at = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Clarification for {self.case.ref}"
+
+
+class ResponseTemplate(models.Model):
+    name = models.CharField(max_length=200)
+    exemption_code = models.CharField(
+        max_length=10,
+        choices=CaseExemption.Code.choices,
+        blank=True,
+        help_text=(
+            "Optional. Link this block to a FOIA exemption so it is suggested "
+            "on cases claiming that exemption. Leave blank for general explainers."
+        ),
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["exemption_code", "name"]
+
+    def __str__(self):
+        return f"Response template: {self.name}"

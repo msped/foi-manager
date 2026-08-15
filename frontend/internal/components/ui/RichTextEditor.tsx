@@ -3,7 +3,13 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect, useMemo } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo } from "react";
+
+export interface RichTextEditorHandle {
+  insertContent: (html: string) => void;
+  /** Replace all content, then place the caret where the sentinel was. */
+  setContentWithCaret: (html: string, sentinel: string) => void;
+}
 
 interface Props {
   value: string;
@@ -13,6 +19,7 @@ interface Props {
   variables?: string[];
   minHeight?: number;
   disabled?: boolean;
+  onFocus?: () => void;
 }
 
 function ToolbarBtn({
@@ -48,14 +55,15 @@ function ToolbarBtn({
   );
 }
 
-export default function RichTextEditor({
+const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichTextEditor({
   value,
   onChange,
   placeholder,
   variables,
   minHeight = 160,
   disabled = false,
-}: Props) {
+  onFocus,
+}, ref) {
   const extensions = useMemo(() => [
     StarterKit.configure({ heading: { levels: [2, 3] } }),
     Placeholder.configure({ placeholder: placeholder ?? "" }),
@@ -69,6 +77,9 @@ export default function RichTextEditor({
     immediatelyRender: true,
     onUpdate({ editor }) {
       onChange(editor.getHTML());
+    },
+    onFocus() {
+      onFocus?.();
     },
   });
 
@@ -84,6 +95,36 @@ export default function RichTextEditor({
   useEffect(() => {
     editor?.setEditable(!disabled);
   }, [disabled, editor]);
+
+  useImperativeHandle(ref, () => ({
+    insertContent: (html: string) => {
+      editor?.chain().focus().insertContent(html).run();
+    },
+    setContentWithCaret: (html: string, sentinel: string) => {
+      if (!editor) return;
+      editor.commands.setContent(html, { emitUpdate: true });
+
+      // Locate the sentinel in the document, delete it, and leave the caret there.
+      // StarterKit strips unknown attributes, so a text token is the only marker
+      // that survives setContent.
+      let found: { from: number; to: number } | null = null;
+      editor.state.doc.descendants((node, pos) => {
+        if (found || !node.isText || !node.text) return true;
+        const index = node.text.indexOf(sentinel);
+        if (index !== -1) {
+          found = { from: pos + index, to: pos + index + sentinel.length };
+          return false;
+        }
+        return true;
+      });
+
+      if (found) {
+        editor.chain().focus().deleteRange(found).run();
+      } else {
+        editor.chain().focus("end").run();
+      }
+    },
+  }));
 
   if (!editor) return null;
 
@@ -220,4 +261,6 @@ export default function RichTextEditor({
       />
     </div>
   );
-}
+});
+
+export default RichTextEditor;

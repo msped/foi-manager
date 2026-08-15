@@ -10,6 +10,7 @@ from .views import (
     PublicCaseSubmitView,
     PublicCaseTrackView,
     RequesterCategoryViewSet,
+    ResponseTemplateViewSet,
 )
 from .views_consultations import (
     CaseConsultationViewSet,
@@ -30,6 +31,7 @@ router.register(
 router.register(r"bank-holidays", BankHolidayViewSet, basename="bank-holiday")
 router.register(r"mailboxes", MailboxViewSet, basename="mailbox")
 router.register(r"email-templates", EmailTemplateViewSet, basename="email-template")
+router.register(r"response-templates", ResponseTemplateViewSet, basename="response-template")
 
 app_name = "cases"
 

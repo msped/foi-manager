@@ -4,6 +4,7 @@ from .models import (
     BankHoliday,
     Case,
     CaseAuditEvent,
+    CaseClarification,
     CaseConsultation,
     CaseExemption,
     CaseNote,
@@ -13,6 +14,7 @@ from .models import (
     EmailTemplate,
     Mailbox,
     RequesterCategory,
+    ResponseTemplate,
 )
 
 
@@ -258,6 +260,13 @@ class CaseListSerializer(serializers.ModelSerializer):
         ]
 
 
+class CaseClarificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CaseClarification
+        fields = ["id", "sent_at", "received_at", "notes"]
+        read_only_fields = ["sent_at"]
+
+
 class CaseDetailSerializer(serializers.ModelSerializer):
     is_overdue = serializers.BooleanField(read_only=True)
     assignee_name = serializers.SerializerMethodField()
@@ -265,6 +274,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     audit_events = CaseAuditEventSerializer(many=True, read_only=True)
     consultations = CaseConsultationSerializer(many=True, read_only=True)
     responses = CaseResponseSerializer(many=True, read_only=True)
+    clarification = CaseClarificationSerializer(read_only=True)
     disclosure_log_entry = serializers.SerializerMethodField()
 
     def get_assignee_name(self, obj):
@@ -332,6 +342,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "audit_events",
             "consultations",
             "responses",
+            "clarification",
             "disclosure_log_entry",
         ]
         read_only_fields = [
@@ -344,6 +355,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "assignee_name",
+            "clarification",
             "disclosure_log_entry",
         ]
 
@@ -367,6 +379,13 @@ class CaseExemptionSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at"]
 
 
+class ResponseTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ResponseTemplate
+        fields = ["id", "name", "exemption_code", "body", "created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at"]
+
+
 class BankHolidaySerializer(serializers.ModelSerializer):
     class Meta:
         model = BankHoliday
@@ -375,3 +394,12 @@ class BankHolidaySerializer(serializers.ModelSerializer):
 
 class CaseTransitionSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Case.Status.choices)
+
+
+class SendClarificationSerializer(serializers.Serializer):
+    body = serializers.CharField()
+
+
+class ReceiveClarificationSerializer(serializers.Serializer):
+    received_at = serializers.DateField()
+    notes = serializers.CharField(allow_blank=True, default="")

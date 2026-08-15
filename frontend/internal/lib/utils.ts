@@ -30,7 +30,7 @@ export const STATUS_META: Record<CaseStatus, StatusMeta> = {
   with_department: { label: "With department",  govukColour: "light-blue" },
   drafting:        { label: "Drafting",         govukColour: "turquoise" },
   review:          { label: "In review",        govukColour: "yellow" },
-  with_applicant:  { label: "With applicant",   govukColour: "orange" },
+  with_applicant:  { label: "Awaiting clarification", govukColour: "orange" },
   internal_review: { label: "Internal review",  govukColour: "purple" },
   referred:        { label: "Referred to ICO",  govukColour: "pink" },
   exempt:          { label: "Refused",          govukColour: "red" },
