@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { listRequesterCategories, listBankHolidays, listMailboxes, listEmailTemplatePurposes } from "@/lib/services/cases";
+import { listRequesterCategories, listBankHolidays, listMailboxes, listEmailTemplatePurposes, listResponseTemplates } from "@/lib/services/cases";
 import { getMe, listUsers } from "@/lib/services/users";
 import RequesterCategoriesManager from "./RequesterCategoriesManager";
 import BankHolidaysManager from "./BankHolidaysManager";
 import MailboxesManager from "./MailboxesManager";
 import EmailTemplatesManager from "./EmailTemplatesManager";
+import ResponseTemplatesManager from "./ResponseTemplatesManager";
 import UsersManager from "./UsersManager";
 
 export const metadata: Metadata = { title: "Settings — FOI Manager" };
@@ -14,11 +15,12 @@ export default async function SettingsPage() {
   const me = await getMe();
   if (me.role !== "foi_team") redirect("/dashboard");
 
-  const [categories, bankHolidays, mailboxes, emailTemplatePurposes, users] = await Promise.all([
+  const [categories, bankHolidays, mailboxes, emailTemplatePurposes, responseTemplates, users] = await Promise.all([
     listRequesterCategories().catch(() => []),
     listBankHolidays().catch(() => []),
     listMailboxes().catch(() => []),
     listEmailTemplatePurposes().catch(() => []),
+    listResponseTemplates().catch(() => []),
     listUsers().catch(() => []),
   ]);
 
@@ -32,6 +34,7 @@ export default async function SettingsPage() {
         <div style={{ maxWidth: 900 }}>
           <MailboxesManager initial={mailboxes} />
           <EmailTemplatesManager initial={emailTemplatePurposes} />
+          <ResponseTemplatesManager initial={responseTemplates} />
           <UsersManager initial={users} currentUserId={me.id} />
           <RequesterCategoriesManager initial={categories} />
           <BankHolidaysManager initial={bankHolidays} />
