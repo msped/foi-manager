@@ -2,7 +2,7 @@ import djangoClient from "./django";
 import type {
   AssigneeConsultation, BankHoliday, CaseConsultation, CaseDetail, CaseListItem, CaseNote,
   CaseResponse, ConsultationMessage, Department, EmailTemplate, EmailTemplatePurposeInfo,
-  Mailbox, Paginated,
+  Mailbox, Paginated, ResponseSeed, ResponseTemplate,
 } from "@/lib/types";
 
 export async function createCase(body: {
@@ -201,4 +201,48 @@ export async function updateRequesterCategory(id: number, name: string): Promise
 
 export async function deleteRequesterCategory(id: number): Promise<void> {
   await djangoClient.delete(`/requester-categories/${id}/`);
+}
+
+export async function listResponseTemplates(): Promise<ResponseTemplate[]> {
+  const { data } = await djangoClient.get<ResponseTemplate[]>("/response-templates/");
+  return data;
+}
+
+export async function getResponseSeed(caseId: number | string): Promise<ResponseSeed> {
+  const { data } = await djangoClient.get<ResponseSeed>(`/cases/${caseId}/response_seed/`);
+  return data;
+}
+
+export async function createResponseTemplate(
+  payload: { name: string; exemption_code?: string; body: string },
+): Promise<ResponseTemplate> {
+  const { data } = await djangoClient.post<ResponseTemplate>("/response-templates/", payload);
+  return data;
+}
+
+
+export async function updateResponseTemplate(
+  id: number,
+  payload: Partial<{ name: string; exemption_code: string; body: string }>,
+): Promise<ResponseTemplate> {
+  const { data } = await djangoClient.patch<ResponseTemplate>(`/response-templates/${id}/`, payload);
+  return data;
+}
+
+export async function deleteResponseTemplate(id: number): Promise<void> {
+  await djangoClient.delete(`/response-templates/${id}/`);
+}
+
+export async function sendClarificationRequest(caseId: number | string, body: string): Promise<CaseDetail> {
+  const { data } = await djangoClient.post<CaseDetail>(`/cases/${caseId}/send_clarification/`, { body });
+  return data;
+}
+
+export async function receiveClarification(
+  caseId: number | string,
+  received_at: string,
+  notes: string,
+): Promise<CaseDetail> {
+  const { data } = await djangoClient.post<CaseDetail>(`/cases/${caseId}/receive_clarification/`, { received_at, notes });
+  return data;
 }
