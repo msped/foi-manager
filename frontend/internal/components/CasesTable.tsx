@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusTag } from "./ui/Tag";
-import { fmtDate, daysUntil } from "@/lib/utils";
+import { fmtDate, daysUntil, isTerminalStatus } from "@/lib/utils";
 import type { CaseListItem } from "@/lib/types";
 
 const TABS = [
@@ -83,7 +83,7 @@ export default function CasesTable({ cases, activeTab }: Props) {
                 </td>
               </tr>
             ) : filtered.map(c => {
-              const days = daysUntil(c.statutory_deadline);
+              const days = isTerminalStatus(c.status) ? null : daysUntil(c.statutory_deadline);
               return (
                 <tr key={c.id} className="govuk-table__row">
                   <td className="govuk-table__cell">

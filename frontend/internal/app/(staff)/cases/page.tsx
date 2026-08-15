@@ -3,10 +3,9 @@ import Button from "@/components/ui/Button";
 import CasesTable from "@/components/CasesTable";
 import { listCases } from "@/lib/services/cases";
 import { getMe } from "@/lib/services/users";
+import { TERMINAL_STATUSES } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Cases — FOI Manager" };
-
-const TERMINAL_STATUSES = "closed,published,exempt";
 
 export default async function CasesPage({
   searchParams,
@@ -19,7 +18,7 @@ export default async function CasesPage({
   const params: Record<string, string> = {};
   if (tab === "mine") {
     params.assignee = String(me.id);
-    params.exclude_status = TERMINAL_STATUSES;
+    params.exclude_status = TERMINAL_STATUSES.join(",");
   } else if (tab === "review") {
     params.status = "review";
   } else if (tab === "overdue") {

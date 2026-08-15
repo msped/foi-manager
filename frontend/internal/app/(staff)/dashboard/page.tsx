@@ -5,7 +5,7 @@ import { StatusTag } from "@/components/ui/Tag";
 import AiPanel from "@/components/ui/AiPanel";
 import { getMe } from "@/lib/services/users";
 import { listCases } from "@/lib/services/cases";
-import { fmtDate, daysUntil } from "@/lib/utils";
+import { fmtDate, daysUntil, isTerminalStatus, TERMINAL_STATUSES } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard — FOI Manager" };
 
@@ -13,7 +13,7 @@ export default async function DashboardPage() {
   const [user, { results: cases, count: totalCount }, { count: openCount }] = await Promise.all([
     getMe(),
     listCases(),
-    listCases({ exclude_status: "closed,published,exempt" }),
+    listCases({ exclude_status: TERMINAL_STATUSES.join(",") }),
   ]);
 
   const hour = new Date().getHours();
@@ -22,6 +22,7 @@ export default async function DashboardPage() {
   const overdue    = cases.filter(c => c.is_overdue);
   const inReview   = cases.filter(c => c.status === "review");
   const dueThisWeek = cases.filter(c => {
+    if (isTerminalStatus(c.status)) return false;
     const d = daysUntil(c.statutory_deadline);
     return d !== null && d >= 0 && d <= 7;
   });
@@ -74,7 +75,7 @@ export default async function DashboardPage() {
                 </thead>
                 <tbody className="govuk-table__body">
                   {cases.slice(0, 6).map((c) => {
-                    const days = daysUntil(c.statutory_deadline);
+                    const days = isTerminalStatus(c.status) ? null : daysUntil(c.statutory_deadline);
                     return (
                       <tr key={c.id} className="govuk-table__row">
                         <td className="govuk-table__cell">
@@ -150,7 +151,7 @@ export default async function DashboardPage() {
               <h3 className="govuk-heading-s">Upcoming deadlines</h3>
               {(() => {
                 const upcoming = cases
-                  .filter(c => c.statutory_deadline && !["closed", "published", "exempt"].includes(c.status))
+                  .filter(c => c.statutory_deadline && !isTerminalStatus(c.status))
                   .sort((a, b) => new Date(a.statutory_deadline!).getTime() - new Date(b.statutory_deadline!).getTime())
                   .slice(0, 5);
                 return upcoming.length === 0

@@ -15,6 +15,17 @@ export function daysUntil(iso: string | null): number | null {
   return Math.ceil(diff / 86_400_000);
 }
 
+/**
+ * Statuses where the case is finished — the statutory clock has stopped, so a
+ * deadline in the past is history rather than a breach. Mirrors the terminal
+ * statuses excluded by `Case.is_overdue` on the backend.
+ */
+export const TERMINAL_STATUSES: readonly CaseStatus[] = ["exempt", "closed"];
+
+export function isTerminalStatus(status: CaseStatus): boolean {
+  return TERMINAL_STATUSES.includes(status);
+}
+
 export function userInitials(firstName: string, lastName: string): string {
   return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
 }
