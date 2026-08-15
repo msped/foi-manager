@@ -1,26 +1,31 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import { StatusTag, Tag } from "@/components/ui/Tag";
 import AiPanel from "@/components/ui/AiPanel";
 import ConsultationsPanel from "./ConsultationsPanel";
-import CaseResponsesPanel from "./CaseResponsesPanel";
+import CaseResponsesPanel, { type CaseResponsesPanelHandle } from "./CaseResponsesPanel";
 import DisclosureLogPanel from "./DisclosureLogPanel";
 import { fmtDate, daysUntil } from "@/lib/utils";
+import RichTextEditor from "@/components/ui/RichTextEditor";
+import FormField from "@/components/ui/FormField";
+import Modal from "@/components/ui/Modal";
 import {
   acknowledgeCase, addCaseNote, assignCase,
   pauseClock, resumeClock, transitionCase,
+  sendClarificationRequest, receiveClarification,
 } from "@/lib/services/cases";
-import type { ApiUser, CaseDetail } from "@/lib/types";
+import type { ApiUser, CaseDetail, ResponseSeed } from "@/lib/types";
 
 const AUDIT_ACTION_LABEL: Record<string, string> = {
   acknowledged: "Case acknowledged",
   status_change: "Status changed",
   clock_paused: "Clock paused",
   clock_resumed: "Clock resumed",
+  clarification_received: "Clarification received",
   email_sent: "Email sent",
   consultation_message_sent: "Consultation message sent",
 };
@@ -37,6 +42,40 @@ function fmtAuditAction(action: string, detail: Record<string, unknown>): string
   return label;
 }
 
+function TemplateAsideRow({ template, onInsert, inserted }: {
+  template: { id: number; name: string; body: string };
+  onInsert: () => void;
+  inserted?: boolean;
+}) {
+  const [preview, setPreview] = useState(false);
+  return (
+    <div style={{ borderBottom: "1px solid var(--govuk-border-colour)", padding: "10px 0" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {inserted !== undefined && (
+          <span
+            aria-hidden="true"
+            style={{ color: inserted ? "var(--govuk-success-colour, #00703c)" : "var(--govuk-secondary-text-colour)", flexShrink: 0 }}
+          >
+            {inserted ? "✓" : "○"}
+          </span>
+        )}
+        <span className="govuk-body-s" style={{ flex: 1, fontWeight: 500, margin: 0 }}>{template.name}</span>
+        <button className="govuk-link govuk-body-s" onClick={() => setPreview(v => !v)}>
+          {preview ? "Hide" : "Preview"}
+        </button>
+        <button className="govuk-link govuk-body-s" onClick={onInsert}>Insert</button>
+      </div>
+      {preview && (
+        <div
+          className="foi-rich-content"
+          style={{ marginTop: 8, fontSize: 12, padding: "8px 10px", background: "var(--govuk-template-background-colour)", borderLeft: "3px solid var(--govuk-border-colour)" }}
+          dangerouslySetInnerHTML={{ __html: template.body }}
+        />
+      )}
+    </div>
+  );
+}
+
 const TABS = [
   { id: "overview",      label: "Overview" },
   { id: "consultations", label: "Consultations" },
@@ -48,14 +87,37 @@ const TABS = [
 interface Props {
   c: CaseDetail;
   foiTeam: ApiUser[];
+  seed: ResponseSeed;
 }
 
-export default function CaseDetailView({ c, foiTeam }: Props) {
+export default function CaseDetailView({ c, foiTeam, seed }: Props) {
   const router = useRouter();
+  const responsePanelRef = useRef<CaseResponsesPanelHandle>(null);
   const [tab, setTab] = useState("overview");
   const [isPending, startTransition] = useTransition();
+  // Advisory only, and scoped to this editing session — reloading clears it.
+  const [insertedBlocks, setInsertedBlocks] = useState<Set<number>>(new Set());
+
+  const suggestedBlocks = seed.blocks.filter(b => b.suggested);
+  const otherBlocks = seed.blocks.filter(b => !b.suggested);
+  const claimedCodes = new Set(suggestedBlocks.map(b => b.exemption_code));
+  const addressedCodes = new Set(
+    suggestedBlocks.filter(b => insertedBlocks.has(b.id)).map(b => b.exemption_code),
+  );
+
+  function insertBlock(block: { id: number; body: string }) {
+    responsePanelRef.current?.insertContent(block.body);
+    setInsertedBlocks(prev => new Set(prev).add(block.id));
+  }
   const [actionError, setActionError] = useState<string | null>(null);
   const [noteBody, setNoteBody] = useState("");
+  const [showClarificationForm, setShowClarificationForm] = useState(false);
+  const [clarificationBody, setClarificationBody] = useState("");
+  const [showReceiveForm, setShowReceiveForm] = useState(false);
+  const [clarificationReceivedAt, setClarificationReceivedAt] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [clarificationNotes, setClarificationNotes] = useState("");
   const days = daysUntil(c.statutory_deadline);
 
   const response_sent = c.responses.find(r => r.status === "sent");
@@ -218,17 +280,12 @@ export default function CaseDetailView({ c, foiTeam }: Props) {
 
             {tab === "response" && (
               <CaseResponsesPanel
+                ref={responsePanelRef}
                 caseId={c.id}
                 responses={c.responses}
                 isClosed={c.status === "closed"}
-                templateVars={{
-                  ref: c.ref,
-                  requester_name: c.requester_name,
-                  requester_email: c.requester_email,
-                  submitted_at: fmtDate(c.submitted_at),
-                  statutory_deadline: fmtDate(c.statutory_deadline),
-                  request_summary: c.summary || c.request_text.slice(0, 200),
-                }}
+                seed={seed}
+                requesterEmail={c.requester_email}
               />
             )}
 
@@ -265,6 +322,55 @@ export default function CaseDetailView({ c, foiTeam }: Props) {
           </div>
 
           <aside className="foi-col">
+            {tab === "response" && (
+              <div className="foi-card">
+                <h3 className="govuk-heading-s">Response templates</h3>
+                {seed.blocks.length === 0 ? (
+                  <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
+                    No templates configured. Add them in <a href="/settings" className="govuk-link">Settings</a>.
+                  </p>
+                ) : (
+                  <>
+                    {suggestedBlocks.length > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 className="govuk-body-s" style={{ fontWeight: 700, marginBottom: 2 }}>
+                          Suggested for this case
+                        </h4>
+                        <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", fontSize: 12, marginBottom: 4 }}>
+                          {addressedCodes.size} of {claimedCodes.size} claimed exemption
+                          {claimedCodes.size === 1 ? "" : "s"} addressed
+                        </p>
+                        <div className="foi-col" style={{ gap: 0 }}>
+                          {suggestedBlocks.map(b => (
+                            <TemplateAsideRow
+                              key={b.id}
+                              template={b}
+                              inserted={insertedBlocks.has(b.id)}
+                              onInsert={() => insertBlock(b)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {otherBlocks.length > 0 && (
+                      <div>
+                        {suggestedBlocks.length > 0 && (
+                          <h4 className="govuk-body-s" style={{ fontWeight: 700, marginBottom: 2 }}>
+                            All templates
+                          </h4>
+                        )}
+                        <div className="foi-col" style={{ gap: 0 }}>
+                          {otherBlocks.map(b => (
+                            <TemplateAsideRow key={b.id} template={b} onInsert={() => insertBlock(b)} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+            {tab !== "response" && (<>
             <div className="foi-card">
               <h3 className="govuk-heading-s">Timeline</h3>
               <dl className="govuk-summary-list govuk-summary-list--no-border">
@@ -327,7 +433,7 @@ export default function CaseDetailView({ c, foiTeam }: Props) {
                     Acknowledge receipt
                   </Button>
                 )}
-                {c.status !== "closed" && (c.clock_paused ? (
+                {c.status !== "closed" && c.status !== "with_applicant" && (c.clock_paused ? (
                   <Button
                     variant="secondary"
                     disabled={isPending}
@@ -345,6 +451,16 @@ export default function CaseDetailView({ c, foiTeam }: Props) {
                   </Button>
                 ))}
 
+                {c.status !== "closed" && c.status !== "with_applicant" && !showClarificationForm && (
+                  <Button
+                    variant="secondary"
+                    disabled={isPending}
+                    onClick={() => setShowClarificationForm(true)}
+                  >
+                    Send clarification request
+                  </Button>
+                )}
+
                 {c.status === "closed" && (
                   <Button
                     variant="secondary"
@@ -355,11 +471,139 @@ export default function CaseDetailView({ c, foiTeam }: Props) {
                   </Button>
                 )}
               </div>
+
+              {showClarificationForm && (
+                <Modal
+                  title="Send clarification request"
+                  onClose={() => { setShowClarificationForm(false); setClarificationBody(""); }}
+                  width={820}
+                >
+                  <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
+                    Sending this email will pause the statutory clock and move the case to <strong>Awaiting Clarification</strong>. The clock restarts when you mark the clarification as received.
+                  </p>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <h3 className="govuk-body-s" style={{ fontWeight: 700, marginBottom: 4 }}>
+                      Original request
+                      <span style={{ fontWeight: 400, color: "var(--govuk-secondary-text-colour)", marginLeft: 8 }}>
+                        {c.ref} · received {fmtDate(c.submitted_at)}
+                      </span>
+                    </h3>
+                    <div
+                      className="govuk-body-s"
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        background: "var(--govuk-template-background-colour)",
+                        borderLeft: "4px solid var(--govuk-border-colour)",
+                        padding: "10px 12px",
+                        maxHeight: 200,
+                        overflowY: "auto",
+                        margin: 0,
+                        fontSize: 14,
+                      }}
+                    >
+                      {c.request_text}
+                    </div>
+                  </div>
+                  <form
+                    onSubmit={(e: React.SubmitEvent<HTMLFormElement>) => {
+                      e.preventDefault();
+                      withAction(async () => {
+                        await sendClarificationRequest(c.id, clarificationBody);
+                        setShowClarificationForm(false);
+                        setClarificationBody("");
+                      });
+                    }}
+                  >
+                    <FormField label="Message to requester" htmlFor="clarif-body">
+                      <RichTextEditor
+                        value={clarificationBody}
+                        onChange={setClarificationBody}
+                        minHeight={240}
+                        placeholder="Explain what additional information is needed to process this request…"
+                      />
+                    </FormField>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Button type="submit" disabled={isPending}>Send &amp; pause clock</Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => { setShowClarificationForm(false); setClarificationBody(""); }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                </Modal>
+              )}
             </div>
+
+            {c.status === "with_applicant" && (
+              <div className="foi-card">
+                <h3 className="govuk-heading-s">Clarification</h3>
+                {c.clarification?.sent_at && (
+                  <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
+                    Request sent {fmtDate(c.clarification.sent_at)}
+                  </p>
+                )}
+                {!showReceiveForm ? (
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    disabled={isPending}
+                    onClick={() => setShowReceiveForm(true)}
+                  >
+                    Mark clarification received
+                  </Button>
+                ) : (
+                  <form
+                    onSubmit={(e: React.SubmitEvent<HTMLFormElement>) => {
+                      e.preventDefault();
+                      withAction(async () => {
+                        await receiveClarification(c.id, clarificationReceivedAt, clarificationNotes);
+                        setShowReceiveForm(false);
+                      });
+                    }}
+                  >
+                    <FormField label="Date received" htmlFor="clarif-date">
+                      <input
+                        id="clarif-date"
+                        type="date"
+                        className="govuk-input govuk-input--width-10"
+                        value={clarificationReceivedAt}
+                        onChange={e => setClarificationReceivedAt(e.target.value)}
+                        required
+                      />
+                    </FormField>
+                    <FormField label="Clarification notes" hint="What did the requester say?" htmlFor="clarif-notes">
+                      <textarea
+                        id="clarif-notes"
+                        className="govuk-textarea"
+                        rows={3}
+                        value={clarificationNotes}
+                        onChange={e => setClarificationNotes(e.target.value)}
+                      />
+                    </FormField>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Button type="submit" size="small" disabled={isPending}>Confirm &amp; restart clock</Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="small"
+                        onClick={() => setShowReceiveForm(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
 
             {c.disclosure_log_entry && (
               <DisclosureLogPanel entry={c.disclosure_log_entry} caseId={c.id} />
             )}
+            </>)}
           </aside>
         </div>
       </div>

@@ -1,38 +1,59 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { Tag } from "@/components/ui/Tag";
 import FormField from "@/components/ui/FormField";
-import RichTextEditor from "@/components/ui/RichTextEditor";
+import RichTextEditor, { type RichTextEditorHandle } from "@/components/ui/RichTextEditor";
 import { fmtDate } from "@/lib/utils";
 import { createCaseResponse, updateCaseResponse, sendCaseResponse } from "@/lib/services/cases";
-import type { CaseResponse } from "@/lib/types";
+import { CARET_SENTINEL, type CaseResponse, type ResponseSeed } from "@/lib/types";
 
-interface TemplateVars {
-  ref: string;
-  requester_name: string;
-  requester_email: string;
-  submitted_at: string;
-  statutory_deadline: string;
-  request_summary: string;
+/** Any {{variable}} left in a draft would reach the requester literally. */
+function unresolvedVariables(html: string): string[] {
+  const found = html.match(/\{\{\s*\w+\s*\}\}/g) ?? [];
+  return [...new Set(found)];
 }
 
 interface Props {
   caseId: number;
   responses: CaseResponse[];
-  templateVars: TemplateVars;
+  seed: ResponseSeed;
+  requesterEmail: string;
   isClosed?: boolean;
+  onEditorFocus?: (ref: RichTextEditorHandle) => void;
 }
 
-function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: number; isClosed?: boolean }) {
+export interface CaseResponsesPanelHandle {
+  insertContent: (html: string) => void;
+}
+
+function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requesterEmail }: {
+  resp: CaseResponse;
+  caseId: number;
+  onEditorFocus?: (ref: RichTextEditorHandle) => void;
+  isClosed?: boolean;
+  subject: string;
+  requesterEmail: string;
+}) {
   const router = useRouter();
+  const editorRef = useRef<RichTextEditorHandle>(null);
   const [expanded, setExpanded] = useState(resp.status === "draft" || resp.status === "sending" || resp.status === "failed");
   const [body, setBody] = useState(resp.body);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const leftover = unresolvedVariables(body);
+
+  function handleExpand() {
+    setExpanded(v => {
+      if (!v && editorRef.current) onEditorFocus?.(editorRef.current);
+      return !v;
+    });
+  }
 
   function handleSave() {
     startTransition(async () => {
@@ -50,7 +71,7 @@ function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: n
   }
 
   function handleSend() {
-    if (!confirm(`Send this response to the requester? This cannot be undone.`)) return;
+    setConfirming(false);
     startTransition(async () => {
       try {
         await sendCaseResponse(caseId, resp.id);
@@ -74,10 +95,7 @@ function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: n
             : `Created ${fmtDate(resp.created_at)}`}
           {resp.created_by_name && ` by ${resp.created_by_name}`}
         </span>
-        <button
-          className="govuk-link govuk-body-s"
-          onClick={() => setExpanded(v => !v)}
-        >
+        <button className="govuk-link govuk-body-s" onClick={handleExpand}>
           {expanded ? "Collapse" : "Expand"}
         </button>
       </div>
@@ -98,7 +116,13 @@ function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: n
           {(resp.status === "draft" || resp.status === "failed") && !isClosed ? (
             <>
               <div style={{ marginBottom: 8 }}>
-                <RichTextEditor value={body} onChange={setBody} minHeight={180} />
+                <RichTextEditor
+                  ref={editorRef}
+                  value={body}
+                  onChange={setBody}
+                  minHeight={180}
+                  onFocus={() => editorRef.current && onEditorFocus?.(editorRef.current)}
+                />
               </div>
               <div className="foi-spread">
                 <span style={{ fontSize: 13, color: "var(--govuk-secondary-text-colour)" }}>
@@ -108,11 +132,59 @@ function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: n
                   <Button variant="secondary" size="small" disabled={isPending} onClick={handleSave}>
                     {isPending ? "Saving…" : "Save draft"}
                   </Button>
-                  <Button size="small" disabled={isPending} onClick={handleSend}>
+                  <Button size="small" disabled={isPending} onClick={() => setConfirming(true)}>
                     {resp.status === "failed" ? "Retry send →" : "Send to requester →"}
                   </Button>
                 </div>
               </div>
+
+              {confirming && (
+                <Modal title="Send response to requester?" onClose={() => setConfirming(false)} width={760}>
+                  <dl className="govuk-body-s" style={{ margin: "0 0 16px" }}>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <dt style={{ fontWeight: 600, minWidth: 64 }}>To</dt>
+                      <dd style={{ margin: 0 }} className="foi-mono">{requesterEmail}</dd>
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <dt style={{ fontWeight: 600, minWidth: 64 }}>Subject</dt>
+                      <dd style={{ margin: 0 }}>{subject}</dd>
+                    </div>
+                  </dl>
+
+                  <div
+                    className="foi-rich-content"
+                    style={{
+                      border: "1px solid var(--govuk-border-colour)",
+                      padding: 16,
+                      maxHeight: 380,
+                      overflowY: "auto",
+                      fontSize: 14,
+                      marginBottom: 16,
+                    }}
+                    dangerouslySetInnerHTML={{ __html: body }}
+                  />
+
+                  {leftover.length > 0 && (
+                    <p className="govuk-error-message">
+                      This draft still contains unresolved variables: {leftover.join(", ")}. Remove or
+                      replace them before sending.
+                    </p>
+                  )}
+
+                  <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
+                    This is exactly what the requester will receive. Sending cannot be undone.
+                  </p>
+
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <Button variant="secondary" size="small" onClick={() => setConfirming(false)}>
+                      Cancel
+                    </Button>
+                    <Button size="small" disabled={isPending || leftover.length > 0} onClick={handleSend}>
+                      Send now →
+                    </Button>
+                  </div>
+                </Modal>
+              )}
             </>
           ) : (
             <div
@@ -127,12 +199,41 @@ function ResponseRow({ resp, caseId, isClosed }: { resp: CaseResponse; caseId: n
   );
 }
 
-export default function CaseResponsesPanel({ caseId, responses, templateVars, isClosed }: Props) {
+const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function CaseResponsesPanel(
+  { caseId, responses, seed, requesterEmail, isClosed },
+  ref,
+) {
   const router = useRouter();
+  const newDraftEditorRef = useRef<RichTextEditorHandle>(null);
+  const activeEditorRef = useRef<RichTextEditorHandle | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  // Seed the new-draft editor from the case_response template and drop the
+  // caret where {{response_body}} was. Runs once the editor has mounted.
+  useEffect(() => {
+    if (!showForm) return;
+    newDraftEditorRef.current?.setContentWithCaret(seed.body, CARET_SENTINEL);
+  }, [showForm, seed.body]);
+
+  function handleNewDraft() {
+    setError(null);
+    setBody(seed.body);
+    setShowForm(true);
+  }
+
+  useImperativeHandle(ref, () => ({
+    insertContent: (html: string) => {
+      const target = activeEditorRef.current ?? newDraftEditorRef.current;
+      target?.insertContent(html);
+    },
+  }));
+
+  function handleEditorFocus(editorRef: RichTextEditorHandle) {
+    activeEditorRef.current = editorRef;
+  }
 
   function handleCreate(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -159,7 +260,15 @@ export default function CaseResponsesPanel({ caseId, responses, templateVars, is
         <div className="foi-card">
           <h3 className="govuk-heading-s">Sent responses ({sent.length})</h3>
           {sent.map(r => (
-            <ResponseRow key={r.id} resp={r} caseId={caseId} isClosed={isClosed} />
+            <ResponseRow
+              key={r.id}
+              resp={r}
+              caseId={caseId}
+              onEditorFocus={handleEditorFocus}
+              isClosed={isClosed}
+              subject={seed.subject}
+              requesterEmail={requesterEmail}
+            />
           ))}
         </div>
       )}
@@ -170,36 +279,60 @@ export default function CaseResponsesPanel({ caseId, responses, templateVars, is
             {drafts.length > 0 ? `Drafts (${drafts.length})` : "Response drafts"}
           </h3>
           {!showForm && !isClosed && (
-            <Button variant="secondary" size="small" onClick={() => setShowForm(true)}>
+            <Button variant="secondary" size="small" onClick={handleNewDraft}>
               New draft
             </Button>
           )}
         </div>
 
+        {!seed.template_configured && !isClosed && (
+          <div
+            className="govuk-body-s"
+            style={{
+              borderLeft: "4px solid var(--govuk-warning-colour, #f47738)",
+              background: "var(--govuk-template-background-colour)",
+              padding: "10px 12px",
+              marginBottom: 12,
+            }}
+          >
+            No case response template is configured, so new drafts start empty. Set one up in{" "}
+            <a className="govuk-link" href="/settings">Settings → Email Templates</a> to pre-fill the
+            greeting, appeal rights and sign-off.
+          </div>
+        )}
+
         {drafts.length === 0 && !showForm && (
           <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
             No draft responses. Sending to{" "}
-            <span className="foi-mono">{templateVars.requester_email}</span>.
+            <span className="foi-mono">{requesterEmail}</span>.
           </p>
         )}
 
         {drafts.map(r => (
-          <ResponseRow key={r.id} resp={r} caseId={caseId} isClosed={isClosed} />
+          <ResponseRow
+            key={r.id}
+            resp={r}
+            caseId={caseId}
+            onEditorFocus={handleEditorFocus}
+            isClosed={isClosed}
+            subject={seed.subject}
+            requesterEmail={requesterEmail}
+          />
         ))}
 
         {showForm && (
           <form onSubmit={handleCreate} style={{ borderTop: drafts.length > 0 ? "1px solid var(--govuk-border-colour)" : undefined, paddingTop: drafts.length > 0 ? 12 : 0 }}>
             {error && <p className="govuk-error-message">{error}</p>}
-
             <FormField label="Response body" htmlFor="resp-body">
               <RichTextEditor
+                ref={newDraftEditorRef}
                 value={body}
                 onChange={setBody}
                 placeholder="Write your response…"
                 minHeight={200}
+                onFocus={() => newDraftEditorRef.current && handleEditorFocus(newDraftEditorRef.current)}
               />
             </FormField>
-
             <div style={{ display: "flex", gap: 8 }}>
               <Button type="submit" size="small" disabled={isPending}>
                 {isPending ? "Saving…" : "Save draft"}
@@ -218,4 +351,6 @@ export default function CaseResponsesPanel({ caseId, responses, templateVars, is
       </div>
     </div>
   );
-}
+});
+
+export default CaseResponsesPanel;
