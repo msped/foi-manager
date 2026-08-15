@@ -68,6 +68,7 @@ class CaseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Case.objects.select_related(
+            "assignee",
             "created_by",
             "disclosure_log_entry",
             "disclosure_log_entry__published_by",
@@ -80,10 +81,13 @@ class CaseViewSet(viewsets.ModelViewSet):
             qs = qs.exclude(status__in=[s.strip() for s in exclude_status.split(",")])
         if assignee := params.get("assignee"):
             qs = qs.filter(assignee=assignee)
+        if params.get("unassigned") == "true":
+            qs = qs.filter(assignee__isnull=True).exclude(
+                status__in=Case.TERMINAL_STATUSES
+            )
         if params.get("is_overdue") == "true":
-            terminal = [Case.Status.PUBLISHED, Case.Status.EXEMPT, Case.Status.CLOSED]
             qs = qs.filter(statutory_deadline__lt=now().date()).exclude(
-                status__in=terminal
+                status__in=Case.TERMINAL_STATUSES
             )
         return qs
 

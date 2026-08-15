@@ -62,6 +62,10 @@ class Case(models.Model):
         EXEMPT = "exempt", "Refused / Exempt"
         CLOSED = "closed", "Closed"
 
+    # Statuses where the case is finished — the statutory clock has stopped, so
+    # a deadline in the past is history rather than a breach.
+    TERMINAL_STATUSES = [Status.EXEMPT, Status.CLOSED]
+
     class ReceivedBy(models.TextChoices):
         PORTAL = "portal", "Public Portal"
         EMAIL = "email", "Email"
@@ -157,9 +161,9 @@ class Case(models.Model):
     def is_overdue(self) -> bool:
         if not self.statutory_deadline:
             return False
-        return date.today() > self.statutory_deadline and self.status not in (
-            self.Status.EXEMPT,
-            self.Status.CLOSED,
+        return (
+            date.today() > self.statutory_deadline
+            and self.status not in self.TERMINAL_STATUSES
         )
 
     def acknowledge(self, actor=None):

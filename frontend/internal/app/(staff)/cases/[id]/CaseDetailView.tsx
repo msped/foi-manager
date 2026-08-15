@@ -9,7 +9,7 @@ import AiPanel from "@/components/ui/AiPanel";
 import ConsultationsPanel from "./ConsultationsPanel";
 import CaseResponsesPanel, { type CaseResponsesPanelHandle } from "./CaseResponsesPanel";
 import DisclosureLogPanel from "./DisclosureLogPanel";
-import { fmtDate, daysUntil } from "@/lib/utils";
+import { fmtDate, daysUntil, isTerminalStatus } from "@/lib/utils";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import FormField from "@/components/ui/FormField";
 import Modal from "@/components/ui/Modal";
@@ -118,7 +118,8 @@ export default function CaseDetailView({ c, foiTeam, seed }: Props) {
     new Date().toISOString().split("T")[0]
   );
   const [clarificationNotes, setClarificationNotes] = useState("");
-  const days = daysUntil(c.statutory_deadline);
+  const terminal = isTerminalStatus(c.status);
+  const days = terminal ? null : daysUntil(c.statutory_deadline);
 
   const response_sent = c.responses.find(r => r.status === "sent");
 
@@ -384,12 +385,14 @@ export default function CaseDetailView({ c, foiTeam, seed }: Props) {
                     {c.acknowledged_at ? fmtDate(c.acknowledged_at) : <Tag colour="grey">Pending</Tag>}
                   </dd>
                 </div>
-                {response_sent ? '' : <div className="govuk-summary-list__row">
+                {response_sent || terminal ? '' : <div className="govuk-summary-list__row">
                   <dt className="govuk-summary-list__key">Due</dt>
                   <dd className="govuk-summary-list__value"><strong>{fmtDate(c.statutory_deadline)}</strong></dd>
                 </div>}
                 <div className="govuk-summary-list__row">
-                  <dt className="govuk-summary-list__key">{c.status === "closed" ? "Response sent" : "Days remaining"}</dt>
+                  <dt className="govuk-summary-list__key">
+                    {response_sent ? "Response sent" : terminal ? "Closed" : "Days remaining"}
+                  </dt>
                   <dd className="govuk-summary-list__value">
                     {response_sent ? fmtDate(response_sent.sent_at) : days !== null ? (
                       <Tag colour={days < 0 ? "red" : days <= 5 ? "yellow" : "green"}>
