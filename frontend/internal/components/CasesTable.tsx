@@ -1,27 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusTag } from "./ui/Tag";
+import { assignCase } from "@/lib/services/cases";
 import { fmtDate, daysUntil, isTerminalStatus } from "@/lib/utils";
-import type { CaseListItem } from "@/lib/types";
+import type { ApiUser, CaseListItem } from "@/lib/types";
 
 const TABS = [
-  { id: "all",     label: "All"       },
-  { id: "mine",    label: "Mine"      },
-  { id: "review",  label: "In review" },
-  { id: "overdue", label: "Overdue"   },
+  { id: "all",        label: "All"        },
+  { id: "mine",       label: "Mine"       },
+  { id: "unassigned", label: "Unassigned" },
+  { id: "review",     label: "In review"  },
+  { id: "overdue",    label: "Overdue"    },
 ];
+
+function userLabel(u: ApiUser): string {
+  const name = `${u.first_name} ${u.last_name}`.trim();
+  return name || u.email;
+}
 
 interface Props {
   cases: CaseListItem[];
   activeTab: string;
+  foiTeam?: ApiUser[];
 }
 
-export default function CasesTable({ cases, activeTab }: Props) {
+export default function CasesTable({ cases, activeTab, foiTeam = [] }: Props) {
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const canAssign = activeTab === "unassigned" && foiTeam.length > 0;
+
+  function handleAssign(caseId: number, assigneeId: number) {
+    setAssignError(null);
+    startTransition(async () => {
+      try {
+        await assignCase(caseId, assigneeId);
+        // The case drops out of this tab once it has an owner.
+        router.refresh();
+      } catch {
+        setAssignError("Could not assign the case. Try again.");
+      }
+    });
+  }
 
   const filtered = q
     ? cases.filter(c => {
@@ -49,6 +73,10 @@ export default function CasesTable({ cases, activeTab }: Props) {
           </button>
         ))}
       </div>
+
+      {assignError && (
+        <p className="govuk-error-message" style={{ marginBottom: 8 }}>{assignError}</p>
+      )}
 
       <div className="foi-row" style={{ marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
         <input
@@ -79,7 +107,9 @@ export default function CasesTable({ cases, activeTab }: Props) {
             {filtered.length === 0 ? (
               <tr className="govuk-table__row">
                 <td className="govuk-table__cell" colSpan={5} style={{ textAlign: "center", color: "var(--govuk-secondary-text-colour)", padding: 32 }}>
-                  No cases match your search.
+                  {cases.length === 0 && activeTab === "unassigned"
+                    ? "Every open case has an owner."
+                    : "No cases match your search."}
                 </td>
               </tr>
             ) : filtered.map(c => {
@@ -103,7 +133,25 @@ export default function CasesTable({ cases, activeTab }: Props) {
                     <StatusTag status={c.status} />
                   </td>
                   <td className="govuk-table__cell govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
-                    {c.assignee_name ?? <span style={{ fontStyle: "italic" }}>Unassigned</span>}
+                    {canAssign && !c.assignee_name ? (
+                      <select
+                        className="govuk-select"
+                        style={{ maxWidth: 180, fontSize: 14 }}
+                        value=""
+                        disabled={isPending}
+                        aria-label={`Assign case ${c.ref}`}
+                        onChange={e => {
+                          if (e.target.value) handleAssign(c.id, Number(e.target.value));
+                        }}
+                      >
+                        <option value="">Assign to…</option>
+                        {foiTeam.map(u => (
+                          <option key={u.id} value={u.id}>{userLabel(u)}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      c.assignee_name ?? <span style={{ fontStyle: "italic" }}>Unassigned</span>
+                    )}
                   </td>
                   <td className="govuk-table__cell">
                     {days !== null ? (
