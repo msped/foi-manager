@@ -182,6 +182,15 @@ export interface CaseClarification {
   notes: string;
 }
 
+export interface CaseCRUAdvice {
+  id: number | null;
+  /** A date here is what marks the case as referred to the NPCC CRU. */
+  request_sent_at: string | null;
+  received_at: string | null;
+  advice: string;
+  updated_at: string | null;
+}
+
 export interface NotificationPreferences {
   notify_on_case_assignment: boolean;
 }
@@ -289,6 +298,7 @@ export interface CaseDetail {
   consultations: CaseConsultation[];
   responses: CaseResponse[];
   clarification: CaseClarification | null;
+  cru_advice: CaseCRUAdvice | null;
   disclosure_log_entry: CaseDisclosureLogEntry | null;
 }
 
