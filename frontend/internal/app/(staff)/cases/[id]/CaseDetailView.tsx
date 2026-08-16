@@ -8,6 +8,7 @@ import { StatusTag, Tag } from "@/components/ui/Tag";
 import AiPanel from "@/components/ui/AiPanel";
 import ConsultationsPanel from "./ConsultationsPanel";
 import CaseResponsesPanel, { type CaseResponsesPanelHandle } from "./CaseResponsesPanel";
+import CruAdvicePanel from "./CruAdvicePanel";
 import DisclosureLogPanel from "./DisclosureLogPanel";
 import { fmtDate, daysUntil, isTerminalStatus } from "@/lib/utils";
 import RichTextEditor from "@/components/ui/RichTextEditor";
@@ -26,6 +27,8 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   clock_paused: "Clock paused",
   clock_resumed: "Clock resumed",
   clarification_received: "Clarification received",
+  cru_request_sent: "CRU request sent",
+  cru_advice_received: "CRU advice received",
   email_sent: "Email sent",
   consultation_message_sent: "Consultation message sent",
 };
@@ -236,6 +239,8 @@ export default function CaseDetailView({ c, foiTeam, seed }: Props) {
                     Any suggestions are advisory only. Apply the public interest test where relevant.
                   </p>
                 </AiPanel>
+
+                <CruAdvicePanel caseId={c.id} advice={c.cru_advice} />
 
                 <div className="foi-card">
                   <h3 className="govuk-heading-s">Internal notes</h3>

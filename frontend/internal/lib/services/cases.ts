@@ -1,6 +1,6 @@
 import djangoClient from "./django";
 import type {
-  AssigneeConsultation, BankHoliday, CaseConsultation, CaseDetail, CaseListItem, CaseNote,
+  AssigneeConsultation, BankHoliday, CaseConsultation, CaseCRUAdvice, CaseDetail, CaseListItem, CaseNote,
   CaseResponse, ConsultationMessage, Department, EmailTemplate, EmailTemplatePurposeInfo,
   Mailbox, Paginated, ResponseSeed, ResponseTemplate,
 } from "@/lib/types";
@@ -231,6 +231,18 @@ export async function updateResponseTemplate(
 
 export async function deleteResponseTemplate(id: number): Promise<void> {
   await djangoClient.delete(`/response-templates/${id}/`);
+}
+
+export async function saveCruAdvice(
+  caseId: number | string,
+  body: { request_sent_at: string | null; received_at: string | null; advice: string },
+): Promise<CaseCRUAdvice> {
+  const { data } = await djangoClient.put<CaseCRUAdvice>(`/cases/${caseId}/cru-advice/`, body);
+  return data;
+}
+
+export async function clearCruAdvice(caseId: number | string): Promise<void> {
+  await djangoClient.delete(`/cases/${caseId}/cru-advice/`);
 }
 
 export async function sendClarificationRequest(caseId: number | string, body: string): Promise<CaseDetail> {

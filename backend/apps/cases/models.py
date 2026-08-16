@@ -555,6 +555,30 @@ class CaseClarification(models.Model):
         return f"Clarification for {self.case.ref}"
 
 
+class CaseCRUAdvice(models.Model):
+    """Advice from the NPCC Central Referral Unit on how to handle a request.
+
+    The referral is made outside this system, so `request_sent_at` is entered by
+    hand — a value in that field is what marks the case as referred to the CRU.
+    """
+
+    case = models.OneToOneField(
+        Case, on_delete=models.CASCADE, related_name="cru_advice"
+    )
+    request_sent_at = models.DateField(null=True, blank=True)
+    received_at = models.DateField(null=True, blank=True)
+    advice = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "CRU advice"
+        verbose_name_plural = "CRU advice"
+
+    def __str__(self):
+        return f"CRU advice for {self.case.ref}"
+
+
 class ResponseTemplate(models.Model):
     name = models.CharField(max_length=200)
     exemption_code = models.CharField(
