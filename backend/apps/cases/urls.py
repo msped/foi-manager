@@ -17,6 +17,7 @@ from .views_consultations import (
     ConsultationMessageViewSet,
     MyConsultationViewSet,
 )
+from .views_cru import CaseCRUAdviceView
 from .views_exemptions import CaseExemptionViewSet
 from .views_notes import CaseNoteViewSet
 from .views_responses import CaseResponseViewSet
@@ -53,6 +54,11 @@ urlpatterns = [
         "cases/<int:case_pk>/exemptions/<int:pk>/",
         CaseExemptionViewSet.as_view({"delete": "destroy"}),
         name="case-exemptions-detail",
+    ),
+    path(
+        "cases/<int:case_pk>/cru-advice/",
+        CaseCRUAdviceView.as_view(),
+        name="case-cru-advice",
     ),
     path(
         "cases/<int:case_pk>/consultations/",

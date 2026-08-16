@@ -6,6 +6,7 @@ from .models import (
     CaseAuditEvent,
     CaseClarification,
     CaseConsultation,
+    CaseCRUAdvice,
     CaseExemption,
     CaseNote,
     CaseResponse,
@@ -267,6 +268,34 @@ class CaseClarificationSerializer(serializers.ModelSerializer):
         read_only_fields = ["sent_at"]
 
 
+class CaseCRUAdviceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CaseCRUAdvice
+        fields = ["id", "request_sent_at", "received_at", "advice", "updated_at"]
+        read_only_fields = ["updated_at"]
+
+    def validate(self, attrs):
+        # Merge onto the existing record so a PATCH-style partial payload is
+        # validated against the values it will actually end up with.
+        request_sent_at = attrs.get(
+            "request_sent_at", getattr(self.instance, "request_sent_at", None)
+        )
+        received_at = attrs.get(
+            "received_at", getattr(self.instance, "received_at", None)
+        )
+        if received_at and not request_sent_at:
+            raise serializers.ValidationError(
+                {
+                    "request_sent_at": "Record the date the CRU request was sent before logging advice received."
+                }
+            )
+        if received_at and request_sent_at and received_at < request_sent_at:
+            raise serializers.ValidationError(
+                {"received_at": "Advice cannot be received before the request was sent."}
+            )
+        return attrs
+
+
 class CaseDetailSerializer(serializers.ModelSerializer):
     is_overdue = serializers.BooleanField(read_only=True)
     assignee_name = serializers.SerializerMethodField()
@@ -275,6 +304,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     consultations = CaseConsultationSerializer(many=True, read_only=True)
     responses = CaseResponseSerializer(many=True, read_only=True)
     clarification = CaseClarificationSerializer(read_only=True)
+    cru_advice = CaseCRUAdviceSerializer(read_only=True)
     disclosure_log_entry = serializers.SerializerMethodField()
 
     def get_assignee_name(self, obj):
@@ -343,6 +373,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "consultations",
             "responses",
             "clarification",
+            "cru_advice",
             "disclosure_log_entry",
         ]
         read_only_fields = [
@@ -356,6 +387,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "assignee_name",
             "clarification",
+            "cru_advice",
             "disclosure_log_entry",
         ]
 
