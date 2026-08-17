@@ -348,12 +348,17 @@
 // ─── Buttons that present as links ──────────────────────────────────────────
 // Lets <button class="govuk-link"> work without per-element style resets.
 
-button.govuk-link {
+// `:where()` holds this at element-only specificity so typography classes on
+// the same button (govuk-body-s, foi-mono) always win. Never set font-family
+// here: govuk-frontend puts no font on html/body, so `inherit` would fall
+// through to the browser default serif.
+button:where(.govuk-link) {
   background: none;
   border: 0;
   padding: 0;
   cursor: pointer;
-  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 // ─── Rich text editor chrome ────────────────────────────────────────────────
