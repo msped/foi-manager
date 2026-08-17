@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+import AppShell from "@/components/AppShell";
+import { ASSIGNEE_NAV } from "@/lib/nav";
 import { getMe } from "@/lib/services/users";
-import AssigneeSidebar from "@/components/AssigneeSidebar";
 
 export default async function AssigneeLayout({ children }: { children: React.ReactNode }) {
   let user;
@@ -13,9 +14,8 @@ export default async function AssigneeLayout({ children }: { children: React.Rea
   if (user.role !== "assignee") redirect("/dashboard");
 
   return (
-    <div className="staff-shell">
-      <AssigneeSidebar user={user} />
-      <div className="staff-main">{children}</div>
-    </div>
+    <AppShell user={user} nav={ASSIGNEE_NAV} homepageUrl="/consultations">
+      {children}
+    </AppShell>
   );
 }
