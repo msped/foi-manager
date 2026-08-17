@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import {
@@ -73,8 +74,7 @@ export default function RequesterCategoriesManager({ initial }: { initial: Categ
   }
 
   return (
-    <div className="foi-card">
-      <h2 className="govuk-heading-s">Requester categories</h2>
+    <SummaryCard title="Requester categories">
       <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
         These appear in the new case form. Changes take effect immediately.
       </p>
@@ -144,6 +144,6 @@ export default function RequesterCategoriesManager({ initial }: { initial: Categ
           </Button>
         </div>
       </div>
-    </div>
+    </SummaryCard>
   );
 }

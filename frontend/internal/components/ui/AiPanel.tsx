@@ -4,19 +4,21 @@ interface AiPanelProps {
   children: React.ReactNode;
 }
 
+/**
+ * Highlighted aside for AI-generated content. The Design System has no
+ * component for this, so it uses inset text — which is what GDS recommends for
+ * drawing attention to a block of related information.
+ */
 export default function AiPanel({
   title = "AI assistant",
   micro,
   children,
 }: AiPanelProps) {
   return (
-    <div className="foi-ai-panel">
-      <div className="foi-ai-head">
-        <span className="foi-ai-glyph" aria-hidden="true">★</span>
-        <h4>{title}</h4>
-        {micro && <span className="foi-ai-micro">{micro}</span>}
-      </div>
-      <div className="foi-ai-body">{children}</div>
+    <div className="govuk-inset-text">
+      <h2 className="govuk-heading-s govuk-!-margin-bottom-1">{title}</h2>
+      {micro && <p className="govuk-hint govuk-!-margin-bottom-2">{micro}</p>}
+      {children}
     </div>
   );
 }

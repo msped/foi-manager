@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# govuk-frontend assets (copied by postinstall)
+/public/assets

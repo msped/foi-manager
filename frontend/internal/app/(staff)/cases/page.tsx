@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Button from "@/components/ui/Button";
+import PageHeader from "@/components/govuk/PageHeader";
 import CasesTable from "@/components/CasesTable";
 import { listCases } from "@/lib/services/cases";
 import { getMe, listUsers } from "@/lib/services/users";
@@ -36,22 +37,20 @@ export default async function CasesPage({
 
   return (
     <>
-      <header className="staff-header">
-        <div>
-          <h1 className="govuk-heading-l" style={{ marginBottom: 0 }}>Cases</h1>
-          <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
-            {count} {tab === "mine" ? "open cases assigned to you" : tab === "review" ? "cases in review" : tab === "overdue" ? "overdue cases" : tab === "unassigned" ? "open cases awaiting assignment" : "total"}
-          </p>
-        </div>
-        <div className="staff-header-actions">
-          <Button variant="secondary">Export CSV</Button>
-          <Button href="/cases/new">New case</Button>
-        </div>
-      </header>
+      <PageHeader
+        title="Cases"
+        actions={
+          <>
+            <Button variant="secondary">Export CSV</Button>
+            <Button href="/cases/new">New case</Button>
+          </>
+        }
+      />
+      <p className="govuk-body govuk-hint">
+        {count} {tab === "mine" ? "open cases assigned to you" : tab === "review" ? "cases in review" : tab === "overdue" ? "overdue cases" : tab === "unassigned" ? "open cases awaiting assignment" : "total"}
+      </p>
 
-      <div className="staff-body">
-        <CasesTable cases={cases} activeTab={tab} foiTeam={foiTeam} />
-      </div>
+      <CasesTable cases={cases} activeTab={tab} foiTeam={foiTeam} />
     </>
   );
 }

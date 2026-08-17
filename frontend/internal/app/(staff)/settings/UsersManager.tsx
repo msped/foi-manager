@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useCallback } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { Tag } from "@/components/ui/Tag";
 import { updateUser, searchUsers } from "@/lib/services/users";
 import type { ApiUser, UserSearchResult } from "@/lib/types";
@@ -62,7 +63,7 @@ function FOITeamRow({ u, currentUserId, onUpdate, onRemove }: {
           <>
             <button
               className="govuk-link govuk-body-s govuk-link--no-visited-state"
-              style={{ color: u.is_active ? "var(--govuk-error-colour)" : "#1d70b8", marginRight: 16 }}
+              style={{ color: u.is_active ? "var(--govuk-error-colour)" : "var(--govuk-link-colour)", marginRight: 16 }}
               onClick={handleToggleActive}
               disabled={isPending}
             >
@@ -165,8 +166,7 @@ export default function UsersManager({ initial, currentUserId }: Props) {
   }
 
   return (
-    <div className="foi-card" style={{ marginBottom: 24 }}>
-      <h2 className="govuk-heading-m" style={{ marginBottom: 4 }}>FOI Team</h2>
+    <SummaryCard title="FOI team">
       <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 16 }}>
         Members of the FOI team have full access to manage cases and settings. All other users are assignees.
         Users must log in at least once before they can be added here.
@@ -237,6 +237,6 @@ export default function UsersManager({ initial, currentUserId }: Props) {
           Searching…
         </p>
       )}
-    </div>
+    </SummaryCard>
   );
 }

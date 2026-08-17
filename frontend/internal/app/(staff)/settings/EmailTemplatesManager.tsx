@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
@@ -206,8 +207,7 @@ export default function EmailTemplatesManager({ initial }: Props) {
   }
 
   return (
-    <div className="foi-card" style={{ marginBottom: 24 }}>
-      <h2 className="govuk-heading-m" style={{ marginBottom: 8 }}>Email Templates</h2>
+    <SummaryCard title="Email templates">
 
       {missing.length > 0 && (
         <div className="govuk-warning-text" style={{ marginBottom: 16 }}>
@@ -245,6 +245,6 @@ export default function EmailTemplatesManager({ initial }: Props) {
           </div>
         );
       })}
-    </div>
+    </SummaryCard>
   );
 }

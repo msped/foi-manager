@@ -26,5 +26,5 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|favicon.ico|govuk-frontend.css).*)"],
+  matcher: ["/((?!api|_next|assets|favicon.ico).*)"],
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
@@ -64,15 +65,15 @@ export default function CruAdvicePanel({ caseId, advice }: Props) {
   }
 
   return (
-    <div className="foi-card">
-      <div className="foi-spread" style={{ alignItems: "center", marginBottom: 8 }}>
-        <h3 className="govuk-heading-s" style={{ marginBottom: 0 }}>CRU advice</h3>
-        {requested && (
-          received
-            ? <Tag colour="green">Received</Tag>
-            : <Tag colour="yellow">Awaiting</Tag>
-        )}
-      </div>
+    <SummaryCard
+      title="CRU advice"
+      headingLevel={3}
+      actions={requested && (
+        received
+          ? <Tag colour="green">Received</Tag>
+          : <Tag colour="yellow">Awaiting</Tag>
+      )}
+    >
 
       {error && <p className="govuk-error-message" style={{ marginBottom: 8 }}>{error}</p>}
 
@@ -174,6 +175,6 @@ export default function CruAdvicePanel({ caseId, advice }: Props) {
           </div>
         </form>
       )}
-    </div>
+    </SummaryCard>
   );
 }

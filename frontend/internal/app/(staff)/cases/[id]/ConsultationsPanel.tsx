@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
@@ -86,7 +87,8 @@ function ConsultationRow({ c, caseId, isClosed }: { c: CaseConsultation; caseId:
   const hasAssigneeReply = c.status === "open" && lastMessage?.author_role === "assignee";
 
   return (
-    <div className="foi-card">
+    <div className="govuk-summary-card">
+      <div className="govuk-summary-card__content">
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <Tag colour={STATUS_COLOUR[c.status] ?? "grey"}>
           {STATUS_LABEL[c.status] ?? c.status}
@@ -188,6 +190,7 @@ function ConsultationRow({ c, caseId, isClosed }: { c: CaseConsultation; caseId:
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -241,11 +244,10 @@ export default function ConsultationsPanel({ caseId, consultations, requestText,
       </div>
 
       {active.length === 0 && !showForm && (
-        <div className="foi-card">
-          <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
-            No consultations sent yet. Use this tab to send parts of this request to other departments or named individuals for a response.
-          </p>
-        </div>
+        <p className="govuk-body">
+          No consultations sent yet. Use this tab to send parts of this request to
+          other departments or named individuals for a response.
+        </p>
       )}
 
       {active.map(c => (
@@ -253,11 +255,10 @@ export default function ConsultationsPanel({ caseId, consultations, requestText,
       ))}
 
       {showForm && (
-        <div className="foi-card">
+        <SummaryCard title="Send consultation">
         <form
           onSubmit={handleSend}
         >
-          <p className="govuk-heading-s" style={{ marginBottom: 12 }}>Send consultation</p>
           {error && <p className="govuk-error-message">{error}</p>}
 
           <FormField label="Recipient" hint="Search for a departmental mailbox or named person." htmlFor="cons-recipient">
@@ -299,7 +300,7 @@ export default function ConsultationsPanel({ caseId, consultations, requestText,
             </Button>
           </div>
         </form>
-        </div>
+        </SummaryCard>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { updateNotificationPreferences } from "@/lib/services/users";
 import type { NotificationPreferences } from "@/lib/types";
 
@@ -29,8 +30,7 @@ export default function AccountSettings({ preferences }: Props) {
   }
 
   return (
-    <div className="foi-card">
-      <h2 className="govuk-heading-m">Notification preferences</h2>
+    <SummaryCard title="Notifications">
       <form onSubmit={handleSubmit}>
         <div className="govuk-form-group">
           <fieldset className="govuk-fieldset">
@@ -60,11 +60,11 @@ export default function AccountSettings({ preferences }: Props) {
           {isPending ? "Saving…" : "Save preferences"}
         </button>
         {saved && !isPending && (
-          <span style={{ marginLeft: 12, fontSize: 14, color: "#00703c" }}>
+          <span style={{ marginLeft: 12, color: "var(--govuk-success-colour)" }}>
             Saved
           </span>
         )}
       </form>
-    </div>
+    </SummaryCard>
   );
 }

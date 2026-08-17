@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useTransition } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -257,8 +258,7 @@ const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function 
   return (
     <div className="foi-col">
       {sent.length > 0 && (
-        <div className="foi-card">
-          <h3 className="govuk-heading-s">Sent responses ({sent.length})</h3>
+        <SummaryCard title={`Sent responses (${sent.length})`} headingLevel={3}>
           {sent.map(r => (
             <ResponseRow
               key={r.id}
@@ -270,20 +270,18 @@ const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function 
               requesterEmail={requesterEmail}
             />
           ))}
-        </div>
+        </SummaryCard>
       )}
 
-      <div className="foi-card">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h3 className="govuk-heading-s" style={{ margin: 0 }}>
-            {drafts.length > 0 ? `Drafts (${drafts.length})` : "Response drafts"}
-          </h3>
-          {!showForm && !isClosed && (
-            <Button variant="secondary" size="small" onClick={handleNewDraft}>
-              New draft
-            </Button>
-          )}
-        </div>
+      <SummaryCard
+        title={drafts.length > 0 ? `Drafts (${drafts.length})` : "Response drafts"}
+        headingLevel={3}
+        actions={!showForm && !isClosed && (
+          <Button variant="secondary" size="small" onClick={handleNewDraft}>
+            New draft
+          </Button>
+        )}
+      >
 
         {!seed.template_configured && !isClosed && (
           <div
@@ -348,7 +346,7 @@ const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function 
             </div>
           </form>
         )}
-      </div>
+      </SummaryCard>
     </div>
   );
 });
