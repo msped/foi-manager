@@ -1,0 +1,496 @@
+// Extends the GOV.UK Design System for the few patterns it doesn't provide.
+//
+// Rules here must use GDS Sass helpers (govuk-colour, govuk-spacing,
+// govuk-font, govuk-media-query) — never raw hex or magic pixel values.
+// Anything the Design System already covers belongs in the markup as a
+// govuk-* class, not here.
+@use "govuk-frontend/dist/govuk" as *;
+
+// ─── Header account controls ────────────────────────────────────────────────
+// The GDS header has no slot for account actions; services add their own.
+
+.foi-header__actions {
+  display: flex;
+  align-items: center;
+  gap: govuk-spacing(4);
+  margin-left: auto;
+  padding: govuk-spacing(3) 0;
+}
+
+.foi-header__link {
+  @include govuk-font($size: 16);
+
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: govuk-colour("white");
+  text-decoration: underline;
+  text-decoration-thickness: max(1px, 0.0625rem);
+  text-underline-offset: 0.1578em;
+
+  &:hover {
+    text-decoration-thickness: max(3px, 0.1875rem, 0.12em);
+  }
+
+  &:focus {
+    @include govuk-focused-text;
+  }
+}
+
+// ─── Notifications menu ─────────────────────────────────────────────────────
+// A header dropdown. Not a Design System pattern.
+
+.foi-notifications {
+  position: relative;
+}
+
+.foi-notifications__toggle {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: 0;
+  padding: govuk-spacing(1);
+  cursor: pointer;
+  color: govuk-colour("white");
+  position: relative;
+
+  &:focus {
+    @include govuk-focused-text;
+  }
+}
+
+.foi-notifications__count {
+  @include govuk-font($size: 16, $weight: bold);
+
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 0.5rem;
+  background: govuk-colour("red");
+  color: govuk-colour("white");
+  line-height: 1;
+}
+
+.foi-notifications__panel {
+  position: absolute;
+  top: calc(100% + #{govuk-spacing(2)});
+  right: 0;
+  z-index: 100;
+  width: 20rem;
+  background: govuk-colour("white");
+  border: 1px solid $govuk-border-colour;
+}
+
+.foi-notifications__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: govuk-spacing(2) govuk-spacing(3);
+  border-bottom: 1px solid $govuk-border-colour;
+}
+
+.foi-notifications__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 20rem;
+  overflow-y: auto;
+}
+
+.foi-notifications__item {
+  padding: govuk-spacing(2) govuk-spacing(3);
+  border-bottom: 1px solid $govuk-border-colour;
+  color: $govuk-text-colour;
+
+  &--unread {
+    background: govuk-colour("black", $variant: "tint-95");
+  }
+
+  &--empty {
+    color: $govuk-secondary-text-colour;
+    text-align: center;
+  }
+}
+
+.foi-notifications__link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+
+  &:focus {
+    @include govuk-focused-text;
+  }
+}
+
+// ─── Page header ────────────────────────────────────────────────────────────
+// Title with optional actions aligned to the right of it.
+
+.foi-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: govuk-spacing(4);
+  flex-wrap: wrap;
+}
+
+.foi-page-header__actions {
+  display: flex;
+  align-items: center;
+  gap: govuk-spacing(3);
+  margin-bottom: govuk-spacing(6);
+}
+
+// ─── Statistic tile ─────────────────────────────────────────────────────────
+// A "big number" summary. Not a Design System pattern.
+
+.foi-stat {
+  background: govuk-colour("white");
+  border: 1px solid $govuk-border-colour;
+  padding: govuk-spacing(4);
+  height: 100%;
+}
+
+.foi-stat__label {
+  @include govuk-font($size: 16, $weight: bold);
+
+  color: $govuk-secondary-text-colour;
+  margin-bottom: govuk-spacing(2);
+}
+
+.foi-stat__value {
+  @include govuk-font($size: 48, $weight: bold);
+
+  color: $govuk-text-colour;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: govuk-spacing(1);
+}
+
+.foi-stat__delta {
+  @include govuk-font($size: 16);
+
+  color: $govuk-secondary-text-colour;
+
+  &--up {
+    color: govuk-colour("green");
+  }
+
+  &--down {
+    color: govuk-colour("red");
+  }
+}
+
+// ─── Avatar ─────────────────────────────────────────────────────────────────
+
+.foi-avatar {
+  @include govuk-font($size: 16, $weight: bold);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: govuk-colour("blue");
+  color: govuk-colour("white");
+  text-decoration: none;
+
+  &--sm {
+    width: 1.625rem;
+    height: 1.625rem;
+  }
+}
+
+// ─── Layout utilities ───────────────────────────────────────────────────────
+// Flex helpers for grouping controls. The Design System's grid handles page
+// layout; these are only for inline arrangement within a component.
+
+.foi-row {
+  display: flex;
+  align-items: center;
+  gap: govuk-spacing(2);
+}
+
+.foi-spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: govuk-spacing(4);
+}
+
+.foi-col {
+  display: flex;
+  flex-direction: column;
+  gap: govuk-spacing(4);
+}
+
+// ─── Charts ─────────────────────────────────────────────────────────────────
+// The Design System has no data visualisation components, so these are ours.
+// Widths are passed as the `--foi-value` custom property from the markup.
+
+.foi-numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.foi-meter {
+  height: govuk-spacing(2);
+  background: govuk-colour("black", $variant: "tint-95");
+  overflow: hidden;
+}
+
+.foi-meter__fill {
+  height: 100%;
+  width: var(--foi-value, 0%);
+  background: govuk-colour("blue");
+
+  &--good {
+    background: govuk-colour("green");
+  }
+
+  &--warn {
+    background: govuk-colour("orange");
+  }
+
+  &--bad {
+    background: govuk-colour("red");
+  }
+
+  &--muted {
+    background: govuk-colour("black", $variant: "tint-25");
+  }
+}
+
+.foi-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: govuk-spacing(4);
+  height: 11rem;
+  margin-bottom: govuk-spacing(6);
+}
+
+.foi-bar-chart__col {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 1;
+  height: 100%;
+}
+
+.foi-bar-chart__bar {
+  flex: 1;
+  min-height: 3px;
+  height: var(--foi-value, 0%);
+  background: govuk-colour("black");
+
+  &--secondary {
+    background: govuk-colour("blue");
+  }
+}
+
+.foi-bar-chart__label {
+  @include govuk-font($size: 16);
+
+  position: absolute;
+  bottom: govuk-spacing(-5);
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: $govuk-secondary-text-colour;
+}
+
+.foi-legend {
+  display: flex;
+  gap: govuk-spacing(4);
+}
+
+.foi-legend__item {
+  @include govuk-font($size: 16);
+
+  display: flex;
+  align-items: center;
+  gap: govuk-spacing(1);
+}
+
+.foi-legend__swatch {
+  width: govuk-spacing(3);
+  height: govuk-spacing(3);
+  background: govuk-colour("black");
+
+  &--secondary {
+    background: govuk-colour("blue");
+  }
+}
+
+// ─── Monospace reference numbers ────────────────────────────────────────────
+
+.foi-mono {
+  font-family: monospace;
+  color: $govuk-secondary-text-colour;
+}
+
+// ─── Buttons that present as links ──────────────────────────────────────────
+// Lets <button class="govuk-link"> work without per-element style resets.
+
+button.govuk-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+// ─── Rich text editor chrome ────────────────────────────────────────────────
+// Toolbar around the TipTap editor. Styled to match govuk-textarea.
+
+.foi-editor {
+  border: 2px solid $govuk-input-border-colour;
+  background: govuk-colour("white");
+}
+
+.foi-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: govuk-spacing(1);
+  padding: govuk-spacing(1);
+  border-bottom: 1px solid govuk-colour("black", $variant: "tint-80");
+  background: govuk-colour("black", $variant: "tint-95");
+
+  &--secondary {
+    background: govuk-colour("white");
+  }
+}
+
+.foi-editor__button {
+  @include govuk-font($size: 16);
+
+  padding: 0 govuk-spacing(2);
+  border: 1px solid govuk-colour("black", $variant: "tint-80");
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &[aria-pressed="true"] {
+    background: govuk-colour("blue");
+    color: govuk-colour("white");
+  }
+
+  &:focus {
+    @include govuk-focused-text;
+  }
+}
+
+.foi-editor__divider {
+  width: 1px;
+  margin: 0 govuk-spacing(1);
+  background: govuk-colour("black", $variant: "tint-80");
+}
+
+.foi-editor__chip {
+  @include govuk-font($size: 16);
+
+  padding: 0 govuk-spacing(2);
+  border: 1px solid govuk-colour("blue");
+  background: govuk-colour("blue", $variant: "tint-95");
+  color: govuk-colour("blue");
+  cursor: pointer;
+
+  &:focus {
+    @include govuk-focused-text;
+  }
+}
+
+.foi-editor__content {
+  padding: govuk-spacing(2);
+}
+
+// ─── Search results menu ────────────────────────────────────────────────────
+
+.foi-autocomplete {
+  position: relative;
+}
+
+.foi-autocomplete__menu {
+  position: absolute;
+  z-index: 50;
+  width: 100%;
+  background: govuk-colour("white");
+  border: 1px solid $govuk-border-colour;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+// ─── Rich text (TipTap editor and rendered output) ──────────────────────────
+
+.tiptap {
+  outline: none;
+
+  p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: $govuk-secondary-text-colour;
+  }
+}
+
+.tiptap,
+.foi-rich-content {
+  h2 {
+    @include govuk-font($size: 24, $weight: bold);
+
+    margin: 0 0 govuk-spacing(2);
+  }
+
+  h3 {
+    @include govuk-font($size: 19, $weight: bold);
+
+    margin: 0 0 govuk-spacing(2);
+  }
+
+  p {
+    @include govuk-font($size: 19);
+
+    margin: 0 0 govuk-spacing(3);
+  }
+
+  ul,
+  ol {
+    @include govuk-font($size: 19);
+
+    margin: 0 0 govuk-spacing(3);
+    padding-left: govuk-spacing(5);
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  li {
+    margin-bottom: govuk-spacing(1);
+  }
+
+  blockquote {
+    margin: govuk-spacing(3) 0;
+    padding-left: govuk-spacing(3);
+    border-left: 4px solid $govuk-border-colour;
+    color: $govuk-secondary-text-colour;
+  }
+}
