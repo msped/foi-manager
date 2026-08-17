@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
@@ -62,8 +63,7 @@ export default function BankHolidaysManager({ initial }: { initial: BankHoliday[
   const grouped = groupByYear(initial);
 
   return (
-    <div className="foi-card">
-      <h2 className="govuk-heading-s">Bank holidays</h2>
+    <SummaryCard title="Bank holidays">
       <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
         Bank holidays are excluded when calculating statutory deadlines. Add them for each country as needed.
       </p>
@@ -158,6 +158,6 @@ export default function BankHolidaysManager({ initial }: { initial: BankHoliday[
           </Button>
         </form>
       </div>
-    </div>
+    </SummaryCard>
   );
 }

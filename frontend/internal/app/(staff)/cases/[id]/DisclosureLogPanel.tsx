@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import type { CaseDisclosureLogEntry } from "@/lib/types";
 import { fmtDate } from "@/lib/utils";
@@ -45,8 +46,7 @@ export default function DisclosureLogPanel({ entry, caseId }: Props) {
   }
 
   return (
-    <div className="foi-card">
-      <h3 className="govuk-heading-s">Disclosure log</h3>
+    <SummaryCard title="Disclosure log" headingLevel={3}>
       {error && (
         <p className="govuk-error-message" style={{ marginBottom: 8 }}>{error}</p>
       )}
@@ -119,6 +119,6 @@ export default function DisclosureLogPanel({ entry, caseId }: Props) {
           </div>
         </dl>
       )}
-    </div>
+    </SummaryCard>
   );
 }

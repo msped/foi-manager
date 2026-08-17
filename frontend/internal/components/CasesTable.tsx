@@ -60,25 +60,43 @@ export default function CasesTable({ cases, activeTab, foiTeam = [] }: Props) {
 
   return (
     <>
-      <div className="foi-tabs" role="tablist" style={{ marginBottom: 16 }}>
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={activeTab === t.id}
-            className={`foi-tab-btn${activeTab === t.id ? " active" : ""}`}
-            onClick={() => router.push(`/cases?tab=${t.id}`)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/*
+        Navigation, not a tab widget: each entry changes the `tab` query param
+        and refetches on the server, which govuk-frontend's Tabs module cannot
+        drive — it only shows and hides panels already in the page.
+
+        It reuses the govuk-tabs classes purely for appearance, so it matches
+        the real tabs elsewhere in the service. That is safe because the tab
+        styling keys off `.govuk-frontend-supported` on <body>, not off
+        `data-module`. No tab ARIA is claimed: this is a nav landmark holding
+        ordinary links, with the current one marked by aria-current, and it
+        works without JavaScript.
+      */}
+      <nav className="govuk-tabs" aria-label="Filter cases">
+        <h2 className="govuk-tabs__title">Filter</h2>
+        <ul className="govuk-tabs__list">
+          {TABS.map(t => (
+            <li
+              key={t.id}
+              className={`govuk-tabs__list-item${activeTab === t.id ? " govuk-tabs__list-item--selected" : ""}`}
+            >
+              <Link
+                className="govuk-tabs__tab"
+                href={`/cases?tab=${t.id}`}
+                aria-current={activeTab === t.id ? "page" : undefined}
+              >
+                {t.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       {assignError && (
-        <p className="govuk-error-message" style={{ marginBottom: 8 }}>{assignError}</p>
+        <p className="govuk-error-message">{assignError}</p>
       )}
 
-      <div className="foi-row" style={{ marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+      <div className="foi-row govuk-!-margin-bottom-4" style={{ flexWrap: "wrap" }}>
         <input
           className="govuk-input"
           style={{ maxWidth: 360 }}
@@ -92,54 +110,55 @@ export default function CasesTable({ cases, activeTab, foiTeam = [] }: Props) {
         </span>
       </div>
 
-      <div className="foi-card" style={{ padding: 0 }}>
-        <table className="govuk-table" style={{ marginBottom: 0 }}>
-          <thead className="govuk-table__head">
+      <table className="govuk-table">
+        <thead className="govuk-table__head">
+          <tr className="govuk-table__row">
+            <th scope="col" className="govuk-table__header">Reference</th>
+            <th scope="col" className="govuk-table__header">Summary</th>
+            <th scope="col" className="govuk-table__header">Status</th>
+            <th scope="col" className="govuk-table__header">Assigned</th>
+            <th scope="col" className="govuk-table__header">Deadline</th>
+          </tr>
+        </thead>
+        <tbody className="govuk-table__body">
+          {filtered.length === 0 ? (
             <tr className="govuk-table__row">
-              <th className="govuk-table__header" style={{ width: 140 }}>Reference</th>
-              <th className="govuk-table__header">Summary</th>
-              <th className="govuk-table__header">Status</th>
-              <th className="govuk-table__header">Assigned</th>
-              <th className="govuk-table__header">Deadline</th>
+              <td className="govuk-table__cell" colSpan={5}>
+                {cases.length === 0 && activeTab === "unassigned"
+                  ? "Every open case has an owner."
+                  : "No cases match your search."}
+              </td>
             </tr>
-          </thead>
-          <tbody className="govuk-table__body">
-            {filtered.length === 0 ? (
-              <tr className="govuk-table__row">
-                <td className="govuk-table__cell" colSpan={5} style={{ textAlign: "center", color: "var(--govuk-secondary-text-colour)", padding: 32 }}>
-                  {cases.length === 0 && activeTab === "unassigned"
-                    ? "Every open case has an owner."
-                    : "No cases match your search."}
+          ) : filtered.map(c => {
+            const days = isTerminalStatus(c.status) ? null : daysUntil(c.statutory_deadline);
+            return (
+              <tr key={c.id} className="govuk-table__row">
+                <td className="govuk-table__cell">
+                  <Link href={`/cases/${c.id}`} className="govuk-link foi-mono">
+                    {c.ref}
+                  </Link>
                 </td>
-              </tr>
-            ) : filtered.map(c => {
-              const days = isTerminalStatus(c.status) ? null : daysUntil(c.statutory_deadline);
-              return (
-                <tr key={c.id} className="govuk-table__row">
-                  <td className="govuk-table__cell">
-                    <Link href={`/cases/${c.id}`} className="govuk-link foi-mono">
-                      {c.ref}
-                    </Link>
-                  </td>
-                  <td className="govuk-table__cell">
-                    <div style={{ fontWeight: 600, marginBottom: 2, fontSize: 14 }}>
-                      {c.summary || c.request_text.slice(0, 60) + "…"}
-                    </div>
-                    <div className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
-                      {c.requester_name} · {fmtDate(c.submitted_at)}
-                    </div>
-                  </td>
-                  <td className="govuk-table__cell">
-                    <StatusTag status={c.status} />
-                  </td>
-                  <td className="govuk-table__cell govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
-                    {canAssign && !c.assignee_name ? (
+                <td className="govuk-table__cell">
+                  <strong>{c.summary || c.request_text.slice(0, 60) + "…"}</strong>
+                  <br />
+                  <span className="govuk-hint govuk-!-margin-bottom-0">
+                    {c.requester_name} · {fmtDate(c.submitted_at)}
+                  </span>
+                </td>
+                <td className="govuk-table__cell">
+                  <StatusTag status={c.status} />
+                </td>
+                <td className="govuk-table__cell">
+                  {canAssign && !c.assignee_name ? (
+                    <>
+                      <label className="govuk-visually-hidden" htmlFor={`assign-${c.id}`}>
+                        Assign case {c.ref}
+                      </label>
                       <select
                         className="govuk-select"
-                        style={{ maxWidth: 180, fontSize: 14 }}
+                        id={`assign-${c.id}`}
                         value=""
                         disabled={isPending}
-                        aria-label={`Assign case ${c.ref}`}
                         onChange={e => {
                           if (e.target.value) handleAssign(c.id, Number(e.target.value));
                         }}
@@ -149,31 +168,31 @@ export default function CasesTable({ cases, activeTab, foiTeam = [] }: Props) {
                           <option key={u.id} value={u.id}>{userLabel(u)}</option>
                         ))}
                       </select>
-                    ) : (
-                      c.assignee_name ?? <span style={{ fontStyle: "italic" }}>Unassigned</span>
-                    )}
-                  </td>
-                  <td className="govuk-table__cell">
-                    {days !== null ? (
-                      <span style={{ fontSize: 13 }}>
-                        {days < 0
-                          ? <strong style={{ color: "var(--govuk-error-colour)" }}>{-days}d overdue</strong>
-                          : days <= 3
-                            ? <strong style={{ color: "#b25800" }}>{days}d left</strong>
-                            : `${days}d`}
-                        <br />
-                        <span style={{ color: "var(--govuk-secondary-text-colour)", fontSize: 12 }}>
-                          {fmtDate(c.statutory_deadline)}
-                        </span>
+                    </>
+                  ) : (
+                    c.assignee_name ?? <span className="govuk-hint govuk-!-margin-bottom-0">Unassigned</span>
+                  )}
+                </td>
+                <td className="govuk-table__cell">
+                  {days !== null ? (
+                    <>
+                      {days < 0
+                        ? <strong className="govuk-error-message govuk-!-margin-bottom-0">{-days} days overdue</strong>
+                        : days <= 3
+                          ? <strong>{days} days left</strong>
+                          : `${days} days`}
+                      <br />
+                      <span className="govuk-hint govuk-!-margin-bottom-0">
+                        {fmtDate(c.statutory_deadline)}
                       </span>
-                    ) : "—"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    </>
+                  ) : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </>
   );
 }

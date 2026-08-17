@@ -35,7 +35,7 @@ export default function Modal({ title, onClose, children, width = 700 }: Props) 
     >
       <div
         style={{
-          background: "#fff",
+          background: "var(--govuk-body-background-colour)",
           width: "100%",
           maxWidth: width,
           padding: 28,

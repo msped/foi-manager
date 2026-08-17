@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import type { PublishQueueItem, RejectedEntry } from "@/lib/types";
 import {
@@ -68,7 +69,6 @@ interface Props {
 
 export default function PublishQueueView({ queue, rejected }: Props) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"queue" | "rejected">("queue");
   const [selectedRef, setSelectedRef] = useState<string | null>(queue[0]?.ref ?? null);
   const [entryId, setEntryId] = useState<number | null>(
     () => queue[0]?.disclosure_log_entry?.id ?? null
@@ -189,44 +189,32 @@ export default function PublishQueueView({ queue, rejected }: Props) {
 
   return (
     <div>
-      <div className="foi-tabs" role="tablist" style={{ marginBottom: 24 }}>
-        <button
-          role="tab"
-          aria-selected={activeTab === "queue"}
-          className={`foi-tab-btn${activeTab === "queue" ? " active" : ""}`}
-          onClick={() => setActiveTab("queue")}
-        >
-          Queue
-          {queue.length > 0 && (
-            <span className="nav-badge" style={{ marginLeft: 6, background: "rgba(0,0,0,0.12)", color: "inherit" }}>
-              {queue.length}
-            </span>
+      {/*
+        Real GDS tabs: govuk-frontend's Tabs module owns selection, giving us
+        arrow-key navigation, the below-tablet fallback and hash deep linking.
+        Both panels are always rendered with static classNames so the classes
+        the module toggles are not overwritten by a React re-render.
+      */}
+      <div className="govuk-tabs" data-module="govuk-tabs">
+        <h2 className="govuk-tabs__title">Contents</h2>
+        <ul className="govuk-tabs__list">
+          {([["queue", "Queue", queue.length], ["rejected", "Rejected", rejected.length]] as const).map(
+            ([id, label, count]) => (
+              <li key={id} className="govuk-tabs__list-item">
+                <a className="govuk-tabs__tab" href={`#panel-${id}`}>
+                  {label}{count > 0 && ` (${count})`}
+                </a>
+              </li>
+            )
           )}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === "rejected"}
-          className={`foi-tab-btn${activeTab === "rejected" ? " active" : ""}`}
-          onClick={() => setActiveTab("rejected")}
-        >
-          Rejected
-          {rejected.length > 0 && (
-            <span className="nav-badge" style={{ marginLeft: 6, background: "rgba(0,0,0,0.12)", color: "inherit" }}>
-              {rejected.length}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {activeTab === "queue" && (
-        queue.length === 0 ? (
-          <div className="foi-card" style={{ textAlign: "center", padding: 40 }}>
+        </ul>
+        <div className="govuk-tabs__panel" id="panel-queue">
+        {queue.length === 0 ? (
             <p className="govuk-body">No cases are currently waiting to be published.</p>
-          </div>
         ) : (
-          <div className="foi-grid-sidebar" style={{ gridTemplateColumns: "300px 1fr" }}>
+          <div className="govuk-grid-row">
             {/* Queue list */}
-            <div>
+            <div className="govuk-grid-column-one-third">
               <p
                 className="govuk-body-s"
                 style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 8 }}
@@ -243,9 +231,12 @@ export default function PublishQueueView({ queue, rejected }: Props) {
                       padding: 14,
                       border:
                         item.ref === selectedRef
-                          ? "2px solid #0b0c0c"
+                          ? "2px solid var(--govuk-text-colour)"
                           : "1px solid var(--govuk-border-colour)",
-                      background: item.ref === selectedRef ? "#fff" : "#f9f9f9",
+                      background:
+                        item.ref === selectedRef
+                          ? "var(--govuk-body-background-colour)"
+                          : "var(--govuk-template-background-colour)",
                       cursor: "pointer",
                       font: "inherit",
                       color: "inherit",
@@ -281,7 +272,7 @@ export default function PublishQueueView({ queue, rejected }: Props) {
 
             {/* Detail / form */}
             {selectedItem && form ? (
-              <div className="foi-col">
+              <div className="govuk-grid-column-two-thirds foi-col">
                 {error && (
                   <div className="govuk-error-summary" aria-labelledby="error-summary-title" role="alert">
                     <p className="govuk-body" style={{ margin: 0 }}>
@@ -290,7 +281,8 @@ export default function PublishQueueView({ queue, rejected }: Props) {
                   </div>
                 )}
 
-                <div className="foi-card">
+                <div className="govuk-summary-card">
+                  <div className="govuk-summary-card__content">
                   <div className="foi-spread" style={{ marginBottom: 16 }}>
                     <span
                       className="foi-mono govuk-body-s"
@@ -325,14 +317,7 @@ export default function PublishQueueView({ queue, rejected }: Props) {
                   </div>
 
                   {showRejectForm && (
-                    <div
-                      style={{
-                        background: "#fff4e6",
-                        border: "1px solid #f47738",
-                        padding: 16,
-                        marginBottom: 16,
-                      }}
-                    >
+                    <div className="govuk-inset-text">
                       <div className="govuk-form-group" style={{ marginBottom: 12 }}>
                         <label className="govuk-label govuk-!-font-weight-bold" htmlFor="reject-reason">
                           Reason for not publishing
@@ -433,11 +418,11 @@ export default function PublishQueueView({ queue, rejected }: Props) {
                       />
                     </div>
                   </div>
+                  </div>
                 </div>
 
                 {selectedItem.exemptions.length > 0 && (
-                  <div className="foi-card">
-                    <h3 className="govuk-heading-s">Exemptions to publish</h3>
+                  <SummaryCard title="Exemptions to publish" headingLevel={3}>
                     <div className="govuk-checkboxes govuk-checkboxes--small">
                       {selectedItem.exemptions.map((ex) => (
                         <div key={ex.id} className="govuk-checkboxes__item">
@@ -459,12 +444,11 @@ export default function PublishQueueView({ queue, rejected }: Props) {
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </SummaryCard>
                 )}
 
                 {selectedItem.documents.length > 0 && (
-                  <div className="foi-card">
-                    <h3 className="govuk-heading-s">Attachments to publish</h3>
+                  <SummaryCard title="Attachments to publish" headingLevel={3}>
                     <p className="govuk-body-s">Select documents to include in the public disclosure.</p>
                     <div className="govuk-checkboxes govuk-checkboxes--small">
                       {selectedItem.documents.map((doc) => (
@@ -487,25 +471,22 @@ export default function PublishQueueView({ queue, rejected }: Props) {
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </SummaryCard>
                 )}
               </div>
             ) : (
-              <div className="foi-card">
                 <p className="govuk-body">Select a case from the queue to begin.</p>
-              </div>
             )}
           </div>
-        )
-      )}
+        )}
+        </div>
 
-      {activeTab === "rejected" && (
-        rejected.length === 0 ? (
-          <div className="foi-card" style={{ textAlign: "center", padding: 40 }}>
+        <div className="govuk-tabs__panel" id="panel-rejected">
+        {rejected.length === 0 ? (
             <p className="govuk-body">No rejected items.</p>
-          </div>
         ) : (
-          <div className="foi-card" style={{ padding: 0 }}>
+          <div className="govuk-summary-card">
+            <div className="govuk-summary-card__content">
             {error && (
               <div className="govuk-error-summary" role="alert" style={{ margin: 16 }}>
                 <p className="govuk-body" style={{ margin: 0 }}>{error}</p>
@@ -551,9 +532,11 @@ export default function PublishQueueView({ queue, rejected }: Props) {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
-        )
-      )}
+        )}
+        </div>
+      </div>
     </div>
   );
 }

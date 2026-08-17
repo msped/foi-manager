@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import Button from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
 import RichTextEditor from "@/components/ui/RichTextEditor";
@@ -213,15 +214,14 @@ export default function ResponseTemplatesManager({ initial }: Props) {
   }
 
   return (
-    <div className="foi-card" style={{ marginBottom: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h2 className="govuk-heading-m" style={{ marginBottom: 0 }}>Response templates</h2>
-        {!showForm && (
-          <Button variant="secondary" size="small" onClick={() => setShowForm(true)}>
-            Add template
-          </Button>
-        )}
-      </div>
+    <SummaryCard
+      title="Response templates"
+      actions={!showForm && (
+        <Button variant="secondary" size="small" onClick={() => setShowForm(true)}>
+          Add template
+        </Button>
+      )}
+    >
       <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
         Pre-written text blocks that can be inserted into a case response draft. Create templates for common outcomes, exemption justifications, or any other boilerplate you reuse.
       </p>
@@ -281,6 +281,6 @@ export default function ResponseTemplatesManager({ initial }: Props) {
           </div>
         </form>
       )}
-    </div>
+    </SummaryCard>
   );
 }

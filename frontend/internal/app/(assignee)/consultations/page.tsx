@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PageHeader from "@/components/govuk/PageHeader";
 import { listMyConsultations } from "@/lib/services/cases";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate } from "@/lib/utils";
@@ -24,17 +25,11 @@ export default async function AssigneeConsultationsPage() {
   const consultations = await listMyConsultations();
 
   return (
-    <div className="staff-body">
-      <div className="staff-header">
-        <h1 className="govuk-heading-l" style={{ marginBottom: 0 }}>My Consultations</h1>
-      </div>
+    <>
+      <PageHeader title="My consultations" />
 
       {consultations.length === 0 ? (
-        <div className="foi-card">
-          <p className="govuk-body" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
-            You have no active consultations assigned to you.
-          </p>
-        </div>
+        <p className="govuk-body">You have no active consultations assigned to you.</p>
       ) : (
         <table className="govuk-table">
           <thead className="govuk-table__head">
@@ -50,20 +45,16 @@ export default async function AssigneeConsultationsPage() {
             {consultations.map((c) => (
               <tr key={c.id} className="govuk-table__row">
                 <td className="govuk-table__cell">
-                  <span style={{ fontWeight: 600, fontFamily: "monospace", fontSize: 13 }}>{c.case_ref}</span>
+                  <span className="foi-mono">{c.case_ref}</span>
                 </td>
-                <td className="govuk-table__cell govuk-body-s">
-                  {truncate(c.scope, 120)}
-                </td>
+                <td className="govuk-table__cell">{truncate(c.scope, 120)}</td>
                 <td className="govuk-table__cell">
                   <Tag colour={STATUS_COLOUR[c.status]}>{STATUS_LABEL[c.status]}</Tag>
                 </td>
-                <td className="govuk-table__cell govuk-body-s">
-                  {fmtDate(c.created_at)}
-                </td>
+                <td className="govuk-table__cell">{fmtDate(c.created_at)}</td>
                 <td className="govuk-table__cell">
-                  <Link href={`/consultations/${c.id}`} className="govuk-link govuk-body-s">
-                    View →
+                  <Link href={`/consultations/${c.id}`} className="govuk-link">
+                    View<span className="govuk-visually-hidden"> consultation {c.case_ref}</span>
                   </Link>
                 </td>
               </tr>
@@ -71,6 +62,6 @@ export default async function AssigneeConsultationsPage() {
           </tbody>
         </table>
       )}
-    </div>
+    </>
   );
 }

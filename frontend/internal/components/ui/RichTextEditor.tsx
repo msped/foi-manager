@@ -36,19 +36,10 @@ function ToolbarBtn({
   return (
     <button
       type="button"
+      className="foi-editor__button"
       title={title}
+      aria-pressed={active}
       onClick={onClick}
-      style={{
-        padding: "2px 7px",
-        fontSize: 13,
-        fontWeight: active ? 700 : 400,
-        background: active ? "#1d70b8" : "transparent",
-        color: active ? "#fff" : "inherit",
-        border: "1px solid #b1b4b6",
-        borderRadius: 2,
-        cursor: "pointer",
-        lineHeight: "20px",
-      }}
     >
       {children}
     </button>
@@ -129,19 +120,10 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
   if (!editor) return null;
 
   return (
-    <div style={{ border: "2px solid #0b0c0c", background: "#fff" }}>
+    <div className="foi-editor">
       {/* Toolbar */}
       {!disabled && (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 4,
-            padding: "6px 8px",
-            borderBottom: "1px solid #b1b4b6",
-            background: "#f3f2f1",
-          }}
-        >
+        <div className="foi-editor__toolbar">
           <ToolbarBtn
             title="Bold"
             active={editor.isActive("bold")}
@@ -164,7 +146,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
             <span style={{ textDecoration: "underline" }}>U</span>
           </ToolbarBtn>
 
-          <span style={{ width: 1, background: "#b1b4b6", margin: "0 2px" }} />
+          <span className="foi-editor__divider" aria-hidden="true" />
 
           <ToolbarBtn
             title="Heading 2"
@@ -181,7 +163,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
             H3
           </ToolbarBtn>
 
-          <span style={{ width: 1, background: "#b1b4b6", margin: "0 2px" }} />
+          <span className="foi-editor__divider" aria-hidden="true" />
 
           <ToolbarBtn
             title="Bullet list"
@@ -198,7 +180,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
             1.
           </ToolbarBtn>
 
-          <span style={{ width: 1, background: "#b1b4b6", margin: "0 2px" }} />
+          <span className="foi-editor__divider" aria-hidden="true" />
 
           <ToolbarBtn
             title="Blockquote"
@@ -218,17 +200,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
 
       {/* Variable chip bar */}
       {!disabled && variables && variables.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 4,
-            padding: "5px 8px",
-            borderBottom: "1px solid #b1b4b6",
-            background: "#f8f8f7",
-          }}
-        >
-          <span className="govuk-body-s" style={{ color: "#505a5f", alignSelf: "center", marginRight: 4 }}>
+        <div className="foi-editor__toolbar foi-editor__toolbar--secondary">
+          <span className="govuk-hint govuk-!-margin-bottom-0">
             Insert:
           </span>
           {variables.map((v) => (
@@ -237,16 +210,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
               type="button"
               title={`Insert ${v}`}
               onClick={() => editor.chain().focus().insertContent(v).run()}
-              style={{
-                fontSize: 11,
-                padding: "1px 6px",
-                background: "#e8f4fd",
-                border: "1px solid #1d70b8",
-                borderRadius: 2,
-                cursor: "pointer",
-                color: "#1d70b8",
-                fontFamily: "monospace",
-              }}
+              className="foi-editor__chip foi-mono"
             >
               {v}
             </button>
@@ -257,7 +221,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
       {/* Editor area */}
       <EditorContent
         editor={editor}
-        style={{ minHeight, padding: "8px 10px", fontSize: 16, lineHeight: 1.5 }}
+        className="foi-editor__content"
+        style={{ minHeight }}
       />
     </div>
   );

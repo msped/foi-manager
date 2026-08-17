@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import PageHeader from "@/components/govuk/PageHeader";
 import { listRequesterCategories, listBankHolidays, listMailboxes, listEmailTemplatePurposes, listResponseTemplates } from "@/lib/services/cases";
 import { getMe, listUsers } from "@/lib/services/users";
 import RequesterCategoriesManager from "./RequesterCategoriesManager";
@@ -26,20 +27,14 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <header className="staff-header">
-        <h1 className="govuk-heading-l" style={{ marginBottom: 0 }}>Settings</h1>
-      </header>
+      <PageHeader title="Settings" />
 
-      <div className="staff-body">
-        <div style={{ maxWidth: 900 }}>
-          <MailboxesManager initial={mailboxes} />
-          <EmailTemplatesManager initial={emailTemplatePurposes} />
-          <ResponseTemplatesManager initial={responseTemplates} />
-          <UsersManager initial={users} currentUserId={me.id} />
-          <RequesterCategoriesManager initial={categories} />
-          <BankHolidaysManager initial={bankHolidays} />
-        </div>
-      </div>
+      <MailboxesManager initial={mailboxes} />
+      <EmailTemplatesManager initial={emailTemplatePurposes} />
+      <ResponseTemplatesManager initial={responseTemplates} />
+      <UsersManager initial={users} currentUserId={me.id} />
+      <RequesterCategoriesManager initial={categories} />
+      <BankHolidaysManager initial={bankHolidays} />
     </>
   );
 }

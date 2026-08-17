@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import SummaryCard from "@/components/govuk/SummaryCard";
 import Button from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
 import { createMailbox, deleteMailbox, updateMailbox } from "@/lib/services/cases";
@@ -125,16 +126,14 @@ export default function MailboxesManager({ initial }: Props) {
   }
 
   return (
-    <div className="foi-card" style={{ marginBottom: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <h2 className="govuk-heading-m" style={{ marginBottom: 0 }}>Mailboxes</h2>
-        {!showAdd && (
-          <Button variant="secondary" size="small" onClick={() => setShowAdd(true)}>
-            Add mailbox
-          </Button>
-        )}
-      </div>
-
+    <SummaryCard
+      title="Mailboxes"
+      actions={!showAdd && (
+        <Button variant="secondary" size="small" onClick={() => setShowAdd(true)}>
+          Add mailbox
+        </Button>
+      )}
+    >
       <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
         Departmental email addresses used as consultation recipients.
       </p>
@@ -197,6 +196,6 @@ export default function MailboxesManager({ initial }: Props) {
           </div>
         </form>
       )}
-    </div>
+    </SummaryCard>
   );
 }

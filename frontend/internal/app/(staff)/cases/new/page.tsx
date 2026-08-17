@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import PageHeader from "@/components/govuk/PageHeader";
 import { listRequesterCategories } from "@/lib/services/cases";
 import NewCaseForm from "./NewCaseForm";
 
@@ -10,17 +10,15 @@ export default async function NewCasePage() {
 
   return (
     <>
-      <header className="staff-header">
-        <div>
-          <div className="staff-header-crumbs">
-            <Link href="/cases" className="govuk-link">Cases</Link>
-          </div>
-          <h1 className="govuk-heading-l" style={{ marginBottom: 0 }}>New case</h1>
-        </div>
-      </header>
-
-      <div className="staff-body">
-        <div style={{ maxWidth: 640 }}>
+      <PageHeader
+        title="New case"
+        breadcrumbs={[
+          { href: "/cases", text: "Cases" },
+          { text: "New case" },
+        ]}
+      />
+      <div className="govuk-grid-row">
+        <div className="govuk-grid-column-two-thirds">
           <NewCaseForm requesterCategories={requesterCategories} />
         </div>
       </div>

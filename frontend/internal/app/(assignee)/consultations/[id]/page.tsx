@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import PageHeader from "@/components/govuk/PageHeader";
 import { getMyConsultation } from "@/lib/services/cases";
 import { Tag } from "@/components/ui/Tag";
 import type { ConsultationStatus } from "@/lib/types";
@@ -30,27 +31,31 @@ export default async function AssigneeConsultationPage({ params }: Props) {
   }
 
   return (
-    <div className="staff-body">
-      <div className="staff-header">
-        <div>
-          <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 4 }}>
-            Consultation
-          </p>
-          <h1 className="govuk-heading-l" style={{ marginBottom: 0 }}>{consultation.case_ref}</h1>
-        </div>
-        <Tag colour={STATUS_COLOUR[consultation.status]}>{STATUS_LABEL[consultation.status]}</Tag>
-      </div>
+    <>
+      <PageHeader
+        title={consultation.case_ref}
+        caption="Consultation"
+        breadcrumbs={[
+          { href: "/consultations", text: "My consultations" },
+          { text: consultation.case_ref },
+        ]}
+        actions={
+          <Tag colour={STATUS_COLOUR[consultation.status]}>
+            {STATUS_LABEL[consultation.status]}
+          </Tag>
+        }
+      />
 
-      <div className="foi-col" style={{ maxWidth: 960 }}>
-        <div className="foi-card">
+      <div className="govuk-grid-row">
+        <div className="govuk-grid-column-two-thirds">
           <h2 className="govuk-heading-s">What you need to respond to</h2>
-          <p className="govuk-body-s" style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>
+          <p className="govuk-body" style={{ whiteSpace: "pre-wrap" }}>
             {consultation.scope}
           </p>
-        </div>
 
-        <AssigneeConsultationDetail consultation={consultation} />
+          <AssigneeConsultationDetail consultation={consultation} />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

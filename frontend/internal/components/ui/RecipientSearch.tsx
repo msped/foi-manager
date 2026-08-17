@@ -73,7 +73,7 @@ export default function RecipientSearch({ onSelect, placeholder = "Search by nam
   }
 
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    <div ref={containerRef} className="foi-autocomplete">
       <div style={{ display: "flex", gap: 6 }}>
         <input
           type="text"
@@ -101,21 +101,7 @@ export default function RecipientSearch({ onSelect, placeholder = "Search by nam
       )}
 
       {open && results.length > 0 && (
-        <ul
-          role="listbox"
-          style={{
-            position: "absolute",
-            zIndex: 20,
-            background: "#fff",
-            border: "1px solid var(--govuk-border-colour)",
-            width: "100%",
-            maxHeight: 220,
-            overflowY: "auto",
-            margin: 0,
-            padding: 0,
-            listStyle: "none",
-          }}
-        >
+        <ul role="listbox" className="foi-autocomplete__menu">
           {results.map((r, i) => {
             const label = r.type === "user" ? r.data.full_name : r.data.name;
             const sub   = r.data.email;
