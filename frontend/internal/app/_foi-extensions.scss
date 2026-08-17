@@ -6,40 +6,43 @@
 // govuk-* class, not here.
 @use "govuk-frontend/dist/govuk" as *;
 
-// ─── Header account controls ────────────────────────────────────────────────
-// The GDS header has no slot for account actions; services add their own.
+// ─── Service navigation account controls ────────────────────────────────────
+// The GDS header has no slot for account actions, so these ride in the service
+// navigation's `end` slot. That slot renders as a block after the nav, so the
+// width container becomes the flex row that pulls it up alongside the nav.
 
-.foi-header__actions {
+.govuk-service-navigation > .govuk-width-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.govuk-service-navigation__container {
+  flex: 1 1 auto;
+}
+
+.foi-service-nav__actions {
   display: flex;
   align-items: center;
   gap: govuk-spacing(4);
   margin-left: auto;
-  padding: govuk-spacing(3) 0;
+  // Matches the vertical rhythm of .govuk-service-navigation__item.
+  padding: govuk-spacing(2) 0;
 }
 
-.foi-header__link {
+.foi-service-nav__link {
+  @include govuk-link-common;
+  @include govuk-link-style-default;
   @include govuk-font($size: 16);
 
   background: none;
   border: 0;
   padding: 0;
   cursor: pointer;
-  color: govuk-colour("white");
-  text-decoration: underline;
-  text-decoration-thickness: max(1px, 0.0625rem);
-  text-underline-offset: 0.1578em;
-
-  &:hover {
-    text-decoration-thickness: max(3px, 0.1875rem, 0.12em);
-  }
-
-  &:focus {
-    @include govuk-focused-text;
-  }
 }
 
 // ─── Notifications menu ─────────────────────────────────────────────────────
-// A header dropdown. Not a Design System pattern.
+// A service navigation dropdown. Not a Design System pattern.
 
 .foi-notifications {
   position: relative;
@@ -52,7 +55,7 @@
   border: 0;
   padding: govuk-spacing(1);
   cursor: pointer;
-  color: govuk-colour("white");
+  color: govuk-functional-colour(link);
   position: relative;
 
   &:focus {

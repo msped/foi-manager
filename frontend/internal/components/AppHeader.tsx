@@ -51,25 +51,26 @@ export default function AppHeader({
 
   return (
     <>
-      <Header
-        homepageUrl={homepageUrl}
-        organisationName={branding.organisationName}
-        actions={
-          <>
-            {showNotifications && <NotificationBell />}
-            <Link className="foi-header__link" href="/account">
-              {user.first_name} {user.last_name}
-            </Link>
-            <button type="button" className="foi-header__link" onClick={handleSignOut}>
-              Sign out
-            </button>
-          </>
-        }
-      />
+      <Header homepageUrl={homepageUrl} organisationName={branding.organisationName} />
       <ServiceNavigation
         serviceName={branding.serviceName}
         serviceUrl={homepageUrl}
         navigation={navigation}
+        end={
+          <div className="foi-service-nav__actions">
+            {showNotifications && <NotificationBell />}
+            <Link className="foi-service-nav__link" href="/account">
+              {user.first_name} {user.last_name}
+            </Link>
+            <button
+              type="button"
+              className="foi-service-nav__link"
+              onClick={handleSignOut}
+            >
+              Sign out
+            </button>
+          </div>
+        }
       />
     </>
   );
