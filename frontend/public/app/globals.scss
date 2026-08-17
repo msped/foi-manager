@@ -1,0 +1,14 @@
+// GOV.UK Design System — GOV.UK Frontend v6
+//
+// Installed per https://frontend.design-system.service.gov.uk/installing-with-npm/
+//
+// `$govuk-assets-path` defaults to "/assets/", and `npm run copy-govuk-assets`
+// copies dist/govuk/assets into public/assets, so fonts and images resolve
+// without any override here.
+//
+// Note: govuk-frontend 6.1.0 has not migrated to the Sass module system, so
+// `@use ... with (...)` cannot configure it. If settings ever need overriding
+// (e.g. `$govuk-functional-colours: (brand: #b10e1e);`), set the variables
+// first and swap the line below for:
+//   @import "govuk-frontend/dist/govuk/index";
+@use "govuk-frontend/dist/govuk" as *;
