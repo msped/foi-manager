@@ -12,3 +12,85 @@
 // first and swap the line below for:
 //   @import "govuk-frontend/dist/govuk/index";
 @use "govuk-frontend/dist/govuk" as *;
+
+// Published FOI responses are authored in the internal app's rich text editor
+// and stored as raw HTML, so the elements arrive without GDS classes on them.
+// Restate the Design System's body styles here rather than leaving the markup
+// to browser defaults.
+.foi-rich-content {
+  @include govuk-font($size: 19);
+  color: $govuk-text-colour;
+
+  p,
+  ul,
+  ol,
+  blockquote,
+  table,
+  pre {
+    @include govuk-responsive-margin(4, "bottom");
+  }
+
+  // The wrapper supplies the trailing space; a stacked margin here would
+  // double the gap before the next heading.
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  h2 {
+    @include govuk-font($size: 24, $weight: bold);
+    @include govuk-responsive-margin(6, "top");
+    @include govuk-responsive-margin(3, "bottom");
+  }
+
+  h3,
+  h4 {
+    @include govuk-font($size: 19, $weight: bold);
+    @include govuk-responsive-margin(4, "top");
+    @include govuk-responsive-margin(2, "bottom");
+  }
+
+  ul,
+  ol {
+    padding-left: govuk-spacing(5);
+  }
+
+  ul {
+    list-style-type: disc;
+  }
+
+  ol {
+    list-style-type: decimal;
+  }
+
+  li {
+    margin-bottom: govuk-spacing(1);
+  }
+
+  a {
+    @include govuk-link-common;
+    @include govuk-link-style-default;
+  }
+
+  blockquote {
+    border-left: 5px solid $govuk-border-colour;
+    padding-left: govuk-spacing(4);
+    margin-left: 0;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th,
+  td {
+    border-bottom: 1px solid $govuk-border-colour;
+    padding: govuk-spacing(2) govuk-spacing(4) govuk-spacing(2) 0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    font-weight: bold;
+  }
+}
