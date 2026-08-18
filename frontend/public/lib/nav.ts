@@ -8,5 +8,6 @@ export interface PublicNavItem {
 export const PUBLIC_NAV: PublicNavItem[] = [
   { href: "/", text: "Home", exact: true },
   { href: "/request", text: "Make a request" },
+  { href: "/publication-scheme", text: "Publication scheme" },
   { href: "/disclosure-log", text: "Disclosure log" },
 ];
