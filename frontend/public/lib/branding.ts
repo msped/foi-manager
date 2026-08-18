@@ -6,7 +6,7 @@
  * services on gov.uk. Adopting organisations set their own name here.
  */
 export const branding = {
-  organisationName: process.env.NEXT_PUBLIC_ORGANISATION_NAME ?? "FOI Manager",
+  organisationName: process.env.NEXT_PUBLIC_ORGANISATION_NAME ?? "Your Org",
   serviceName: process.env.NEXT_PUBLIC_SERVICE_NAME ?? "Freedom of Information",
   /** Browser chrome colour. GDS blue unless the organisation overrides it. */
   themeColour: process.env.NEXT_PUBLIC_THEME_COLOUR ?? "#1d70b8",
