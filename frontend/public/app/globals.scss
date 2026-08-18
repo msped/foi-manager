@@ -13,6 +13,27 @@
 //   @import "govuk-frontend/dist/govuk/index";
 @use "govuk-frontend/dist/govuk" as *;
 
+// ─── Buttons that present as links ──────────────────────────────────────────
+// Lets <button class="govuk-link"> work without per-element style resets. Used
+// by the "Change" actions on the check-answers screen, which have to be submit
+// buttons so the answers travel in the POST body.
+//
+// Ported from the internal app's _foi-extensions.scss — another candidate for
+// the shared package when these two frontends are pulled together.
+//
+// `:where()` holds this at element-only specificity so typography classes on
+// the same button always win. Never set font-family here: govuk-frontend puts
+// no font on html/body, so `inherit` would fall through to the browser default
+// serif.
+button:where(.govuk-link) {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  line-height: inherit;
+}
+
 // Published FOI responses are authored in the internal app's rich text editor
 // and stored as raw HTML, so the elements arrive without GDS classes on them.
 // Restate the Design System's body styles here rather than leaving the markup
