@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "apps.cases",
     "apps.documents",
     "apps.publications",
+    "apps.requester_portal",
     "apps.ai_assistant",
 ]
 
