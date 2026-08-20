@@ -32,7 +32,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: gunicorn --bind 0.0.0.0:8000 config.wsgi:application & celery -A config worker -l info
+    # Worker only. Compose splits a string command shlex-style and execs it
+    # directly, so an "&" here is argv, not a shell operator — the previous
+    # value ran no worker at all. The backend service already serves gunicorn.
+    command: celery -A config worker -l info
     env_file:
       - .env
     environment:
