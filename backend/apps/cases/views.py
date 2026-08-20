@@ -26,7 +26,6 @@ from .serializers import (
     EmailTemplateSerializer,
     MailboxSerializer,
     PublicCaseSubmitSerializer,
-    PublicCaseTrackSerializer,
     ReceiveClarificationSerializer,
     RequesterCategorySerializer,
     ResponseTemplateSerializer,
@@ -49,17 +48,6 @@ class PublicCaseSubmitView(APIView):
         return Response(
             {"ref": case.ref, "status": case.status}, status=status.HTTP_201_CREATED
         )
-
-
-class PublicCaseTrackView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        ref = request.query_params.get("ref", "")
-        email = request.query_params.get("email", "")
-        case = get_object_or_404(Case, ref=ref, requester_email__iexact=email)
-        serializer = PublicCaseTrackSerializer(case)
-        return Response(serializer.data)
 
 
 class CaseViewSet(viewsets.ModelViewSet):

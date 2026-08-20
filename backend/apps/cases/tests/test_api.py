@@ -92,29 +92,6 @@ class TestPublicCaseSubmit:
         assert resp.status_code == 400
 
 
-# ── Public status tracking ───────────────────────────────────────────────────
-
-
-class TestPublicCaseTrack:
-    def test_can_track_by_ref_and_email(self, api_client, case):
-        url = reverse("cases:public-track")
-        resp = api_client.get(url, {"ref": case.ref, "email": case.requester_email})
-        assert resp.status_code == 200
-        assert resp.data["ref"] == case.ref
-        assert resp.data["status"] == case.status
-
-    def test_wrong_email_returns_404(self, api_client, case):
-        url = reverse("cases:public-track")
-        resp = api_client.get(url, {"ref": case.ref, "email": "wrong@example.com"})
-        assert resp.status_code == 404
-
-    def test_does_not_expose_internal_fields(self, api_client, case):
-        url = reverse("cases:public-track")
-        resp = api_client.get(url, {"ref": case.ref, "email": case.requester_email})
-        assert "assignee" not in resp.data
-        assert "created_by" not in resp.data
-
-
 # ── Staff case list ──────────────────────────────────────────────────────────
 
 
