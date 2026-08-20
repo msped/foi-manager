@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
@@ -66,6 +67,17 @@ class Case(models.Model):
     # a deadline in the past is history rather than a breach.
     TERMINAL_STATUSES = [Status.EXEMPT, Status.CLOSED]
 
+    class Outcome(models.TextChoices):
+        DISCLOSED_FULL = "disclosed_full", "Information disclosed in full"
+        DISCLOSED_PART = "disclosed_part", "Information disclosed in part"
+        NOT_HELD = "not_held", "Information not held"
+        REFUSED = "refused", "Request refused"
+        WITHDRAWN = "withdrawn", "Request withdrawn"
+        CLARIFICATION_NOT_RECEIVED = (
+            "clarification_not_received",
+            "Clarification not received",
+        )
+
     class ReceivedBy(models.TextChoices):
         PORTAL = "portal", "Public Portal"
         EMAIL = "email", "Email"
@@ -116,8 +128,11 @@ class Case(models.Model):
         related_name="assigned_cases",
     )
 
-    # Outcome
-    outcome = models.CharField(max_length=20, blank=True)
+    # How the request ended. Recorded when the response is sent rather than
+    # derived from status or exemptions: "we do not hold this" and "here it all
+    # is" are both a closed case with no exemption claimed, and the difference
+    # is exactly what transparency statistics are counting.
+    outcome = models.CharField(max_length=30, choices=Outcome.choices, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -245,6 +260,7 @@ class EmailTemplate(models.Model):
         CONSULTATION_MESSAGE = "consultation_message", "Consultation Message"
         CASE_ASSIGNMENT = "case_assignment", "Case Assignment"
         CLARIFICATION_REQUEST = "clarification_request", "Clarification Request"
+        VERIFICATION_CODE = "verification_code", "Verification Code"
 
     PURPOSE_TYPE_MAP = {
         Purpose.ACKNOWLEDGEMENT: Type.REQUESTER,
@@ -253,6 +269,19 @@ class EmailTemplate(models.Model):
         Purpose.CONSULTATION_MESSAGE: Type.CONSULTATION,
         Purpose.CASE_ASSIGNMENT: Type.ASSIGNEE,
         Purpose.CLARIFICATION_REQUEST: Type.REQUESTER,
+        Purpose.VERIFICATION_CODE: Type.REQUESTER,
+    }
+
+    #: Placeholders a template cannot do its job without.
+    #:
+    #: `render()` is a plain string replace, so a template that omits a variable
+    #: does not fail — it sends the letter with the variable's content simply
+    #: missing. For most purposes that is a cosmetic mistake someone notices. A
+    #: verification email with no {{code}} in it is a working email that cannot
+    #: possibly be acted on, sent to a member of the public who has no way to
+    #: report the fault, so the mistake is caught at save time instead.
+    PURPOSE_REQUIRED_VARIABLES = {
+        Purpose.VERIFICATION_CODE: ["code"],
     }
 
     PURPOSE_META = {
@@ -332,6 +361,16 @@ class EmailTemplate(models.Model):
                 "foi_contact_email",
             ],
         },
+        Purpose.VERIFICATION_CODE: {
+            "label": "Verification Code",
+            "description": "Sent when someone asks to check the progress of their requests on the public portal. Must contain {{code}}. There are deliberately no case details available here — anyone can trigger this email by typing an address, so it must be safe to send to a stranger who is not the requester.",
+            "variables": [
+                "code",
+                "expires_minutes",
+                "organisation_name",
+                "foi_contact_email",
+            ],
+        },
     }
 
     purpose = models.CharField(
@@ -351,9 +390,29 @@ class EmailTemplate(models.Model):
     def __str__(self):
         return f"[{self.get_type_display()}] {self.name}"
 
+    def missing_required_variables(self) -> list[str]:
+        """Placeholders this template's purpose requires but the body omits."""
+        if not self.purpose:
+            return []
+        required = self.PURPOSE_REQUIRED_VARIABLES.get(self.purpose, [])
+        return [name for name in required if f"{{{{{name}}}}}" not in (self.body or "")]
+
+    def clean(self):
+        super().clean()
+        missing = self.missing_required_variables()
+        if missing:
+            names = ", ".join(f"{{{{{name}}}}}" for name in missing)
+            raise ValidationError(
+                {"body": f"This template must include {names}."}
+            )
+
     def save(self, *args, **kwargs):
         if self.purpose:
             self.type = self.PURPOSE_TYPE_MAP[self.purpose]
+            # Enforced here and not only in clean(): save() is the one path
+            # every caller shares, and the admin, a data migration and a shell
+            # session all skip full_clean().
+            self.clean()
         super().save(*args, **kwargs)
 
     def render(self, context: dict) -> str:
