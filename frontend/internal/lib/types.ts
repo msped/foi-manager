@@ -84,6 +84,27 @@ export interface CaseResponse {
   updated_at: string;
 }
 
+/** Mirrors `Case.Outcome` on the backend. */
+export type CaseOutcome =
+  | "disclosed_full"
+  | "disclosed_part"
+  | "not_held"
+  | "refused"
+  | "withdrawn"
+  | "clarification_not_received";
+
+/** Recorded when a response is sent, and shown to the requester on the public
+ *  tracking page. Not derivable from status or exemptions — "we do not hold
+ *  this" and "here it all is" are both a closed case with nothing claimed. */
+export const CASE_OUTCOME_OPTIONS: { value: CaseOutcome; label: string }[] = [
+  { value: "disclosed_full", label: "Information disclosed in full" },
+  { value: "disclosed_part", label: "Information disclosed in part" },
+  { value: "not_held", label: "Information not held" },
+  { value: "refused", label: "Request refused" },
+  { value: "withdrawn", label: "Request withdrawn" },
+  { value: "clarification_not_received", label: "Clarification not received" },
+];
+
 export interface Mailbox {
   id: number;
   name: string;

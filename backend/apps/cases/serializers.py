@@ -398,10 +398,6 @@ class PublicCaseSubmitSerializer(serializers.ModelSerializer):
         fields = ["requester_name", "requester_email", "request_text"]
 
 
-class PublicCaseTrackSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Case
-        fields = ["ref", "status", "submitted_at", "statutory_deadline"]
 
 
 class CaseExemptionSerializer(serializers.ModelSerializer):
@@ -426,6 +422,19 @@ class BankHolidaySerializer(serializers.ModelSerializer):
 
 class CaseTransitionSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Case.Status.choices)
+
+
+class SendCaseResponseSerializer(serializers.Serializer):
+    """What the officer confirms when sending a response.
+
+    The outcome is captured here, at the moment of sending, rather than inferred
+    later from status or exemptions. Those cannot tell "we do not hold this"
+    apart from "here it all is" — both are a closed case with nothing claimed —
+    and that distinction is the one transparency statistics are counting. It is
+    also what the requester sees on the public tracking page.
+    """
+
+    outcome = serializers.ChoiceField(choices=Case.Outcome.choices)
 
 
 class SendClarificationSerializer(serializers.Serializer):

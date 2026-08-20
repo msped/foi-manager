@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from .email_utils import unresolved_variables
 from .models import Case, CaseResponse
 from .permissions import IsFOITeam
-from .serializers import CaseResponseSerializer
+from .serializers import CaseResponseSerializer, SendCaseResponseSerializer
 from .tasks import task_send_case_response
 
 
@@ -45,6 +45,10 @@ class CaseResponseViewSet(
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        outcome_serializer = SendCaseResponseSerializer(data=request.data)
+        outcome_serializer.is_valid(raise_exception=True)
+        outcome = outcome_serializer.validated_data["outcome"]
+
         leftover = unresolved_variables(case_response.body)
         if leftover:
             names = ", ".join(f"{{{{{n}}}}}" for n in leftover)
@@ -59,5 +63,5 @@ class CaseResponseViewSet(
             )
         case_response.status = CaseResponse.Status.SENDING
         case_response.save(update_fields=["status"])
-        task_send_case_response.delay(case_response.pk)
+        task_send_case_response.delay(case_response.pk, outcome)
         return Response({"detail": "Response queued for sending."})
