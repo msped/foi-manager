@@ -15,11 +15,14 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   if (user.role !== "foi_team") redirect("/consultations");
 
   const purposes = await listEmailTemplatePurposes().catch(() => []);
-  const hasMissingTemplates = purposes.some(p => !p.template);
+  const missingTemplates = purposes.filter(p => !p.template).length;
 
+  // A count rather than an "(action needed)" suffix: the service navigation is
+  // a horizontal bar, so a longer label pushes the row around, and a number
+  // says how much work is waiting instead of only that some is.
   const nav = STAFF_NAV.map(item =>
-    item.href === "/settings" && hasMissingTemplates
-      ? { ...item, text: `${item.text} (action needed)` }
+    item.href === "/settings" && missingTemplates > 0
+      ? { ...item, count: missingTemplates }
       : item
   );
 

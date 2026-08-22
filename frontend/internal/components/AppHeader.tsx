@@ -14,6 +14,8 @@ export interface NavDefinition {
   text: string;
   /** Only `/dashboard` should match exactly; the rest match by section. */
   exact?: boolean;
+  /** Renders a count badge on the item. See NavItem.count. */
+  count?: number;
 }
 
 interface AppHeaderProps {
@@ -46,7 +48,13 @@ export default function AppHeader({
   const navigation: NavItem[] = nav.map((item) => {
     const isCurrent = pathname === item.href;
     const isActive = !item.exact && pathname.startsWith(item.href);
-    return { href: item.href, text: item.text, current: isCurrent, active: isActive };
+    return {
+      href: item.href,
+      text: item.text,
+      current: isCurrent,
+      active: isActive,
+      count: item.count,
+    };
   });
 
   return (
