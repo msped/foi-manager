@@ -16,13 +16,18 @@ from .models import RequesterVerificationCode
 #: report it. So this one feature degrades to a plain, correct email instead.
 FALLBACK_SUBJECT = "Your verification code"
 
+#: Styling is inline and the font stack is Helvetica/Arial, matching GOV.UK
+#: Notify. Email clients strip <style> blocks and cannot load webfonts, so an
+#: element with no font-family falls back to the client's default — usually
+#: Times — which is what the digits below would otherwise render in.
 FALLBACK_BODY = """\
+<div style="font-family: Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #0b0c0c;">
 <p>Use this code to check the progress of your Freedom of Information requests:</p>
-<p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">{{code}}</p>
+<p style="font-family: Helvetica, Arial, sans-serif; font-size: 36px; font-weight: bold; letter-spacing: 6px; margin: 24px 0;">{{code}}</p>
 <p>The code expires in {{expires_minutes}} minutes.</p>
-<p>If you did not ask for this code, you can ignore this email. Someone may have
-mistyped their own address.</p>
+<p>If you did not ask for this code, you can ignore this email.</p>
 <p>{{organisation_name}}<br>{{foi_contact_email}}</p>
+</div>
 """
 
 
