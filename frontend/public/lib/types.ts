@@ -43,6 +43,32 @@ export interface DisclosureLogFilters {
   years: number[];
 }
 
+/** One of the verified requester's own cases.
+ *
+ *  Mirrors `PublicTrackedCaseSerializer`. Note what is not here: the response
+ *  body, deliberately, and no casework fields at all. `status` and `outcome`
+ *  arrive as finished public prose — the backend owns that vocabulary, so
+ *  nothing in this app should map or re-word them. */
+export interface TrackedCase {
+  ref: string;
+  request_text: string;
+  status: string;
+  /** Empty until a response has been sent. */
+  outcome: string;
+  submitted_at: string;
+  /** Null while the clock is paused, when the stored date is knowingly stale. */
+  statutory_deadline: string | null;
+  clock_paused: boolean;
+  is_overdue: boolean;
+  /** Set only where the response has been published to the disclosure log. */
+  disclosure_log_id: number | null;
+}
+
+export interface TrackedCases {
+  email: string;
+  results: TrackedCase[];
+}
+
 /** Mirrors `PublicationSchemeEntry.Category` on the backend. */
 export type SchemeCategory =
   | "who_we_are"
