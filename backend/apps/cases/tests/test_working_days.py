@@ -1,6 +1,49 @@
 from datetime import date
 
+import pytest
+from django.db import DatabaseError
+
+from apps.cases.models import BankHoliday
 from apps.cases.utils import add_working_days, working_days_between
+
+# Every test here needs the database, including the ones that only step over
+# weekends: `add_working_days` reads the bank holiday table on every call, so a
+# test without database access is not testing pure date arithmetic — it is
+# testing what happens when the lookup fails. That distinction used to be
+# invisible, because the lookup swallowed its own errors and returned no
+# holidays, which is exactly how the two tests below came to pass while
+# asserting the opposite of what they claimed.
+pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def bank_holidays():
+    """The England holidays these tests reason about.
+
+    A test that names a holiday must ask for this, or it is asserting against
+    an empty table.
+    """
+    BankHoliday.objects.bulk_create(
+        [
+            BankHoliday(
+                country=BankHoliday.Country.ENGLAND,
+                name="New Year's Day",
+                date=date(2026, 1, 1),
+            ),
+            BankHoliday(
+                country=BankHoliday.Country.ENGLAND,
+                name="Christmas Day",
+                date=date(2026, 12, 25),
+            ),
+            # 26 December 2026 is a Saturday, so Boxing Day is substituted to
+            # the following Monday.
+            BankHoliday(
+                country=BankHoliday.Country.ENGLAND,
+                name="Boxing Day (substitute day)",
+                date=date(2026, 12, 28),
+            ),
+        ]
+    )
 
 
 class TestAddWorkingDays:
@@ -14,20 +57,23 @@ class TestAddWorkingDays:
         friday = date(2026, 1, 9)
         assert add_working_days(friday, 1) == date(2026, 1, 12)
 
-    def test_skips_bank_holiday(self):
-        # 23 Dec 2026 + 1 working day skips Christmas Day (25 Dec) and Boxing Day (28 Dec)
-        # 23 Dec is Wednesday, +1 = Thursday 24 Dec (Christmas Eve is not a bank holiday)
-        dec_23 = date(2026, 12, 23)
-        assert add_working_days(dec_23, 1) == date(2026, 12, 24)
+    def test_skips_bank_holiday(self, bank_holidays):
+        # Thursday 24 Dec 2026 + 1 working day. Christmas Day (Fri 25th) is a
+        # holiday, the 26th and 27th are the weekend, and Boxing Day is
+        # substituted to Mon 28th — so the next working day is Tue 29th.
+        #
+        # This previously started from 23 Dec and expected 24 Dec, which is a
+        # plain weekday step over no holiday at all: it passed whether or not
+        # any holiday was configured.
+        assert add_working_days(date(2026, 12, 24), 1) == date(2026, 12, 29)
 
-    def test_skips_new_years_day(self):
+    def test_skips_new_years_day(self, bank_holidays):
         # 31 Dec 2025 (Wed) + 1 working day = 2 Jan 2026 (skipping New Year's Day 1 Jan)
         dec_31 = date(2025, 12, 31)
         assert add_working_days(dec_31, 1) == date(2026, 1, 2)
 
-    def test_twenty_working_days(self):
-        # 1 Jan 2026 is a bank holiday; submission on 2 Jan (Friday)
-        # 20 working days from 2 Jan 2026
+    def test_twenty_working_days(self, bank_holidays):
+        # Submission on Friday 2 Jan 2026, the day after New Year's Day.
         jan_2 = date(2026, 1, 2)
         result = add_working_days(jan_2, 20)
         assert result == date(2026, 1, 30)
@@ -49,6 +95,54 @@ class TestWorkingDaysBetween:
         # Mon to Mon = 5 working days
         assert working_days_between(date(2026, 1, 5), date(2026, 1, 9)) == 4
 
-    def test_excludes_bank_holiday(self):
+    def test_excludes_bank_holiday(self, bank_holidays):
         # 31 Dec 2025 to 2 Jan 2026 — skips 1 Jan (bank holiday)
         assert working_days_between(date(2025, 12, 31), date(2026, 1, 2)) == 1
+
+
+class TestLookupFailure:
+    def test_a_failed_lookup_is_not_swallowed(self, monkeypatch):
+        """A database fault must reach the caller.
+
+        `_get_bank_holiday_dates` used to catch every exception and return an
+        empty set, so a fault here produced a deadline calculated as though no
+        bank holiday existed — earlier than the Act allows, saved onto the case,
+        and indistinguishable afterwards from a correct one. Raising is the
+        point: the save fails, and nobody is handed a wrong statutory date.
+        """
+
+        def boom(*args, **kwargs):
+            raise DatabaseError("connection lost")
+
+        monkeypatch.setattr(BankHoliday.objects, "filter", boom)
+
+        with pytest.raises(DatabaseError):
+            add_working_days(date(2026, 12, 24), 1)
+
+
+class TestJurisdictionScoping:
+    def test_another_country_s_holiday_is_ignored(self, settings):
+        """Holidays are filtered by FOI_JURISDICTION.
+
+        St Andrew's Day is a Scottish bank holiday and an ordinary working day
+        in England, so an England-configured service must count it.
+        """
+        BankHoliday.objects.create(
+            country=BankHoliday.Country.SCOTLAND,
+            name="St Andrew's Day",
+            date=date(2026, 11, 30),
+        )
+        settings.FOI_JURISDICTION = "england"
+
+        # Friday 27 Nov 2026 + 1 working day is the Monday, holiday or not.
+        assert add_working_days(date(2026, 11, 27), 1) == date(2026, 11, 30)
+
+    def test_the_configured_country_s_holiday_is_skipped(self, settings):
+        BankHoliday.objects.create(
+            country=BankHoliday.Country.SCOTLAND,
+            name="St Andrew's Day",
+            date=date(2026, 11, 30),
+        )
+        settings.FOI_JURISDICTION = "scotland"
+
+        assert add_working_days(date(2026, 11, 27), 1) == date(2026, 12, 1)
