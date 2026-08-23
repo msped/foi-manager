@@ -317,6 +317,21 @@ class BankHolidayViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsFOITeam]
     pagination_class = None
 
+    @action(detail=False, methods=["get"])
+    def jurisdiction(self, request):
+        """Which country's holidays statutory deadlines are calculated from.
+
+        Exposed because it is the backend that decides — `FOI_JURISDICTION` is
+        a Django setting, and `utils._get_bank_holiday_dates` filters on it. A
+        frontend copy of the value could drift, and a settings screen defaulting
+        to the wrong country would hide exactly the dates that matter while
+        looking correct.
+        """
+        code = getattr(django_settings, "FOI_JURISDICTION", "england")
+        return Response(
+            {"country": code, "label": dict(BankHoliday.Country.choices).get(code, code)}
+        )
+
     def get_queryset(self):
         qs = BankHoliday.objects.all()
         country = self.request.query_params.get("country")

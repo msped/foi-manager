@@ -1,6 +1,6 @@
 import djangoClient from "./django";
 import type {
-  AssigneeConsultation, BankHoliday, CaseConsultation, CaseCRUAdvice, CaseDetail, CaseListItem, CaseNote,
+  AssigneeConsultation, BankHoliday, BankHolidayJurisdiction, CaseConsultation, CaseCRUAdvice, CaseDetail, CaseListItem, CaseNote,
   CaseOutcome, CaseResponse, ConsultationMessage, Department, EmailTemplate, EmailTemplatePurposeInfo,
   Mailbox, Paginated, ResponseSeed, ResponseTemplate,
 } from "@/lib/types";
@@ -166,6 +166,11 @@ export async function transitionCase(caseId: number | string, status: string): P
 export async function listBankHolidays(params?: { country?: string; year?: string }): Promise<BankHoliday[]> {
   const qs = params ? "?" + new URLSearchParams(params as Record<string, string>).toString() : "";
   const { data } = await djangoClient.get<BankHoliday[]>(`/bank-holidays/${qs}`);
+  return data;
+}
+
+export async function getBankHolidayJurisdiction(): Promise<BankHolidayJurisdiction> {
+  const { data } = await djangoClient.get<BankHolidayJurisdiction>("/bank-holidays/jurisdiction/");
   return data;
 }
 
