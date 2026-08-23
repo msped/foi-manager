@@ -3,14 +3,45 @@
 // Installed per https://frontend.design-system.service.gov.uk/installing-with-npm/
 //
 // `$govuk-assets-path` defaults to "/assets/", and `npm run copy-govuk-assets`
-// copies dist/govuk/assets into public/assets, so fonts and images resolve
-// without any override here.
+// copies dist/govuk/assets/fonts into public/assets/fonts, so the font files
+// resolve without any override here.
+//
+// Only the fonts are copied. The images in that folder are the GOV.UK crown
+// (favicons, touch icons, the footer crest), which is reserved for services on
+// gov.uk. Nothing here renders them — see components/govuk/Footer.tsx and
+// public/icon.svg.
+//
+// ─── GDS Transport: known licensing issue, not yet resolved ─────────────────
+//
+// The typeface below is still GDS Transport, and that is a deliberate hold
+// rather than an oversight. Its own copyright banner, in
+// govuk-frontend/dist/govuk/helpers/_font-faces.scss, reads:
+//
+//   "The font has been customised for exclusive use on gov.uk.
+//    This cut is not commercially available."
+//
+// So an organisation that is not on gov.uk should not ship it. This app is
+// developed with it for now and the default will be revisited before release;
+// what matters is that adopting organisations can change it, which is what the
+// override below is for.
+//
+// To switch — Arial is the closest match, and is already the next fallback in
+// the GDS stack, so the Design System's tuned line-heights and spacing survive
+// the change:
+//
+//   $govuk-font-family: arial, sans-serif;
+//   @import "govuk-frontend/dist/govuk/index";
+//
+// Dropping "GDS Transport" from that list is all it takes to stop the
+// @font-face blocks being emitted: `$govuk-include-default-font-face` is
+// derived from whether the name appears in `$govuk-font-family`. The font
+// files in public/assets/fonts can then stop being copied too — see the
+// copy-govuk-assets script in package.json.
 //
 // Note: govuk-frontend 6.1.0 has not migrated to the Sass module system, so
-// `@use ... with (...)` cannot configure it. If settings ever need overriding
-// (e.g. `$govuk-functional-colours: (brand: #b10e1e);`), set the variables
-// first and swap the line below for:
-//   @import "govuk-frontend/dist/govuk/index";
+// `@use ... with (...)` cannot configure it. Any setting override (the font
+// above, or e.g. `$govuk-functional-colours: (brand: #b10e1e);`) has to be
+// declared first and the line below swapped for the `@import` form.
 @use "govuk-frontend/dist/govuk" as *;
 
 // Service-specific styles for the bits the Design System doesn't cover.
