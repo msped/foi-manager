@@ -125,7 +125,7 @@ class TestAllNationsCount:
     so a holiday observed in only one nation stops the clock everywhere.
 
     These previously asserted the opposite — that a Scottish holiday was
-    ignored unless FOI_JURISDICTION was set to scotland — which set deadlines
+    ignored unless the service was configured as Scottish — which set deadlines
     earlier than the Act allows for every authority outside Scotland."""
 
     def test_a_scotland_only_holiday_stops_the_clock(self):

@@ -88,4 +88,3 @@ This is a UK Freedom of Information (FOI) case management system. It consists of
 - Clock can be paused/resumed; `clock_paused_days` tracks total days paused and extends the deadline accordingly.
 - Consultations (`CaseConsultation`) track parts of a request sent to other departments/individuals for response. They have `scope`, `status` (pending/responded/withdrawn), optional `assignee` and `department`, and a `response` field.
 - Exemptions reference UK FOIA sections (s.12–s.44).
-- `FOI_JURISDICTION` no longer affects deadlines and is currently unused. It used to filter bank holidays to one nation, which set deadlines earlier than the Act allows.

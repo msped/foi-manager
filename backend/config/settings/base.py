@@ -169,10 +169,5 @@ FOI_STATUTORY_DAYS = 20
 FOI_DEFAULT_INTERNAL_DAYS = 10
 FOI_GDPR_RETENTION_YEARS = config("FOI_GDPR_RETENTION_YEARS", default=3, cast=int)
 FOI_REFERENCE_PREFIX = config("FOI_REFERENCE_PREFIX", default="FOI")
-# Unused. Statutory deadlines skip bank holidays from every UK nation, per
-# section 10(6) ("in any part of the United Kingdom"), so no single nation is
-# authoritative. Kept only because a Scottish deployment under FOISA would
-# need to know where it sits; delete it if that never happens.
-FOI_JURISDICTION = config("FOI_JURISDICTION", default="england")
 ORGANISATION_NAME = config("ORGANISATION_NAME", default="Organisation")
 FOI_CONTACT_EMAIL = config("FOI_CONTACT_EMAIL", default="foi@example.com")

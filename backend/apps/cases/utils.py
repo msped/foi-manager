@@ -11,9 +11,9 @@ def _get_bank_holiday_dates() -> set:
     the clock for an authority in Cornwall exactly as they do for one in
     Aberdeen, and the Battle of the Boyne stops it for both.
 
-    This used to filter on `FOI_JURISDICTION`, which counted the other nations'
-    holidays as ordinary working days and set deadlines earlier than the Act
-    allows. Loading the full GOV.UK feed is therefore not optional: a table
+    This used to filter on a configured-nation setting, since removed, which
+    counted the other nations' holidays as ordinary working days and set
+    deadlines earlier than the Act allows. Loading the full GOV.UK feed is therefore not optional: a table
     holding only England and Wales is a table that calculates the wrong dates.
 
     Deliberately undefended. This also used to wrap the query in
