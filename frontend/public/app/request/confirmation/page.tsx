@@ -29,17 +29,33 @@ export default async function ConfirmationPage({
           </div>
         </div>
 
+        {/* Do not promise an email here. Nothing is sent when a request is
+            submitted: the acknowledgement goes out when a member of the FOI
+            team picks the case up, which is a deliberate design decision and
+            not a delay to apologise for. This page used to claim a copy had
+            been emailed, which meant anyone who checked their inbox had reason
+            to think the request had failed. */}
         <p className="govuk-body">
-          We have emailed you a copy of your request. Keep your reference number
-          — you will need it to ask us about your request.
+          Write down your reference number, or take a copy of this page. We will
+          email you at the address you gave us when a member of our team picks
+          up your request, and that email will confirm the reference too.
         </p>
 
         <h2 className="govuk-heading-m">What happens next</h2>
 
         <p className="govuk-body">
-          We must respond within 20 working days of receiving your request. If we
-          need to check what you have asked for, we will contact you, and the 20
-          working days start again from the date you reply.
+          We must respond within 20 working days of receiving your request —
+          that clock started today, not when we get in touch. If we need to
+          check what you have asked for, we will contact you, and the 20 working
+          days start again from the date you reply.
+        </p>
+
+        <p className="govuk-body">
+          You can{" "}
+          <Link className="govuk-link" href="/track">
+            check the progress of your request
+          </Link>{" "}
+          at any time using the email address you gave us.
         </p>
 
         <p className="govuk-body">
