@@ -3,10 +3,12 @@
 import { redirect } from "next/navigation";
 import { isAxiosError } from "axios";
 import { submitPublicRequest } from "@/lib/services/cases";
-import type {
-  RequestAnswers,
-  RequestFieldErrors,
-  RequestState,
+import {
+  HONEYPOT_FIELD,
+  MAX_REQUEST_CHARS,
+  type RequestAnswers,
+  type RequestFieldErrors,
+  type RequestState,
 } from "./types";
 
 /**
@@ -53,6 +55,12 @@ function validate(answers: RequestAnswers): RequestFieldErrors {
 
   if (!answers.request_text) {
     errors.request_text = "Enter the information you want";
+  } else if (answers.request_text.length > MAX_REQUEST_CHARS) {
+    // Checked here as well as by the API so the requester hears about it at the
+    // Continue step, rather than after reviewing answers they cannot send.
+    errors.request_text = `Your request must be ${MAX_REQUEST_CHARS.toLocaleString(
+      "en-GB"
+    )} characters or fewer`;
   }
 
   return errors;
@@ -70,6 +78,19 @@ export async function requestAction(
     return { step: "form", values: answers, errors: {} };
   }
 
+  // The honeypot is hidden from browsers and from assistive technology, so a
+  // human should never have filled it. Checked again by the API, which is the
+  // check that matters — anything posting straight to Django never runs this.
+  if (String(formData.get(HONEYPOT_FIELD) ?? "").trim()) {
+    return {
+      step: "form",
+      values: answers,
+      errors: {},
+      formError:
+        "Your request could not be sent. If you are using a browser extension that fills in forms for you, turn it off for this page and try again.",
+    };
+  }
+
   const errors = validate(answers);
   if (Object.keys(errors).length > 0) {
     return { step: "form", values: answers, errors };
@@ -84,6 +105,21 @@ export async function requestAction(
     const receipt = await submitPublicRequest(answers);
     ref = receipt.ref;
   } catch (error) {
+    // Rate limited. Stay on the check-answers screen rather than dropping back
+    // to the form: the message tells them to email the request instead, and
+    // that is much easier to act on with the finished wording still in front of
+    // them to copy.
+    if (isAxiosError(error) && error.response?.status === 429) {
+      const detail = (error.response.data as { detail?: string })?.detail;
+      return {
+        step: "review",
+        values: answers,
+        formError:
+          detail ??
+          "You have sent us several requests recently, so this form has paused new ones for a short while. You can still make a request by emailing us.",
+      };
+    }
+
     // Surface field-level problems from DRF against the right input; anything
     // else becomes a whole-form error so the answers are never lost.
     if (isAxiosError(error) && error.response?.status === 400) {
@@ -105,12 +141,10 @@ export async function requestAction(
     }
 
     return {
-      step: "form",
+      step: "review",
       values: answers,
-      errors: {
-        request_text:
-          "Your request could not be sent. Try again, and if the problem continues contact us by email.",
-      },
+      formError:
+        "Your request could not be sent. Try again, and if the problem continues contact us by email.",
     };
   }
 

@@ -5,20 +5,24 @@ import { requestAction } from "./actions";
 import {
   FIELD_LABELS,
   FIELD_ORDER,
+  HONEYPOT_FIELD,
   INITIAL_STATE,
+  MAX_REQUEST_CHARS,
   type RequestAnswers,
   type RequestFieldErrors,
 } from "./types";
 
 function ErrorSummary({
   errors,
+  formError,
   summaryRef,
 }: {
   errors: RequestFieldErrors;
+  formError?: string;
   summaryRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const listed = FIELD_ORDER.filter((field) => errors[field]);
-  if (listed.length === 0) return null;
+  if (listed.length === 0 && !formError) return null;
 
   return (
     <div
@@ -32,6 +36,9 @@ function ErrorSummary({
         <h2 className="govuk-error-summary__title">There is a problem</h2>
         <div className="govuk-error-summary__body">
           <ul className="govuk-list govuk-error-summary__list">
+            {/* Listed first, and without a link: it belongs to the submission
+                rather than to a field, so there is no input to send anyone to. */}
+            {formError && <li>{formError}</li>}
             {listed.map((field) => (
               <li key={field}>
                 <a href={`#${field}`}>{errors[field]}</a>
@@ -40,6 +47,34 @@ function ErrorSummary({
           </ul>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Hidden from browsers by `display: none` and from assistive technology by
+ * `aria-hidden`, so nobody using this service should ever encounter it.
+ *
+ * Hiding it from screen readers as well as from sighted users is the point.
+ * The usual visually-hidden treatment would leave it in the accessibility tree,
+ * where a screen reader would announce it as a real field and its user would
+ * dutifully fill it in — turning an anti-spam measure into a trap for the
+ * people least able to afford one.
+ */
+function Honeypot() {
+  return (
+    <div style={{ display: "none" }} aria-hidden="true">
+      <label htmlFor={HONEYPOT_FIELD}>
+        Leave this field blank
+        <input
+          id={HONEYPOT_FIELD}
+          name={HONEYPOT_FIELD}
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          defaultValue=""
+        />
+      </label>
     </div>
   );
 }
@@ -93,7 +128,7 @@ export default function RequestForm() {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
 
   const errors = state.step === "form" ? state.errors : {};
-  const hasErrors = Object.keys(errors).length > 0;
+  const hasErrors = Object.keys(errors).length > 0 || Boolean(state.formError);
 
   // Move focus the way govuk-frontend would: to the error summary when the
   // submission fails, and to the new heading when the step changes.
@@ -102,9 +137,39 @@ export default function RequestForm() {
     else headingRef.current?.focus();
   }, [hasErrors, state.step]);
 
+  // Enhance the character count whenever the form step is on screen.
+  //
+  // GovukInit only re-runs initAll on a change of pathname, and both steps of
+  // this form share one route. Returning from check-answers therefore mounts a
+  // brand new textarea that nothing has initialised, and the count would be
+  // dead for the rest of the session. An element already enhanced throws
+  // InitError, which is the expected case on first mount and is ignored.
+  useEffect(() => {
+    if (state.step !== "form") return;
+    let cancelled = false;
+
+    import("govuk-frontend").then(({ createAll, CharacterCount }) => {
+      if (cancelled) return;
+      createAll(CharacterCount, undefined, {
+        onError: (error) => {
+          if (error instanceof Error && error.name === "InitError") return;
+          console.error(error);
+        },
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state.step]);
+
   return (
     <form action={formAction} noValidate>
-      <ErrorSummary errors={errors} summaryRef={summaryRef} />
+      <ErrorSummary
+        errors={errors}
+        formError={state.formError}
+        summaryRef={summaryRef}
+      />
 
       {state.step === "review" ? (
         <>
@@ -188,9 +253,11 @@ export default function RequestForm() {
           </div>
 
           <div
-            className={`govuk-form-group${
+            className={`govuk-character-count govuk-form-group${
               errors.request_text ? " govuk-form-group--error" : ""
             }`}
+            data-module="govuk-character-count"
+            data-maxlength={MAX_REQUEST_CHARS}
           >
             <label className="govuk-label" htmlFor="request_text">
               {FIELD_LABELS.request_text}
@@ -208,7 +275,7 @@ export default function RequestForm() {
               </p>
             )}
             <textarea
-              className={`govuk-textarea${
+              className={`govuk-textarea govuk-js-character-count${
                 errors.request_text ? " govuk-textarea--error" : ""
               }`}
               id="request_text"
@@ -217,9 +284,19 @@ export default function RequestForm() {
               defaultValue={state.values.request_text}
               aria-describedby={`request_text-hint${
                 errors.request_text ? " request_text-error" : ""
-              }`}
+              } request_text-info`}
             />
+            {/* Rendered server-side with the limit already in it, so without
+                JavaScript this stays a plain, true statement of the limit
+                rather than disappearing. The live count replaces it on
+                enhancement. */}
+            <div id="request_text-info" className="govuk-hint govuk-character-count__message">
+              You can enter up to {MAX_REQUEST_CHARS.toLocaleString("en-GB")}{" "}
+              characters
+            </div>
           </div>
+
+          <Honeypot />
 
           <button
             type="submit"
