@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FormField from "@/components/ui/FormField";
 import { createBankHoliday, deleteBankHoliday } from "@/lib/services/cases";
-import type { BankHoliday, BankHolidayCountry, BankHolidayJurisdiction } from "@/lib/types";
+import type { BankHoliday, BankHolidayCountry } from "@/lib/types";
 
 const COUNTRY_LABELS: Record<BankHolidayCountry, string> = {
   england: "England",
@@ -30,27 +30,14 @@ function groupByYear(holidays: BankHoliday[]) {
 
 const ALL_COUNTRIES = "all";
 
-export default function BankHolidaysManager({
-  initial,
-  jurisdiction,
-}: {
-  initial: BankHoliday[];
-  jurisdiction: BankHolidayJurisdiction | null;
-}) {
+export default function BankHolidaysManager({ initial }: { initial: BankHoliday[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  // Deadlines are only ever calculated from the configured country, so the
-  // other three are reference data — a full feed load makes them roughly four
-  // fifths of the table. Start on the one that actually drives anything.
-  const [filter, setFilter] = useState<BankHolidayCountry | typeof ALL_COUNTRIES>(
-    jurisdiction?.country ?? ALL_COUNTRIES
-  );
-  const [form, setForm] = useState({
-    country: jurisdiction?.country ?? ("england" as BankHolidayCountry),
-    name: "",
-    date: "",
-  });
+  // Every nation's holidays count towards every deadline, so no country is the
+  // one to start on. The accordion below is what keeps the page short.
+  const [filter, setFilter] = useState<BankHolidayCountry | typeof ALL_COUNTRIES>(ALL_COUNTRIES);
+  const [form, setForm] = useState({ country: "england" as BankHolidayCountry, name: "", date: "" });
 
   function handleAdd(e: React.SubmitEvent) {
     e.preventDefault();
@@ -85,14 +72,9 @@ export default function BankHolidaysManager({
   return (
     <SummaryCard title="Bank holidays">
       <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
-        {jurisdiction ? (
-          <>
-            Statutory deadlines are calculated using <strong>{jurisdiction.label}</strong> bank
-            holidays. The other countries are held for reference and do not affect any deadline.
-          </>
-        ) : (
-          "Bank holidays are excluded when calculating statutory deadlines."
-        )}
+        Statutory deadlines skip every UK bank holiday, whichever nation observes it — the Act
+        counts a bank holiday &ldquo;in any part of the United Kingdom&rdquo;, so a Scottish or
+        Northern Irish date extends the clock here too.
       </p>
 
       <div style={{ marginBottom: 16, maxWidth: 320 }}>
@@ -103,13 +85,12 @@ export default function BankHolidaysManager({
             value={filter}
             onChange={e => setFilter(e.target.value as BankHolidayCountry | typeof ALL_COUNTRIES)}
           >
+            <option value={ALL_COUNTRIES}>All countries</option>
             {COUNTRIES.map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
-                {jurisdiction?.country === value ? " (used for deadlines)" : ""}
               </option>
             ))}
-            <option value={ALL_COUNTRIES}>All countries</option>
           </select>
         </FormField>
       </div>

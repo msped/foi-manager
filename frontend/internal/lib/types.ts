@@ -37,15 +37,6 @@ export interface BankHoliday {
   date: string;
 }
 
-/** The country statutory deadlines are calculated from — Django's
- *  FOI_JURISDICTION. Read from the API rather than mirrored in frontend config,
- *  because a copy that drifted would default the settings screen to the wrong
- *  country's dates while looking correct. */
-export interface BankHolidayJurisdiction {
-  country: BankHolidayCountry;
-  label: string;
-}
-
 export type ConsultationStatus = "open" | "closed" | "withdrawn";
 
 export interface AssigneeConsultation {
