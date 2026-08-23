@@ -117,6 +117,7 @@ class TestPublicCaseSubmit:
         )
         assert resp.status_code == 400
 
+
 class TestPublicSubmitAbuseControls:
     """The only unauthenticated write in the project, so the only one where
     volume is not bounded by how many staff accounts exist."""
@@ -298,6 +299,92 @@ class TestStaffCaseDetail:
         url = reverse("cases:case-detail", kwargs={"pk": case.pk})
         resp = assignee_client.get(url)
         assert resp.status_code == 404
+
+    def test_assignee_can_retrieve_assigned(
+        self, assignee_client, db, foi_team_user, assignee_user
+    ):
+        """The other half of the scoping rule. Without this, a fix that simply
+        hid every case from assignees would pass the test above."""
+        assigned = Case.objects.create(
+            requester_name="Alice",
+            requester_email="alice@example.com",
+            request_text="Assigned request.",
+            assignee=assignee_user,
+            created_by=foi_team_user,
+        )
+        url = reverse("cases:case-detail", kwargs={"pk": assigned.pk})
+        resp = assignee_client.get(url)
+        assert resp.status_code == 200
+
+
+class TestCaseWritePermissions:
+    """Writes are FOI team only.
+
+    These had no coverage, and the viewset had no `get_permissions`, so
+    create/update/destroy sat on `IsAuthenticated` alone.
+    """
+
+    def test_assignee_cannot_create(self, assignee_client, db):
+        resp = assignee_client.post(
+            reverse("cases:case-list"),
+            {
+                "requester_name": "Mallory",
+                "requester_email": "mallory@example.com",
+                "request_text": "A request I logged myself.",
+            },
+        )
+        assert resp.status_code == 403
+
+    def test_assignee_cannot_update_even_their_own_case(
+        self, assignee_client, db, foi_team_user, assignee_user
+    ):
+        """Being asked about a request does not make it yours to edit — the
+        queryset scoping alone would have allowed this."""
+        assigned = Case.objects.create(
+            requester_name="Alice",
+            requester_email="alice@example.com",
+            request_text="Assigned request.",
+            assignee=assignee_user,
+            created_by=foi_team_user,
+        )
+        resp = assignee_client.patch(
+            reverse("cases:case-detail", kwargs={"pk": assigned.pk}),
+            {"requester_email": "attacker@example.com"},
+        )
+
+        assert resp.status_code == 403
+        assigned.refresh_from_db()
+        assert assigned.requester_email == "alice@example.com"
+
+    def test_assignee_cannot_delete_even_their_own_case(
+        self, assignee_client, db, foi_team_user, assignee_user
+    ):
+        assigned = Case.objects.create(
+            requester_name="Alice",
+            requester_email="alice@example.com",
+            request_text="Assigned request.",
+            assignee=assignee_user,
+            created_by=foi_team_user,
+        )
+        resp = assignee_client.delete(
+            reverse("cases:case-detail", kwargs={"pk": assigned.pk})
+        )
+
+        assert resp.status_code == 403
+        assert Case.objects.filter(pk=assigned.pk).exists()
+
+    def test_foi_team_can_still_write(self, auth_client, case):
+        """Guards against fixing the leak by locking everyone out."""
+        resp = auth_client.patch(
+            reverse("cases:case-detail", kwargs={"pk": case.pk}),
+            {"summary": "Contracts over £10k."},
+        )
+
+        assert resp.status_code == 200
+        case.refresh_from_db()
+        assert case.summary == "Contracts over £10k."
+
+
 # ── Case actions ─────────────────────────────────────────────────────────────
 
 
