@@ -16,7 +16,7 @@ from .models import (
     RequesterCategory,
     ResponseTemplate,
 )
-from .permissions import IsFOITeam
+from .permissions import IsFOITeam, IsFOITeamOrAssignedAssignee
 from .serializers import (
     BankHolidaySerializer,
     CaseDetailSerializer,
@@ -54,6 +54,22 @@ class CaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = CaseDetailSerializer
 
+    def get_permissions(self):
+        """Anyone signed in may read; only the FOI team may write.
+
+        The same shape as ResponseTemplateViewSet and RequesterCategoryViewSet
+        further down, and what CLAUDE.md has always described. It was missing
+        here, which left create, update and destroy on `IsAuthenticated` alone —
+        so an assignee could edit or delete any case in the service.
+
+        Every @action on this viewset already declares `IsFOITeam`, and the
+        write branch below returns the same thing, so overriding this does not
+        loosen any of them.
+        """
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated(), IsFOITeamOrAssignedAssignee()]
+        return [IsAuthenticated(), IsFOITeam()]
+
     def get_queryset(self):
         qs = Case.objects.select_related(
             "assignee",
@@ -62,6 +78,21 @@ class CaseViewSet(viewsets.ModelViewSet):
             "disclosure_log_entry__published_by",
             "disclosure_log_entry__rejected_by",
         )
+
+        # Scope before anything else. An assignee is a colleague in another
+        # team who has been asked about one request; the rest of the queue is
+        # not theirs to read, and it carries requester names and addresses.
+        #
+        # Done by narrowing the queryset rather than by refusing in a
+        # permission class, so an unassigned case 404s instead of 403ing. A 403
+        # would confirm the case exists, and refs are sequential enough to walk.
+        # `views_notes.CaseNoteViewSet._get_case` scopes the same way.
+        #
+        # Every filter below only ever narrows further, so none of them can be
+        # used to escape this line.
+        if not self.request.user.is_foi_team():
+            qs = qs.filter(assignee=self.request.user)
+
         params = self.request.query_params
         if status_filter := params.get("status"):
             qs = qs.filter(status=status_filter)
