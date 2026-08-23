@@ -34,6 +34,61 @@ class CaseExemptionBriefSerializer(serializers.ModelSerializer):
         fields = ["id", "code", "code_display"]
 
 
+class PublicExemptionSerializer(serializers.ModelSerializer):
+    """Exemptions as shown to the public — the statutory code only.
+
+    Deliberately excludes `notes`, which is internal casework commentary.
+    """
+
+    code_display = serializers.CharField(source="get_code_display", read_only=True)
+
+    class Meta:
+        model = CaseExemption
+        fields = ["code", "code_display"]
+
+
+class PublicAttachmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CaseDocument
+        fields = ["id", "original_filename", "file"]
+
+
+class PublicDisclosureLogListSerializer(serializers.ModelSerializer):
+    case_ref = serializers.CharField(source="case.ref", read_only=True)
+    exemptions = PublicExemptionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DisclosureLogEntry
+        fields = [
+            "id",
+            "case_ref",
+            "title",
+            "summary",
+            "date_received",
+            "date_responded",
+            "published_at",
+            "exemptions",
+        ]
+
+
+class PublicDisclosureLogDetailSerializer(PublicDisclosureLogListSerializer):
+    attachments = serializers.SerializerMethodField()
+
+    class Meta(PublicDisclosureLogListSerializer.Meta):
+        fields = PublicDisclosureLogListSerializer.Meta.fields + [
+            "response_text",
+            "attachments",
+        ]
+
+    def get_attachments(self, obj):
+        # Filtered in Python rather than the DB so the viewset's prefetch is
+        # reused — the set per entry is small.
+        public_docs = [a for a in obj.attachments.all() if a.is_public]
+        return PublicAttachmentSerializer(
+            public_docs, many=True, context=self.context
+        ).data
+
+
 class CaseDocumentBriefSerializer(serializers.ModelSerializer):
     class Meta:
         model = CaseDocument

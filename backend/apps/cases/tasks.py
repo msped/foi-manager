@@ -74,7 +74,7 @@ def task_send_clarification_request(self, case_id: int, body: str):
 
 
 @app.task(bind=True, max_retries=3, default_retry_delay=60)
-def task_send_case_response(self, case_response_id: int):
+def task_send_case_response(self, case_response_id: int, outcome: str = ""):
     from .email_utils import send_case_response
     from .models import CaseResponse
 
@@ -89,6 +89,11 @@ def task_send_case_response(self, case_response_id: int):
         case_response.status = CaseResponse.Status.SENT
         case_response.save(update_fields=["sent_at", "status"])
         case = case_response.case
+        # Recorded only once the letter is actually away, so the outcome and
+        # the discharge of the statutory duty are written from the same fact.
+        if outcome:
+            case.outcome = outcome
+            case.save(update_fields=["outcome"])
         case.transition_to(Case.Status.CLOSED)
     except Exception as exc:
         if self.request.retries >= self.max_retries:

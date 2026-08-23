@@ -8,7 +8,6 @@ from .views import (
     EmailTemplateViewSet,
     MailboxViewSet,
     PublicCaseSubmitView,
-    PublicCaseTrackView,
     RequesterCategoryViewSet,
     ResponseTemplateViewSet,
 )
@@ -39,7 +38,6 @@ app_name = "cases"
 urlpatterns = [
     path("", include(router.urls)),
     path("public/submit/", PublicCaseSubmitView.as_view(), name="public-submit"),
-    path("public/track/", PublicCaseTrackView.as_view(), name="public-track"),
     path(
         "cases/<int:case_pk>/notes/",
         CaseNoteViewSet.as_view({"get": "list", "post": "create"}),

@@ -1,7 +1,7 @@
 import djangoClient from "./django";
 import type {
   AssigneeConsultation, BankHoliday, CaseConsultation, CaseCRUAdvice, CaseDetail, CaseListItem, CaseNote,
-  CaseResponse, ConsultationMessage, Department, EmailTemplate, EmailTemplatePurposeInfo,
+  CaseOutcome, CaseResponse, ConsultationMessage, Department, EmailTemplate, EmailTemplatePurposeInfo,
   Mailbox, Paginated, ResponseSeed, ResponseTemplate,
 } from "@/lib/types";
 
@@ -90,8 +90,12 @@ export async function updateCaseResponse(
   return data;
 }
 
-export async function sendCaseResponse(caseId: number | string, responseId: number): Promise<CaseResponse> {
-  const { data } = await djangoClient.post<CaseResponse>(`/cases/${caseId}/responses/${responseId}/send/`);
+export async function sendCaseResponse(
+  caseId: number | string,
+  responseId: number,
+  outcome: CaseOutcome,
+): Promise<CaseResponse> {
+  const { data } = await djangoClient.post<CaseResponse>(`/cases/${caseId}/responses/${responseId}/send/`, { outcome });
   return data;
 }
 

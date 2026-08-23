@@ -1,3 +1,4 @@
+from django.conf import settings as django_settings
 from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
 from rest_framework import status, viewsets
@@ -6,6 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import submissions
 from .models import (
     BankHoliday,
     Case,
@@ -16,7 +18,7 @@ from .models import (
     RequesterCategory,
     ResponseTemplate,
 )
-from .permissions import IsFOITeam
+from .permissions import IsFOITeam, IsFOITeamOrAssignedAssignee
 from .serializers import (
     BankHolidaySerializer,
     CaseDetailSerializer,
@@ -26,7 +28,6 @@ from .serializers import (
     EmailTemplateSerializer,
     MailboxSerializer,
     PublicCaseSubmitSerializer,
-    PublicCaseTrackSerializer,
     ReceiveClarificationSerializer,
     RequesterCategorySerializer,
     ResponseTemplateSerializer,
@@ -45,26 +46,57 @@ class PublicCaseSubmitView(APIView):
     def post(self, request):
         serializer = PublicCaseSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        # After validation, so the address being counted is a real one, and the
+        # requester still gets told about a typo before being told about a
+        # limit.
+        email = serializer.validated_data["requester_email"]
+        if submissions.is_throttled(email):
+            # Says plainly that it refused, and where to go instead. The
+            # tracking endpoint answers uniformly to avoid becoming a
+            # membership oracle; the opposite applies here. There is nothing to
+            # leak — the requester already knows what they sent — and a request
+            # that disappears without saying so is the one outcome a statutory
+            # service must not produce.
+            return Response(
+                {
+                    "detail": (
+                        "You have sent us several requests recently, so this "
+                        "form has paused new ones from your email address for "
+                        "a short while. You can still make a request by "
+                        f"emailing {django_settings.FOI_CONTACT_EMAIL} — a "
+                        "request sent by email is just as valid, and we will "
+                        "treat it the same way."
+                    )
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
         case = serializer.save(received_by=Case.ReceivedBy.PORTAL)
         return Response(
             {"ref": case.ref, "status": case.status}, status=status.HTTP_201_CREATED
         )
 
 
-class PublicCaseTrackView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        ref = request.query_params.get("ref", "")
-        email = request.query_params.get("email", "")
-        case = get_object_or_404(Case, ref=ref, requester_email__iexact=email)
-        serializer = PublicCaseTrackSerializer(case)
-        return Response(serializer.data)
-
-
 class CaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = CaseDetailSerializer
+
+    def get_permissions(self):
+        """Anyone signed in may read; only the FOI team may write.
+
+        The same shape as ResponseTemplateViewSet and RequesterCategoryViewSet
+        further down, and what CLAUDE.md has always described. It was missing
+        here, which left create, update and destroy on `IsAuthenticated` alone —
+        so an assignee could edit or delete any case in the service.
+
+        Every @action on this viewset already declares `IsFOITeam`, and the
+        write branch below returns the same thing, so overriding this does not
+        loosen any of them.
+        """
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated(), IsFOITeamOrAssignedAssignee()]
+        return [IsAuthenticated(), IsFOITeam()]
 
     def get_queryset(self):
         qs = Case.objects.select_related(
@@ -74,6 +106,21 @@ class CaseViewSet(viewsets.ModelViewSet):
             "disclosure_log_entry__published_by",
             "disclosure_log_entry__rejected_by",
         )
+
+        # Scope before anything else. An assignee is a colleague in another
+        # team who has been asked about one request; the rest of the queue is
+        # not theirs to read, and it carries requester names and addresses.
+        #
+        # Done by narrowing the queryset rather than by refusing in a
+        # permission class, so an unassigned case 404s instead of 403ing. A 403
+        # would confirm the case exists, and refs are sequential enough to walk.
+        # `views_notes.CaseNoteViewSet._get_case` scopes the same way.
+        #
+        # Every filter below only ever narrows further, so none of them can be
+        # used to escape this line.
+        if not self.request.user.is_foi_team():
+            qs = qs.filter(assignee=self.request.user)
+
         params = self.request.query_params
         if status_filter := params.get("status"):
             qs = qs.filter(status=status_filter)

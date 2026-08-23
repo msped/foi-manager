@@ -53,7 +53,7 @@ This is a UK Freedom of Information (FOI) case management system. It consists of
 
 **Permissions:** `IsAuthenticated` for reads; `IsFOITeam` (checks `user.is_foi_team()`) for writes. Reference data viewsets use `pagination_class = None`.
 
-**Deadline calculation:** `apps/cases/utils.py` — `add_working_days()` and `working_days_between()` query the `BankHoliday` model filtered by `settings.FOI_JURISDICTION` (default: `england`). `Case.save()` auto-calculates `statutory_deadline` from `submitted_at` on first save. `Case.acknowledge()` resets the deadline from the acknowledgement date.
+**Deadline calculation:** `apps/cases/utils.py` — `add_working_days()` and `working_days_between()` query every row in the `BankHoliday` model, unfiltered. Section 10(6) counts a bank holiday "in any part of the United Kingdom", so a Scottish or Northern Irish date stops the clock for every authority. Populate the table with `manage.py load_bank_holidays`; `cases.W001`/`W002` warn when it is empty or stale. `Case.save()` auto-calculates `statutory_deadline` from `submitted_at` on first save. `Case.acknowledge()` resets the deadline from the acknowledgement date.
 
 **Sub-views pattern:** Large viewsets are split into separate files: `views.py`, `views_notes.py`, `views_exemptions.py`, `views_consultations.py`.
 
@@ -83,9 +83,8 @@ This is a UK Freedom of Information (FOI) case management system. It consists of
 
 ## FOI domain notes
 
-- Statutory deadline is 20 working days from date of receipt (`submitted_at`), excluding weekends and bank holidays for the configured jurisdiction.
+- Statutory deadline is 20 working days from date of receipt (`submitted_at`), excluding weekends and bank holidays observed anywhere in the UK.
 - `Case.acknowledge()` resets the deadline from the acknowledgement date, not receipt date.
 - Clock can be paused/resumed; `clock_paused_days` tracks total days paused and extends the deadline accordingly.
 - Consultations (`CaseConsultation`) track parts of a request sent to other departments/individuals for response. They have `scope`, `status` (pending/responded/withdrawn), optional `assignee` and `department`, and a `response` field.
 - Exemptions reference UK FOIA sections (s.12–s.44).
-- `FOI_JURISDICTION` setting (env var) controls which country's bank holidays are used: `england`, `wales`, `scotland`, or `northern_ireland`.

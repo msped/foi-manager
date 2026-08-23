@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "apps.cases",
     "apps.documents",
     "apps.publications",
+    "apps.requester_portal",
     "apps.ai_assistant",
 ]
 
@@ -96,7 +97,9 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "media/"
+# Leading slash matters: FileField.url is served to the public portal on another
+# origin, so it has to be root-relative rather than relative to the current page.
+MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -146,7 +149,9 @@ CELERY_RESULT_BACKEND = config("REDIS_URL", default="redis://localhost:6379/0")
 CELERY_TIMEZONE = TIME_ZONE
 
 # Email
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
+)
 EMAIL_HOST = config("EMAIL_HOST", default="localhost")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
@@ -164,6 +169,5 @@ FOI_STATUTORY_DAYS = 20
 FOI_DEFAULT_INTERNAL_DAYS = 10
 FOI_GDPR_RETENTION_YEARS = config("FOI_GDPR_RETENTION_YEARS", default=3, cast=int)
 FOI_REFERENCE_PREFIX = config("FOI_REFERENCE_PREFIX", default="FOI")
-FOI_JURISDICTION = config("FOI_JURISDICTION", default="england")
 ORGANISATION_NAME = config("ORGANISATION_NAME", default="Organisation")
 FOI_CONTACT_EMAIL = config("FOI_CONTACT_EMAIL", default="foi@example.com")

@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { branding } from "@/lib/branding";
+import ContactEmail from "@/components/ContactEmail";
+import PostalAddress from "@/components/PostalAddress";
+import { branding, contact } from "@/lib/branding";
 
 export default function HomePage() {
   return (
@@ -38,12 +40,32 @@ export default function HomePage() {
         <h2 className="govuk-heading-m">Before you request</h2>
 
         <p className="govuk-body">
-          Check the{" "}
+          We already publish a lot of information. Check both of the following
+          before you ask us — what you need may be available straight away.
+          They are two separate things:
+        </p>
+
+        <h3 className="govuk-heading-s govuk-!-margin-bottom-1">
+          <Link className="govuk-link" href="/publication-scheme">
+            Publication scheme
+          </Link>
+        </h3>
+        <p className="govuk-body">
+          Information we publish routinely on our own initiative, without anyone
+          having to ask — our structure, spending, policies, performance and the
+          registers we keep. Every public authority must have one under section
+          19 of the Act.
+        </p>
+
+        <h3 className="govuk-heading-s govuk-!-margin-bottom-1">
           <Link className="govuk-link" href="/disclosure-log">
-            disclosure log
-          </Link>{" "}
-          first. We publish our responses to previous requests there, so the
-          information you want may already be available.
+            Disclosure log
+          </Link>
+        </h3>
+        <p className="govuk-body">
+          Our responses to individual Freedom of Information requests that other
+          people have already made. If someone has asked your question before,
+          the answer will be here.
         </p>
 
         <h2 className="govuk-heading-m">What happens next</h2>
@@ -62,14 +84,49 @@ export default function HomePage() {
         </p>
 
         <div className="govuk-inset-text">
-          You do not have to give a reason for your request, but you must give us
-          a real name and an address we can reply to.
+          You do not have to give a reason for your request. You must give us
+          your real name and an address we can send the response to. An email
+          address is enough — we do not need your postal address unless you
+          would rather we replied by post.
         </div>
+
+        {(contact.foiEmail || contact.postalAddress) && (
+          <>
+            {/* Stated before the Start button commits anyone to the form, which
+                is where GOV.UK start pages put alternative routes. The form is
+                a convenience; section 8 makes any written request valid. */}
+            <h2 className="govuk-heading-m">Other ways to make a request</h2>
+
+            <p className="govuk-body">
+              You do not have to use this website. A request only has to be in
+              writing, so an email or a letter is just as valid and we will
+              treat it the same way.
+            </p>
+
+            {contact.foiEmail && (
+              <p className="govuk-body">
+                Email <ContactEmail email={contact.foiEmail} />.
+              </p>
+            )}
+
+            {contact.postalAddress && (
+              <>
+                <p className="govuk-body">Or write to us at:</p>
+                <PostalAddress lines={contact.postalAddress} />
+              </>
+            )}
+          </>
+        )}
       </div>
 
       <div className="govuk-grid-column-one-third">
         <h2 className="govuk-heading-m">Related</h2>
         <ul className="govuk-list">
+          <li>
+            <Link className="govuk-link" href="/publication-scheme">
+              Publication scheme
+            </Link>
+          </li>
           <li>
             <Link className="govuk-link" href="/disclosure-log">
               Disclosure log

@@ -3,7 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case, Department
+from apps.cases.models import Case
 from apps.documents.models import CaseDocument
 
 
@@ -27,28 +27,21 @@ def assignee_client(assignee_user):
 
 
 @pytest.fixture
-def department(db):
-    return Department.objects.create(name="IT")
-
-
-@pytest.fixture
-def case(db, foi_team_user, department):
+def case(db, foi_team_user):
     return Case.objects.create(
         requester_name="Jane Smith",
         requester_email="jane@example.com",
         request_text="All IT contracts.",
-        department=department,
         created_by=foi_team_user,
     )
 
 
 @pytest.fixture
-def assigned_case(db, foi_team_user, assignee_user, department):
+def assigned_case(db, foi_team_user, assignee_user):
     return Case.objects.create(
         requester_name="Bob",
         requester_email="bob@example.com",
         request_text="Assigned case.",
-        department=department,
         created_by=foi_team_user,
         assignee=assignee_user,
     )

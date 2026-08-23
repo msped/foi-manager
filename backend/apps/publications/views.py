@@ -1,10 +1,12 @@
+from django.db.models import F, Q
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.cases.models import Case, CaseResponse
+from apps.cases.models import Case, CaseExemption, CaseResponse
 from apps.cases.permissions import IsFOITeam
 
 from .models import DisclosureLogEntry, PublicationSchemeEntry
@@ -12,13 +14,119 @@ from .serializers import (
     DisclosureLogEntrySerializer,
     DisclosureLogListSerializer,
     PublicationSchemeEntrySerializer,
+    PublicDisclosureLogDetailSerializer,
+    PublicDisclosureLogListSerializer,
     PublishQueueItemSerializer,
     RejectedQueueItemSerializer,
 )
 
 
+class DisclosureLogPagination(PageNumberPagination):
+    """Smaller pages than the project default. Each disclosure log result
+    carries a summary and exemption tags, so 25 makes for a very long page."""
+
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+
+class PublicationSchemePagination(PageNumberPagination):
+    """Keeps the project default page size — the API tests assert on it — but
+    lets the portal ask for the whole scheme at once, since it renders every
+    entry grouped under its category rather than a page at a time."""
+
+    page_size_query_param = "page_size"
+    max_page_size = 200
+
+
+class PublicDisclosureLogViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    """Read-only view of published disclosure log entries for the public portal.
+
+    Unauthenticated by design. `authentication_classes` is emptied so a stale
+    JWT from a signed-in staff member can never turn a 401 into a broken page.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    pagination_class = DisclosureLogPagination
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return PublicDisclosureLogListSerializer
+        return PublicDisclosureLogDetailSerializer
+
+    def get_queryset(self):
+        qs = (
+            DisclosureLogEntry.objects.filter(
+                status=DisclosureLogEntry.Status.PUBLISHED
+            )
+            .select_related("case")
+            .prefetch_related("exemptions", "attachments")
+        )
+
+        params = self.request.query_params
+
+        if search := params.get("search", "").strip():
+            qs = qs.filter(
+                Q(title__icontains=search)
+                | Q(summary__icontains=search)
+                | Q(response_text__icontains=search)
+                | Q(case__ref__icontains=search)
+            )
+
+        if exemption := params.get("exemption", "").strip():
+            # M2M join can duplicate rows when an entry cites the same code twice
+            # across cases; distinct() keeps one row per entry.
+            qs = qs.filter(exemptions__code=exemption).distinct()
+
+        if year := params.get("year", "").strip():
+            if year.isdigit():
+                qs = qs.filter(date_responded__year=int(year))
+
+        # Entries awaiting a response date sort last rather than first, which is
+        # what a plain "-date_responded" gives on Postgres.
+        return qs.order_by(F("date_responded").desc(nulls_last=True), "-published_at")
+
+    @action(detail=False, methods=["get"], url_path="filters")
+    def filters(self, request):
+        """Filter options that actually match something, so the UI never offers
+        a dropdown value that returns nothing."""
+        published = DisclosureLogEntry.objects.filter(
+            status=DisclosureLogEntry.Status.PUBLISHED
+        )
+
+        codes = (
+            CaseExemption.objects.filter(disclosure_log_entries__in=published)
+            .values_list("code", flat=True)
+            .distinct()
+        )
+        labels = dict(CaseExemption.Code.choices)
+
+        years = sorted(
+            {
+                d.year
+                for d in published.values_list("date_responded", flat=True)
+                if d is not None
+            },
+            reverse=True,
+        )
+
+        return Response(
+            {
+                "exemptions": [
+                    {"code": c, "code_display": labels.get(c, c)}
+                    for c in sorted(set(codes))
+                ],
+                "years": years,
+            }
+        )
+
+
 class PublicationSchemeEntryViewSet(viewsets.ModelViewSet):
     serializer_class = PublicationSchemeEntrySerializer
+    pagination_class = PublicationSchemePagination
 
     def get_queryset(self):
         qs = PublicationSchemeEntry.objects.all()

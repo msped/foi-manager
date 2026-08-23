@@ -7,6 +7,9 @@ export interface NavItem {
   current?: boolean;
   /** Renders as within the current section (aria-current="true"). */
   active?: boolean;
+  /** How many things behind this link need attention. Renders a red govuk-tag;
+   *  omit or pass 0 for none. */
+  count?: number;
 }
 
 interface ServiceNavigationProps {
@@ -77,6 +80,27 @@ export default function ServiceNavigation({
                   item.text
                 );
 
+                // govuk-tag rather than a bespoke badge: it is the Design
+                // System's component for this, and its negative vertical
+                // margins are there so it cannot grow its container — which is
+                // what a nav bar needs.
+                //
+                // Sits outside the <strong> above, which exists only to mark the
+                // active item. Colour alone cannot carry meaning, so the count
+                // is repeated for screen readers as part of the link text.
+                const badge = item.count ? (
+                  <>
+                    {" "}
+                    <strong className="govuk-tag govuk-tag--red" aria-hidden="true">
+                      {item.count}
+                    </strong>
+                    <span className="govuk-visually-hidden">
+                      , {item.count} {item.count === 1 ? "item needs" : "items need"}{" "}
+                      attention
+                    </span>
+                  </>
+                ) : null;
+
                 return (
                   <li
                     key={item.href}
@@ -92,6 +116,7 @@ export default function ServiceNavigation({
                       }
                     >
                       {label}
+                      {badge}
                     </Link>
                   </li>
                 );

@@ -10,7 +10,13 @@ import FormField from "@/components/ui/FormField";
 import RichTextEditor, { type RichTextEditorHandle } from "@/components/ui/RichTextEditor";
 import { fmtDate } from "@/lib/utils";
 import { createCaseResponse, updateCaseResponse, sendCaseResponse } from "@/lib/services/cases";
-import { CARET_SENTINEL, type CaseResponse, type ResponseSeed } from "@/lib/types";
+import {
+  CARET_SENTINEL,
+  CASE_OUTCOME_OPTIONS,
+  type CaseOutcome,
+  type CaseResponse,
+  type ResponseSeed,
+} from "@/lib/types";
 
 /** Any {{variable}} left in a draft would reach the requester literally. */
 function unresolvedVariables(html: string): string[] {
@@ -47,6 +53,10 @@ function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requester
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // No default. The outcome becomes the public record of how this request
+  // ended and feeds transparency statistics, so it is a decision the officer
+  // makes rather than one they accept by not noticing a pre-filled select.
+  const [outcome, setOutcome] = useState<CaseOutcome | "">("");
   const leftover = unresolvedVariables(body);
 
   function handleExpand() {
@@ -72,10 +82,11 @@ function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requester
   }
 
   function handleSend() {
+    if (!outcome) return;
     setConfirming(false);
     startTransition(async () => {
       try {
-        await sendCaseResponse(caseId, resp.id);
+        await sendCaseResponse(caseId, resp.id, outcome);
         router.refresh();
       } catch (err) {
         const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -172,6 +183,24 @@ function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requester
                     </p>
                   )}
 
+                  <FormField
+                    label="How did this request end?"
+                    htmlFor={`outcome-${resp.id}`}
+                    hint="Recorded against the case and shown to the requester when they check their request. Used for transparency statistics."
+                  >
+                    <select
+                      id={`outcome-${resp.id}`}
+                      className="govuk-select"
+                      value={outcome}
+                      onChange={e => setOutcome(e.target.value as CaseOutcome | "")}
+                    >
+                      <option value="">Choose an outcome</option>
+                      {CASE_OUTCOME_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </FormField>
+
                   <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
                     This is exactly what the requester will receive. Sending cannot be undone.
                   </p>
@@ -180,7 +209,11 @@ function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requester
                     <Button variant="secondary" size="small" onClick={() => setConfirming(false)}>
                       Cancel
                     </Button>
-                    <Button size="small" disabled={isPending || leftover.length > 0} onClick={handleSend}>
+                    <Button
+                      size="small"
+                      disabled={isPending || leftover.length > 0 || !outcome}
+                      onClick={handleSend}
+                    >
                       Send now →
                     </Button>
                   </div>

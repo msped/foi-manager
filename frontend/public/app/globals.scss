@@ -12,3 +12,122 @@
 // first and swap the line below for:
 //   @import "govuk-frontend/dist/govuk/index";
 @use "govuk-frontend/dist/govuk" as *;
+
+// ─── Buttons that present as links ──────────────────────────────────────────
+// Lets <button class="govuk-link"> work without per-element style resets. Used
+// by the "Change" actions on the check-answers screen, which have to be submit
+// buttons so the answers travel in the POST body.
+//
+// Ported from the internal app's _foi-extensions.scss — another candidate for
+// the shared package when these two frontends are pulled together.
+//
+// `:where()` holds this at element-only specificity so typography classes on
+// the same button always win. Never set font-family here: govuk-frontend puts
+// no font on html/body, so `inherit` would fall through to the browser default
+// serif.
+button:where(.govuk-link) {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+// ─── Organisation name in the header ────────────────────────────────────────
+// The Design System styles .govuk-header__product-name for a secondary label
+// sitting beside the bold GOV.UK logotype, so it inherits the header's regular
+// weight and is tracked in at -0.015em to sit tight against that mark.
+//
+// This service is not GOV.UK-branded and so has no logotype (see lib/branding).
+// That leaves the organisation name as the only brand element in the header,
+// doing the logotype's job in the product name's clothes — regular 400 at 31px
+// reads thin with nothing anchoring it. Bold, and the negative tracking
+// relaxed to 0 because it was chosen for the lighter weight.
+
+.govuk-header__product-name {
+  @include govuk-typography-weight-bold;
+  letter-spacing: 0;
+}
+
+// Published FOI responses are authored in the internal app's rich text editor
+// and stored as raw HTML, so the elements arrive without GDS classes on them.
+// Restate the Design System's body styles here rather than leaving the markup
+// to browser defaults.
+.foi-rich-content {
+  @include govuk-font($size: 19);
+  color: $govuk-text-colour;
+
+  p,
+  ul,
+  ol,
+  blockquote,
+  table,
+  pre {
+    @include govuk-responsive-margin(4, "bottom");
+  }
+
+  // The wrapper supplies the trailing space; a stacked margin here would
+  // double the gap before the next heading.
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  h2 {
+    @include govuk-font($size: 24, $weight: bold);
+    @include govuk-responsive-margin(6, "top");
+    @include govuk-responsive-margin(3, "bottom");
+  }
+
+  h3,
+  h4 {
+    @include govuk-font($size: 19, $weight: bold);
+    @include govuk-responsive-margin(4, "top");
+    @include govuk-responsive-margin(2, "bottom");
+  }
+
+  ul,
+  ol {
+    padding-left: govuk-spacing(5);
+  }
+
+  ul {
+    list-style-type: disc;
+  }
+
+  ol {
+    list-style-type: decimal;
+  }
+
+  li {
+    margin-bottom: govuk-spacing(1);
+  }
+
+  a {
+    @include govuk-link-common;
+    @include govuk-link-style-default;
+  }
+
+  blockquote {
+    border-left: 5px solid $govuk-border-colour;
+    padding-left: govuk-spacing(4);
+    margin-left: 0;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th,
+  td {
+    border-bottom: 1px solid $govuk-border-colour;
+    padding: govuk-spacing(2) govuk-spacing(4) govuk-spacing(2) 0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    font-weight: bold;
+  }
+}
