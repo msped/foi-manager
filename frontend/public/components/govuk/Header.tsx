@@ -1,23 +1,20 @@
 import Link from "next/link";
-import Logo from "./Logo";
 
 interface HeaderProps {
   /** Link target for the organisation name. */
   homepageUrl?: string;
   organisationName?: string;
-  /**
-   * Renders the GOV.UK Crown and logotype. Only for services on gov.uk —
-   * everyone else uses their own organisation name. Off by default.
-   */
-  showGovukLogo?: boolean;
   containerFullWidth?: boolean;
 }
 
-/** Port of govuk-frontend's header component (v6.1.0). */
+/**
+ * Port of govuk-frontend's header component (v6.1.0), minus the GOV.UK Crown
+ * and logotype. Those are reserved for services on gov.uk, so the organisation
+ * name is the only brand element here — see lib/branding.
+ */
 export default function Header({
   homepageUrl = "/",
   organisationName,
-  showGovukLogo = false,
   containerFullWidth = false,
 }: HeaderProps) {
   return (
@@ -31,9 +28,6 @@ export default function Header({
       >
         <div className="govuk-header__logo">
           <Link href={homepageUrl} className="govuk-header__homepage-link">
-            {showGovukLogo && (
-              <Logo classes="govuk-header__logotype" ariaLabelText="GOV.UK" />
-            )}
             {organisationName && (
               <span className="govuk-header__product-name">{organisationName}</span>
             )}

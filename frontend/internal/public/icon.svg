@@ -1,0 +1,27 @@
+<!--
+  Placeholder service icon.
+
+  Deliberately generic: the GOV.UK crown favicons that govuk-frontend ships are
+  reserved for services on gov.uk, so they are no longer copied into
+  public/assets. Adopting organisations should replace this file with their own
+  mark, keeping the /icon.svg path that app/manifest.ts and the layout
+  reference. Dropping an app/apple-icon.png in alongside it adds an iOS
+  home-screen icon; Next.js picks that up by file convention.
+
+  Pure paths and no text, so it renders identically without depending on any
+  font being available, and scales cleanly to the 192/512 sizes the manifest
+  asks for.
+
+  The blue matches the NEXT_PUBLIC_THEME_COLOUR default in lib/branding. An SVG
+  cannot read env vars, so change it here too if you override that.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Service icon">
+  <rect width="32" height="32" rx="6" fill="#1d70b8"/>
+  <path fill="#ffffff" d="M11 7h7.5L23 11.5V25a1 1 0 0 1-1 1H11a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/>
+  <path fill="#1d70b8" opacity=".35" d="M18.5 7 23 11.5h-4.5V7Z"/>
+  <g fill="#1d70b8">
+    <rect x="12.5" y="14" width="8" height="1.6" rx=".8"/>
+    <rect x="12.5" y="17.5" width="8" height="1.6" rx=".8"/>
+    <rect x="12.5" y="21" width="5" height="1.6" rx=".8"/>
+  </g>
+</svg>

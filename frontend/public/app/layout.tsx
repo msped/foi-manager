@@ -14,21 +14,12 @@ export const metadata: Metadata = {
   },
   description:
     "Make a Freedom of Information request and browse previously released information.",
+  // The govuk-frontend asset set these used to point at is the GOV.UK crown,
+  // which is reserved for services on gov.uk. See public/icon.svg.
+  // app/manifest.ts emits its own <link rel="manifest">, so none is declared.
   icons: {
-    icon: [
-      { url: "/assets/images/favicon.ico", sizes: "48x48" },
-      { url: "/assets/images/favicon.svg", sizes: "any", type: "image/svg+xml" },
-    ],
-    apple: "/assets/images/govuk-icon-180.png",
-    other: [
-      {
-        rel: "mask-icon",
-        url: "/assets/images/govuk-icon-mask.svg",
-        color: branding.themeColour,
-      },
-    ],
+    icon: [{ url: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
   },
-  manifest: "/assets/manifest.json",
 };
 
 export const viewport: Viewport = {

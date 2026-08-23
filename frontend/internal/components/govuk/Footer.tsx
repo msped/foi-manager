@@ -7,20 +7,25 @@ interface FooterProps {
   meta?: FooterLink[];
   /**
    * Open Government Licence statement. Only appropriate for content that is
-   * actually OGL-licensed, so it is opt-in.
+   * actually OGL-licensed, so it is opt-in. The OGL mark below is the licence
+   * logo, not a Crown mark, so it carries no gov.uk-only restriction.
    */
   showContentLicence?: boolean;
-  showCrownCopyright?: boolean;
 }
 
 /**
- * Port of govuk-frontend's footer component (v6.1.0), minus the Crown logo —
- * this is not a GOV.UK-branded service.
+ * Port of govuk-frontend's footer component (v6.1.0), minus the Crown
+ * copyright block — this is not a GOV.UK-branded service, and that block
+ * renders the Royal Arms crest, which is reserved for Crown bodies.
+ *
+ * The Design System still ships the `.govuk-footer__copyright-logo` rule that
+ * paints the crest, but nothing here emits that class, so the rule never
+ * matches and `govuk-crest.svg` is never requested. That is why the asset is
+ * no longer copied into public/assets — see the copy-govuk-assets script.
  */
 export default function Footer({
   meta = [],
   showContentLicence = false,
-  showCrownCopyright = false,
 }: FooterProps) {
   return (
     <footer className="govuk-footer">
@@ -72,17 +77,6 @@ export default function Footer({
               </>
             )}
           </div>
-
-          {showCrownCopyright && (
-            <div className="govuk-footer__meta-item">
-              <a
-                className="govuk-footer__link govuk-footer__copyright-logo"
-                href="https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/"
-              >
-                © Crown copyright
-              </a>
-            </div>
-          )}
         </div>
       </div>
     </footer>
