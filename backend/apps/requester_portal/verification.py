@@ -16,6 +16,7 @@ from django.core import signing
 from django.utils import timezone
 
 from apps.cases.models import Case
+from apps.common.throttling import exceeds_window_limits
 
 from .models import RequesterVerification, RequesterVerificationCode
 
@@ -70,21 +71,19 @@ def _prune(email: str) -> None:
 def is_throttled(email: str) -> bool:
     """Whether this address has asked for too many codes.
 
-    Counted in Postgres, not with DRF's AnonRateThrottle, which counts in
-    django.core.cache — see RequesterVerificationCode for why a cache cannot be
-    trusted with a security counter here.
+    The windows and the reasoning behind counting them in Postgres rather than a
+    cache, and behind having no IP axis, live in `apps.common.throttling`. See
+    RequesterVerificationCode for why a cache in particular cannot be trusted
+    with the attempt counter this sits alongside.
 
-    There is no IP axis in v1. SECURE_PROXY_SSL_HEADER is unset, so behind the
-    production proxy REMOTE_ADDR is the proxy's address for every request and an
-    IP limit would throttle all requesters as if they were one person.
+    Callers must answer identically whether this returned True or False — see
+    `issue_code`.
     """
-    now = timezone.now()
-    recent = RequesterVerificationCode.objects.filter(email=email)
-    hourly = recent.filter(created_at__gte=now - timedelta(hours=1)).count()
-    daily = recent.filter(created_at__gte=now - timedelta(hours=24)).count()
-    return (
-        hourly >= RequesterVerificationCode.THROTTLE_PER_HOUR
-        or daily >= RequesterVerificationCode.THROTTLE_PER_DAY
+    return exceeds_window_limits(
+        RequesterVerificationCode.objects.filter(email=email),
+        "created_at",
+        per_hour=RequesterVerificationCode.THROTTLE_PER_HOUR,
+        per_day=RequesterVerificationCode.THROTTLE_PER_DAY,
     )
 
 
