@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { branding } from "@/lib/branding";
+import ContactEmail from "@/components/ContactEmail";
+import PostalAddress from "@/components/PostalAddress";
+import { branding, contact } from "@/lib/branding";
 
 export default function HomePage() {
   return (
@@ -83,10 +85,38 @@ export default function HomePage() {
 
         <div className="govuk-inset-text">
           You do not have to give a reason for your request. You must give us
-          your real name and an email address we can send the response to. An
-          email address is all we need — you do not have to give us a postal
-          address.
+          your real name and an address we can send the response to. An email
+          address is enough — we do not need your postal address unless you
+          would rather we replied by post.
         </div>
+
+        {(contact.foiEmail || contact.postalAddress) && (
+          <>
+            {/* Stated before the Start button commits anyone to the form, which
+                is where GOV.UK start pages put alternative routes. The form is
+                a convenience; section 8 makes any written request valid. */}
+            <h2 className="govuk-heading-m">Other ways to make a request</h2>
+
+            <p className="govuk-body">
+              You do not have to use this website. A request only has to be in
+              writing, so an email or a letter is just as valid and we will
+              treat it the same way.
+            </p>
+
+            {contact.foiEmail && (
+              <p className="govuk-body">
+                Email <ContactEmail email={contact.foiEmail} />.
+              </p>
+            )}
+
+            {contact.postalAddress && (
+              <>
+                <p className="govuk-body">Or write to us at:</p>
+                <PostalAddress lines={contact.postalAddress} />
+              </>
+            )}
+          </>
+        )}
       </div>
 
       <div className="govuk-grid-column-one-third">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Breadcrumbs from "@/components/govuk/Breadcrumbs";
 import ContactEmail from "@/components/ContactEmail";
+import PostalAddress from "@/components/PostalAddress";
 import { branding, contact } from "@/lib/branding";
 import { fmtDate } from "@/lib/utils";
 
@@ -187,14 +188,7 @@ export default function AccessibilityPage() {
           {contact.postalAddress && (
             <>
               <p className="govuk-body">You can also write to us:</p>
-              <p className="govuk-body">
-                {contact.postalAddress.map((line) => (
-                  <span key={line}>
-                    {line}
-                    <br />
-                  </span>
-                ))}
-              </p>
+              <PostalAddress lines={contact.postalAddress} />
             </>
           )}
 

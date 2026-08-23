@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import ContactEmail from "@/components/ContactEmail";
+import PostalAddress from "@/components/PostalAddress";
 import { contact } from "@/lib/branding";
 
 /**
@@ -65,14 +66,7 @@ export default function Error({
         {contact.postalAddress && (
           <>
             <p className="govuk-body">You can also write to us:</p>
-            <p className="govuk-body">
-              {contact.postalAddress.map((line) => (
-                <span key={line}>
-                  {line}
-                  <br />
-                </span>
-              ))}
-            </p>
+            <PostalAddress lines={contact.postalAddress} />
           </>
         )}
 
