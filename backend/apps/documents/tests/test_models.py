@@ -5,21 +5,13 @@ from apps.documents.models import CaseDocument
 
 
 @pytest.fixture
-def department(db):
-    from apps.cases.models import Department
-
-    return Department.objects.create(name="IT")
-
-
-@pytest.fixture
-def case(db, foi_team_user, department):
+def case(db, foi_team_user):
     from apps.cases.models import Case
 
     return Case.objects.create(
         requester_name="Jane Smith",
         requester_email="jane@example.com",
         request_text="All IT contracts over £10k.",
-        department=department,
         created_by=foi_team_user,
     )
 

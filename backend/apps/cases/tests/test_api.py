@@ -2,7 +2,7 @@ import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case, Department
+from apps.cases.models import Case, EmailTemplate
 
 
 @pytest.fixture
@@ -25,17 +25,38 @@ def assignee_client(assignee_user):
 
 
 @pytest.fixture
-def department(db):
-    return Department.objects.create(name="IT", internal_deadline_days=10)
+def acknowledgement_template(db):
+    """Required before a case can be acknowledged.
+
+    `acknowledge` refuses without one, and CELERY_TASK_ALWAYS_EAGER means the
+    send genuinely runs during the request, so this has to be a template that
+    actually renders rather than an empty row.
+    """
+    return EmailTemplate.objects.create(
+        purpose=EmailTemplate.Purpose.ACKNOWLEDGEMENT,
+        name="Acknowledgement",
+        subject="We have received your request {{ref}}",
+        body=(
+            "Dear {{requester_name}},\n\n"
+            "We received your request on {{submitted_at}} and will reply by "
+            "{{statutory_deadline}}.\n\n{{organisation_name}}"
+        ),
+    )
 
 
 @pytest.fixture
-def case(db, foi_team_user, department):
+def case(db, foi_team_user):
+    """A case is not routed to a department by a field on itself.
+
+    Departments attach through CaseConsultation, which is what lets one request
+    be split across several of them with its own scope and deadline each. These
+    fixtures used to pass `department=` here, which stopped being a Case field
+    when consultations took that over.
+    """
     return Case.objects.create(
         requester_name="Jane Smith",
         requester_email="jane@example.com",
         request_text="All IT contracts over £10k.",
-        department=department,
         created_by=foi_team_user,
     )
 
@@ -91,7 +112,6 @@ class TestPublicCaseSubmit:
         )
         assert resp.status_code == 400
 
-
 # ── Staff case list ──────────────────────────────────────────────────────────
 
 
@@ -108,13 +128,12 @@ class TestStaffCaseList:
         assert resp.status_code == 401
 
     def test_assignee_sees_only_assigned(
-        self, assignee_client, assignee_user, case, db, foi_team_user, department
+        self, assignee_client, assignee_user, case, db, foi_team_user
     ):
         assigned_case = Case.objects.create(
             requester_name="Alice",
             requester_email="alice@example.com",
             request_text="Another request.",
-            department=department,
             assignee=assignee_user,
             created_by=foi_team_user,
         )
@@ -124,12 +143,11 @@ class TestStaffCaseList:
         assert resp.data["count"] == 1
         assert resp.data["results"][0]["ref"] == assigned_case.ref
 
-    def test_filter_by_status(self, auth_client, case, foi_team_user, department):
+    def test_filter_by_status(self, auth_client, case, foi_team_user):
         Case.objects.create(
             requester_name="Bob",
             requester_email="bob@example.com",
             request_text="Another.",
-            department=department,
             created_by=foi_team_user,
             status=Case.Status.ACKNOWLEDGED,
         )
@@ -153,19 +171,28 @@ class TestStaffCaseDetail:
         url = reverse("cases:case-detail", kwargs={"pk": case.pk})
         resp = assignee_client.get(url)
         assert resp.status_code == 404
-
-
 # ── Case actions ─────────────────────────────────────────────────────────────
 
 
 class TestCaseAcknowledge:
-    def test_acknowledge_action(self, auth_client, case):
+    def test_acknowledge_action(self, auth_client, case, acknowledgement_template):
         url = reverse("cases:case-acknowledge", kwargs={"pk": case.pk})
         resp = auth_client.post(url)
         assert resp.status_code == 200
         case.refresh_from_db()
         assert case.status == Case.Status.ACKNOWLEDGED
         assert case.statutory_deadline is not None
+
+    def test_acknowledge_refuses_without_a_template(self, auth_client, case):
+        """The guard the test above needs the fixture to get past. Sending is
+        the whole point of acknowledging, so the endpoint refuses rather than
+        marking a case acknowledged and silently emailing nobody."""
+        url = reverse("cases:case-acknowledge", kwargs={"pk": case.pk})
+        resp = auth_client.post(url)
+
+        assert resp.status_code == 400
+        case.refresh_from_db()
+        assert case.status == Case.Status.NEW
 
     def test_assignee_cannot_acknowledge(self, assignee_client, case):
         url = reverse("cases:case-acknowledge", kwargs={"pk": case.pk})

@@ -2,7 +2,7 @@ import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case, CaseExemption, Department
+from apps.cases.models import Case, CaseExemption
 
 
 @pytest.fixture
@@ -13,17 +13,11 @@ def auth_client(foi_team_user):
 
 
 @pytest.fixture
-def department(db):
-    return Department.objects.create(name="IT")
-
-
-@pytest.fixture
-def case(db, foi_team_user, department):
+def case(db, foi_team_user):
     return Case.objects.create(
         requester_name="Jane Smith",
         requester_email="jane@example.com",
         request_text="All IT contracts.",
-        department=department,
         created_by=foi_team_user,
     )
 

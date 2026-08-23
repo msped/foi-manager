@@ -1,6 +1,7 @@
 import pytest
 
 from apps.cases.models import Case, CaseNote, Department
+from apps.cases.utils import working_days_between
 
 
 @pytest.fixture
@@ -9,12 +10,14 @@ def department(db):
 
 
 @pytest.fixture
-def case(db, foi_team_user, department):
+def case(db, foi_team_user):
+    # Departments attach to a case through CaseConsultation, not through a
+    # field on Case. The `department` fixture above is still exercised by
+    # TestDepartment, which tests the model in its own right.
     return Case.objects.create(
         requester_name="Jane Smith",
         requester_email="jane@example.com",
         request_text="Please provide all IT contracts over £10,000.",
-        department=department,
         created_by=foi_team_user,
     )
 
@@ -50,10 +53,28 @@ class TestCaseCreation:
     def test_str(self, case):
         assert case.ref in str(case)
 
-    def test_no_deadline_until_acknowledged(self, case):
-        assert case.statutory_deadline is None
+    def test_deadline_runs_from_receipt(self, case):
+        """The clock starts when the request arrives, not when we get round to
+        acknowledging it.
 
-    def test_is_overdue_false_when_no_deadline(self, case):
+        This previously asserted the opposite — that a new case has no deadline
+        until acknowledged. That would mean an authority could hold a request
+        unacknowledged and owe nothing, which is the reverse of how section 10
+        works: the twenty working days run from receipt. `Case.save()` sets the
+        deadline from `submitted_at` accordingly, and `acknowledge()` then
+        resets it from the acknowledgement date (see TestCaseAcknowledgement).
+        """
+        assert case.statutory_deadline is not None
+        assert (
+            working_days_between(case.submitted_at.date(), case.statutory_deadline)
+            == 20
+        )
+
+    def test_is_overdue_false_before_the_deadline(self, case):
+        assert case.is_overdue is False
+
+    def test_is_overdue_false_when_deadline_is_unset(self, case):
+        case.statutory_deadline = None
         assert case.is_overdue is False
 
 
