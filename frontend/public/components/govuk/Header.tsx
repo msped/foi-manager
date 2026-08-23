@@ -11,8 +11,6 @@ interface HeaderProps {
    */
   showGovukLogo?: boolean;
   containerFullWidth?: boolean;
-  /** Right-aligned slot for account controls. */
-  actions?: React.ReactNode;
 }
 
 /** Port of govuk-frontend's header component (v6.1.0). */
@@ -21,7 +19,6 @@ export default function Header({
   organisationName,
   showGovukLogo = false,
   containerFullWidth = false,
-  actions,
 }: HeaderProps) {
   return (
     <div className="govuk-header">
@@ -42,8 +39,6 @@ export default function Header({
             )}
           </Link>
         </div>
-
-        {actions && <div className="foi-header__actions">{actions}</div>}
       </div>
     </div>
   );
