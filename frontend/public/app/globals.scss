@@ -34,6 +34,22 @@ button:where(.govuk-link) {
   line-height: inherit;
 }
 
+// ─── Organisation name in the header ────────────────────────────────────────
+// The Design System styles .govuk-header__product-name for a secondary label
+// sitting beside the bold GOV.UK logotype, so it inherits the header's regular
+// weight and is tracked in at -0.015em to sit tight against that mark.
+//
+// This service is not GOV.UK-branded and so has no logotype (see lib/branding).
+// That leaves the organisation name as the only brand element in the header,
+// doing the logotype's job in the product name's clothes — regular 400 at 31px
+// reads thin with nothing anchoring it. Bold, and the negative tracking
+// relaxed to 0 because it was chosen for the lighter weight.
+
+.govuk-header__product-name {
+  @include govuk-typography-weight-bold;
+  letter-spacing: 0;
+}
+
 // Published FOI responses are authored in the internal app's rich text editor
 // and stored as raw HTML, so the elements arrive without GDS classes on them.
 // Restate the Design System's body styles here rather than leaving the markup
