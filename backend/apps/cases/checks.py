@@ -8,7 +8,6 @@ exception swallowing it replaced (see `utils._get_bank_holiday_dates`).
 
 from datetime import timedelta
 
-from django.conf import settings
 from django.core.checks import Warning, register
 from django.utils import timezone
 
@@ -48,20 +47,18 @@ def bank_holidays_are_configured(app_configs, **kwargs):
     if BankHoliday._meta.db_table not in connection.introspection.table_names():
         return []
 
-    jurisdiction = getattr(settings, "FOI_JURISDICTION", "england")
-    holidays = BankHoliday.objects.filter(country=jurisdiction)
+    holidays = BankHoliday.objects.all()
 
     if not holidays.exists():
         return [
             Warning(
-                f"No bank holidays are recorded for FOI_JURISDICTION="
-                f'"{jurisdiction}".',
+                "No bank holidays are recorded.",
                 hint=(
                     "Statutory deadlines are calculated by skipping weekends "
                     "and bank holidays. With none recorded, every deadline "
                     "will be set earlier than the Freedom of Information Act "
                     "requires, and cases will be reported overdue before they "
-                    "are. Load this jurisdiction's holidays before taking "
+                    "are. Run `manage.py load_bank_holidays` before taking "
                     "requests."
                 ),
                 id="cases.W001",
@@ -77,8 +74,7 @@ def bank_holidays_are_configured(app_configs, **kwargs):
         years = ", ".join(str(year) for year in missing)
         return [
             Warning(
-                f"No bank holidays are recorded for {years} "
-                f'(FOI_JURISDICTION="{jurisdiction}").',
+                f"No bank holidays are recorded for {years}.",
                 hint=(
                     "Deadlines falling in those years are being calculated as "
                     "though they contain no bank holidays, which sets them "

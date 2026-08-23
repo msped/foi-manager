@@ -426,16 +426,3 @@ class TestCaseTransition:
         url = reverse("cases:case-transition", kwargs={"pk": case.pk})
         resp = auth_client.post(url, {"status": "not_a_real_status"})
         assert resp.status_code == 400
-
-
-class TestBankHolidayJurisdiction:
-    def test_reports_the_configured_country(self, auth_client, settings):
-        settings.FOI_JURISDICTION = "scotland"
-        resp = auth_client.get(reverse("cases:bank-holiday-jurisdiction"))
-
-        assert resp.status_code == 200
-        assert resp.data == {"country": "scotland", "label": "Scotland"}
-
-    def test_assignee_cannot_read_it(self, assignee_client):
-        resp = assignee_client.get(reverse("cases:bank-holiday-jurisdiction"))
-        assert resp.status_code == 403

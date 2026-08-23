@@ -114,35 +114,53 @@ class TestLookupFailure:
         def boom(*args, **kwargs):
             raise DatabaseError("connection lost")
 
-        monkeypatch.setattr(BankHoliday.objects, "filter", boom)
+        monkeypatch.setattr(BankHoliday.objects, "values_list", boom)
 
         with pytest.raises(DatabaseError):
             add_working_days(date(2026, 12, 24), 1)
 
 
-class TestJurisdictionScoping:
-    def test_another_country_s_holiday_is_ignored(self, settings):
-        """Holidays are filtered by FOI_JURISDICTION.
+class TestAllNationsCount:
+    """Section 10(6) counts a bank holiday "in any part of the United Kingdom",
+    so a holiday observed in only one nation stops the clock everywhere.
 
-        St Andrew's Day is a Scottish bank holiday and an ordinary working day
-        in England, so an England-configured service must count it.
-        """
+    These previously asserted the opposite — that a Scottish holiday was
+    ignored unless FOI_JURISDICTION was set to scotland — which set deadlines
+    earlier than the Act allows for every authority outside Scotland."""
+
+    def test_a_scotland_only_holiday_stops_the_clock(self):
         BankHoliday.objects.create(
             country=BankHoliday.Country.SCOTLAND,
             name="St Andrew's Day",
             date=date(2026, 11, 30),
         )
-        settings.FOI_JURISDICTION = "england"
 
-        # Friday 27 Nov 2026 + 1 working day is the Monday, holiday or not.
-        assert add_working_days(date(2026, 11, 27), 1) == date(2026, 11, 30)
-
-    def test_the_configured_country_s_holiday_is_skipped(self, settings):
-        BankHoliday.objects.create(
-            country=BankHoliday.Country.SCOTLAND,
-            name="St Andrew's Day",
-            date=date(2026, 11, 30),
-        )
-        settings.FOI_JURISDICTION = "scotland"
-
+        # Friday 27 Nov 2026 + 1 working day would be Monday 30 Nov, but that
+        # Monday is a bank holiday in Scotland, so it is Tuesday everywhere.
         assert add_working_days(date(2026, 11, 27), 1) == date(2026, 12, 1)
+
+    def test_a_northern_ireland_only_holiday_stops_the_clock(self):
+        BankHoliday.objects.create(
+            country=BankHoliday.Country.NORTHERN_IRELAND,
+            name="Battle of the Boyne",
+            date=date(2026, 7, 13),
+        )
+
+        # Friday 10 July 2026 + 1 working day skips Monday the 13th.
+        assert add_working_days(date(2026, 7, 10), 1) == date(2026, 7, 14)
+
+    def test_the_same_date_in_two_nations_is_counted_once(self):
+        """The union is a set of dates, so Christmas Day appearing under every
+        nation must not consume the clock several times over."""
+        for country in (
+            BankHoliday.Country.ENGLAND,
+            BankHoliday.Country.WALES,
+            BankHoliday.Country.SCOTLAND,
+        ):
+            BankHoliday.objects.create(
+                country=country, name="Christmas Day", date=date(2026, 12, 25)
+            )
+
+        # Thursday 24 Dec 2026 + 1 working day skips Friday the 25th and the
+        # weekend, landing on Monday the 28th.
+        assert add_working_days(date(2026, 12, 24), 1) == date(2026, 12, 28)

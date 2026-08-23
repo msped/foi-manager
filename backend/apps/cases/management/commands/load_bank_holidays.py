@@ -1,7 +1,7 @@
 """Load UK bank holidays from GOV.UK into the BankHoliday table.
 
 Every statutory deadline in this service is calculated by skipping weekends and
-the rows this command writes. An empty or stale table does not fail — it
+the rows this command writes — all of them, from every UK nation. An empty or stale table does not fail — it
 produces deadlines that are quietly too early — so `cases.W001`/`cases.W002`
 warn about it and this is how you fix it.
 
@@ -22,11 +22,11 @@ GOVUK_URL = "https://www.gov.uk/bank-holidays.json"
 
 #: GOV.UK publishes three divisions; this service stores four countries.
 #:
-#: England and Wales share a division and are listed separately here, so a
-#: Welsh authority setting FOI_JURISDICTION="wales" finds its own rows rather
-#: than an empty table. They are not merged into one country because the
-#: setting already distinguishes them and a future divergence would otherwise
-#: be silent.
+#: Every nation's holidays count towards every deadline — section 10(6) counts
+#: a bank holiday "in any part of the United Kingdom" — so all three divisions
+#: must be loaded, not just the one the authority sits in. England and Wales
+#: share a division and are stored separately anyway, so the table stays
+#: readable and a future divergence between them would not be silent.
 DIVISION_COUNTRIES = {
     "england-and-wales": [BankHoliday.Country.ENGLAND, BankHoliday.Country.WALES],
     "scotland": [BankHoliday.Country.SCOTLAND],

@@ -18,23 +18,19 @@ def holiday(year, country=BankHoliday.Country.ENGLAND):
     )
 
 
-@pytest.fixture
-def england(settings):
-    settings.FOI_JURISDICTION = "england"
-
-
 class TestBankHolidaysAreConfigured:
-    def test_warns_when_the_table_is_empty(self, england):
+    def test_warns_when_the_table_is_empty(self):
         assert ids(bank_holidays_are_configured(None)) == ["cases.W001"]
 
-    def test_warns_when_only_another_jurisdiction_is_loaded(self, england):
-        """A Scotland-only table is empty as far as an England service is
-        concerned, and reads as configured to anyone glancing at the admin."""
+    def test_any_nation_counts_as_configured(self):
+        """Deadlines use every nation's holidays, so a Scottish row is real
+        data rather than another nation's business."""
         holiday(date.today().year, country=BankHoliday.Country.SCOTLAND)
+        holiday(date.today().year + 1, country=BankHoliday.Country.SCOTLAND)
 
-        assert ids(bank_holidays_are_configured(None)) == ["cases.W001"]
+        assert bank_holidays_are_configured(None) == []
 
-    def test_warns_when_the_current_year_is_missing(self, england):
+    def test_warns_when_the_current_year_is_missing(self):
         """The table was loaded once and never topped up — the failure mode
         that actually happens, and the one an 'is it empty?' check misses."""
         holiday(date.today().year - 2)
@@ -43,13 +39,13 @@ class TestBankHolidaysAreConfigured:
         assert ids(warnings) == ["cases.W002"]
         assert str(date.today().year) in warnings[0].msg
 
-    def test_silent_when_the_years_in_play_are_loaded(self, england):
+    def test_silent_when_the_years_in_play_are_loaded(self):
         holiday(date.today().year)
         holiday(date.today().year + 1)
 
         assert bank_holidays_are_configured(None) == []
 
-    def test_looks_into_next_year_from_late_in_this_one(self, england, monkeypatch):
+    def test_looks_into_next_year_from_late_in_this_one(self, monkeypatch):
         """A request made in December is due in January, so December is when a
         missing New Year's Day starts producing wrong deadlines — and the last
         moment anyone would think to check next year's table."""
@@ -62,7 +58,7 @@ class TestBankHolidaysAreConfigured:
         assert ids(warnings) == ["cases.W002"]
         assert "2027" in warnings[0].msg
 
-    def test_ignores_next_year_early_in_this_one(self, england, monkeypatch):
+    def test_ignores_next_year_early_in_this_one(self, monkeypatch):
         """Next year's dates are not always published yet, so warning about
         them in January would train people to ignore the warning."""
         monkeypatch.setattr(
@@ -72,9 +68,14 @@ class TestBankHolidaysAreConfigured:
 
         assert bank_holidays_are_configured(None) == []
 
-    def test_follows_the_configured_jurisdiction(self, settings):
-        settings.FOI_JURISDICTION = "scotland"
-        holiday(date.today().year, country=BankHoliday.Country.SCOTLAND)
-        holiday(date.today().year + 1, country=BankHoliday.Country.SCOTLAND)
+    def test_one_nation_is_enough_to_cover_a_year(self, monkeypatch):
+        """A year counts as loaded if any nation has rows for it. Checking each
+        nation separately would warn every December, because the nations do not
+        all publish the following year at the same time."""
+        monkeypatch.setattr(
+            "apps.cases.checks.timezone.localdate", lambda: date(2026, 12, 15)
+        )
+        holiday(2026, country=BankHoliday.Country.ENGLAND)
+        holiday(2027, country=BankHoliday.Country.SCOTLAND)
 
         assert bank_holidays_are_configured(None) == []
