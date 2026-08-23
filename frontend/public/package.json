@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "copy-govuk-assets": "rm -rf public/assets && cp -R node_modules/govuk-frontend/dist/govuk/assets public/assets",
+    "copy-govuk-assets": "rm -rf public/assets && mkdir -p public/assets && cp -R node_modules/govuk-frontend/dist/govuk/assets/fonts public/assets/fonts",
     "postinstall": "npm run copy-govuk-assets"
   },
   "dependencies": {
