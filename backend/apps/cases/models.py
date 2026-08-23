@@ -139,6 +139,13 @@ class Case(models.Model):
 
     class Meta:
         ordering = ["-submitted_at"]
+        indexes = [
+            # Serves the public submission throttle, which counts a single
+            # address's portal cases inside a time window on every submission.
+            # Without it that count is a table scan run once per attempt, so the
+            # defence would get more expensive exactly as an attack got faster.
+            models.Index(fields=["received_by", "submitted_at"]),
+        ]
 
     def __str__(self):
         return f"{self.ref}: {self.request_text[:60]}"

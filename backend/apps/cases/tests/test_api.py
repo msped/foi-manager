@@ -1,7 +1,12 @@
+from datetime import timedelta
+
 import pytest
+from django.conf import settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.cases import submissions
 from apps.cases.models import Case, EmailTemplate
 
 
@@ -111,6 +116,128 @@ class TestPublicCaseSubmit:
             },
         )
         assert resp.status_code == 400
+
+class TestPublicSubmitAbuseControls:
+    """The only unauthenticated write in the project, so the only one where
+    volume is not bounded by how many staff accounts exist."""
+
+    def payload(self, **overrides):
+        return {
+            "requester_name": "John Public",
+            "requester_email": "john@example.com",
+            "request_text": "Please provide all parking enforcement data.",
+        } | overrides
+
+    def test_filled_honeypot_is_rejected(self, api_client, db):
+        url = reverse("cases:public-submit")
+        resp = api_client.post(url, self.payload(website="http://spam.example"))
+
+        assert resp.status_code == 400
+        # Rejected loudly and nothing written: a silent accept-and-drop would
+        # destroy a statutory request on a false positive while telling the
+        # requester it had worked.
+        assert Case.objects.count() == 0
+
+    def test_empty_honeypot_is_accepted(self, api_client, db):
+        url = reverse("cases:public-submit")
+        resp = api_client.post(url, self.payload(website=""))
+
+        assert resp.status_code == 201
+
+    def test_honeypot_never_reaches_the_model(self, api_client, db):
+        url = reverse("cases:public-submit")
+        api_client.post(url, self.payload())
+
+        assert not hasattr(Case.objects.get(), "website")
+
+    def test_overlong_request_is_rejected(self, api_client, db):
+        url = reverse("cases:public-submit")
+        resp = api_client.post(
+            url,
+            self.payload(request_text="x" * (submissions.MAX_REQUEST_CHARS + 1)),
+        )
+
+        assert resp.status_code == 400
+        assert Case.objects.count() == 0
+
+    def test_request_at_the_limit_is_accepted(self, api_client, db):
+        url = reverse("cases:public-submit")
+        resp = api_client.post(
+            url, self.payload(request_text="x" * submissions.MAX_REQUEST_CHARS)
+        )
+
+        assert resp.status_code == 201
+
+    def test_hourly_limit_returns_429(self, api_client, db):
+        url = reverse("cases:public-submit")
+        for _ in range(submissions.THROTTLE_PER_HOUR):
+            assert api_client.post(url, self.payload()).status_code == 201
+
+        resp = api_client.post(url, self.payload())
+
+        assert resp.status_code == 429
+        assert Case.objects.count() == submissions.THROTTLE_PER_HOUR
+
+    def test_throttle_says_how_to_send_the_request_anyway(self, api_client, db):
+        """Unlike the tracking endpoint, this one must not stay silent. A
+        request that vanishes leaves someone believing a clock has started when
+        none has, so the refusal has to name the route that still works."""
+        url = reverse("cases:public-submit")
+        for _ in range(submissions.THROTTLE_PER_HOUR):
+            api_client.post(url, self.payload())
+
+        resp = api_client.post(url, self.payload())
+
+        assert settings.FOI_CONTACT_EMAIL in resp.data["detail"]
+
+    def test_case_variants_share_one_bucket(self, api_client, db):
+        """Case.requester_email keeps the requester's own capitalisation, so
+        without normalisation each spelling would get a limit of its own."""
+        url = reverse("cases:public-submit")
+        for _ in range(submissions.THROTTLE_PER_HOUR):
+            api_client.post(url, self.payload(requester_email="john@example.com"))
+
+        resp = api_client.post(url, self.payload(requester_email="John@Example.COM"))
+
+        assert resp.status_code == 429
+
+    def test_another_address_is_unaffected(self, api_client, db):
+        url = reverse("cases:public-submit")
+        for _ in range(submissions.THROTTLE_PER_HOUR):
+            api_client.post(url, self.payload())
+
+        resp = api_client.post(url, self.payload(requester_email="someone@else.com"))
+
+        assert resp.status_code == 201
+
+    def test_staff_logged_cases_do_not_count_towards_the_limit(
+        self, api_client, db, foi_team_user
+    ):
+        """The ledger is portal submissions only. A requester who also phones in
+        or writes must not find the web form closed because staff logged those."""
+        for _ in range(submissions.THROTTLE_PER_HOUR + 1):
+            Case.objects.create(
+                requester_name="John Public",
+                requester_email="john@example.com",
+                request_text="Logged by staff from a letter.",
+                received_by=Case.ReceivedBy.POST,
+                created_by=foi_team_user,
+            )
+
+        resp = api_client.post(reverse("cases:public-submit"), self.payload())
+
+        assert resp.status_code == 201
+
+    def test_old_submissions_fall_out_of_the_window(self, api_client, db):
+        url = reverse("cases:public-submit")
+        for _ in range(submissions.THROTTLE_PER_HOUR):
+            api_client.post(url, self.payload())
+        Case.objects.all().update(submitted_at=timezone.now() - timedelta(hours=25))
+
+        resp = api_client.post(url, self.payload())
+
+        assert resp.status_code == 201
+
 
 # ── Staff case list ──────────────────────────────────────────────────────────
 

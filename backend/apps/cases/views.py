@@ -1,3 +1,4 @@
+from django.conf import settings as django_settings
 from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
 from rest_framework import status, viewsets
@@ -6,6 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import submissions
 from .models import (
     BankHoliday,
     Case,
@@ -44,6 +46,32 @@ class PublicCaseSubmitView(APIView):
     def post(self, request):
         serializer = PublicCaseSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        # After validation, so the address being counted is a real one, and the
+        # requester still gets told about a typo before being told about a
+        # limit.
+        email = serializer.validated_data["requester_email"]
+        if submissions.is_throttled(email):
+            # Says plainly that it refused, and where to go instead. The
+            # tracking endpoint answers uniformly to avoid becoming a
+            # membership oracle; the opposite applies here. There is nothing to
+            # leak — the requester already knows what they sent — and a request
+            # that disappears without saying so is the one outcome a statutory
+            # service must not produce.
+            return Response(
+                {
+                    "detail": (
+                        "You have sent us several requests recently, so this "
+                        "form has paused new ones from your email address for "
+                        "a short while. You can still make a request by "
+                        f"emailing {django_settings.FOI_CONTACT_EMAIL} — a "
+                        "request sent by email is just as valid, and we will "
+                        "treat it the same way."
+                    )
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
         case = serializer.save(received_by=Case.ReceivedBy.PORTAL)
         return Response(
             {"ref": case.ref, "status": case.status}, status=status.HTTP_201_CREATED

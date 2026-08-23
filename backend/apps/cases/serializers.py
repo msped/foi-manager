@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from . import submissions
 from .models import (
     BankHoliday,
     Case,
@@ -393,9 +394,53 @@ class CaseDetailSerializer(serializers.ModelSerializer):
 
 
 class PublicCaseSubmitSerializer(serializers.ModelSerializer):
+    """The only serializer in this project that accepts data from nobody.
+
+    Everything a logged-in user posts is bounded by the fact that someone had to
+    create their account. Nothing bounds this, so the fields carry their own
+    limits rather than inheriting the model's.
+    """
+
+    #: Honeypot. Hidden from browsers and from assistive technology, so anything
+    #: that fills it in is automated.
+    #:
+    #: Rejected loudly rather than silently accepted-and-dropped, which is the
+    #: more common pattern. A silent drop is the better trap, but it means a
+    #: false positive destroys a statutory request while telling the requester
+    #: it succeeded — and browser autofill is a real source of false positives
+    #: on a field like this. An error the requester can see and retry is the
+    #: failure this service can afford; a request that vanishes is not.
+    website = serializers.CharField(
+        required=False, allow_blank=True, write_only=True
+    )
+
+    request_text = serializers.CharField(
+        max_length=submissions.MAX_REQUEST_CHARS,
+        error_messages={
+            "max_length": (
+                "Your request is too long to send through this form. "
+                "Please email it to us instead."
+            )
+        },
+    )
+
     class Meta:
         model = Case
-        fields = ["requester_name", "requester_email", "request_text"]
+        fields = ["requester_name", "requester_email", "request_text", "website"]
+
+    def validate_website(self, value):
+        if value:
+            raise serializers.ValidationError(
+                "This field must be left empty. If you cannot see it on the "
+                "form, your browser may have filled it in automatically — "
+                "clear it and try again."
+            )
+        return value
+
+    def create(self, validated_data):
+        # Never reaches the model: it exists only to be empty.
+        validated_data.pop("website", None)
+        return super().create(validated_data)
 
 
 
