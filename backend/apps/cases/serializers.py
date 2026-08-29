@@ -257,6 +257,11 @@ class CaseListSerializer(serializers.ModelSerializer):
             "submitted_at",
             "statutory_deadline",
             "is_overdue",
+            # So a list can tell "paused" apart from "on time". Without it a
+            # paused case whose original deadline has passed is indistinguishable
+            # from one comfortably inside it, and the deadline column would read
+            # as a date the authority is still working to.
+            "clock_paused",
             "assignee",
             "assignee_name",
         ]

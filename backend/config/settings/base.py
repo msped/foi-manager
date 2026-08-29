@@ -167,6 +167,10 @@ OLLAMA_CHAT_MODEL = config("OLLAMA_CHAT_MODEL", default="llama3.2")
 # FOI settings
 FOI_STATUTORY_DAYS = 20
 FOI_DEFAULT_INTERNAL_DAYS = 10
+# How far ahead the dashboard's "due soon" tile looks. Working days, not
+# calendar days, so the window tightens over a bank holiday weekend instead of
+# quietly loosening exactly when there is least capacity to answer.
+FOI_DUE_SOON_WORKING_DAYS = 5
 FOI_GDPR_RETENTION_YEARS = config("FOI_GDPR_RETENTION_YEARS", default=3, cast=int)
 FOI_REFERENCE_PREFIX = config("FOI_REFERENCE_PREFIX", default="FOI")
 ORGANISATION_NAME = config("ORGANISATION_NAME", default="Organisation")

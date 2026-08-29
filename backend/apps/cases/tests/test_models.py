@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import pytest
 
 from apps.cases.models import Case, CaseNote, Department
@@ -76,6 +78,30 @@ class TestCaseCreation:
     def test_is_overdue_false_when_deadline_is_unset(self, case):
         case.statutory_deadline = None
         assert case.is_overdue is False
+
+    def test_is_overdue_true_after_the_deadline(self, case):
+        case.statutory_deadline = date.today() - timedelta(days=1)
+        assert case.is_overdue is True
+
+    def test_is_overdue_false_while_the_clock_is_paused(self, case):
+        """A stopped clock cannot be in breach.
+
+        `resume_clock` only pushes `statutory_deadline` out once the pause ends,
+        so a case paused before its deadline sits past that date for the whole
+        length of the pause. Reading the date alone reported statutory breaches
+        that had not happened.
+        """
+        case.statutory_deadline = date.today() - timedelta(days=5)
+        case.pause_clock(reason="Awaiting clarification")
+        assert case.is_overdue is False
+
+    def test_is_overdue_true_again_once_the_clock_resumes(self, case):
+        case.statutory_deadline = date.today() - timedelta(days=5)
+        case.pause_clock(reason="Awaiting clarification")
+        case.resume_clock()
+        # Resuming on the same day adds no working days back, so the deadline
+        # is still in the past and the breach is real again.
+        assert case.is_overdue is True
 
 
 class TestCaseAcknowledgement:

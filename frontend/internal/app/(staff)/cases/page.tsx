@@ -39,12 +39,7 @@ export default async function CasesPage({
     <>
       <PageHeader
         title="Cases"
-        actions={
-          <>
-            <Button variant="secondary">Export CSV</Button>
-            <Button href="/cases/new">New case</Button>
-          </>
-        }
+        actions={<Button href="/cases/new">New case</Button>}
       />
       <p className="govuk-body govuk-hint">
         {count} {tab === "mine" ? "open cases assigned to you" : tab === "review" ? "cases in review" : tab === "overdue" ? "overdue cases" : tab === "unassigned" ? "open cases awaiting assignment" : "total"}

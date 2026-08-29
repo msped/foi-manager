@@ -1,4 +1,5 @@
 from django.conf import settings as django_settings
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
 from rest_framework import status, viewsets
@@ -38,6 +39,7 @@ from .tasks import (
     task_send_case_assignment_notification,
     task_send_clarification_request,
 )
+from .utils import add_working_days
 
 
 class PublicCaseSubmitView(APIView):
@@ -94,7 +96,7 @@ class CaseViewSet(viewsets.ModelViewSet):
         write branch below returns the same thing, so overriding this does not
         loosen any of them.
         """
-        if self.action in ("list", "retrieve"):
+        if self.action in ("list", "retrieve", "stats"):
             return [IsAuthenticated(), IsFOITeamOrAssignedAssignee()]
         return [IsAuthenticated(), IsFOITeam()]
 
@@ -133,10 +135,39 @@ class CaseViewSet(viewsets.ModelViewSet):
                 status__in=Case.TERMINAL_STATUSES
             )
         if params.get("is_overdue") == "true":
-            qs = qs.filter(statutory_deadline__lt=now().date()).exclude(
-                status__in=Case.TERMINAL_STATUSES
+            # Mirrors `Case.is_overdue`, including the paused-clock exclusion.
+            qs = (
+                qs.filter(statutory_deadline__lt=now().date())
+                .exclude(status__in=Case.TERMINAL_STATUSES)
+                .exclude(clock_paused=True)
             )
+        if due_within := params.get("due_within_working_days"):
+            # One BankHoliday walk to find the cutoff date, then a plain range
+            # in SQL. `working_days_between` is Python and cannot be pushed into
+            # a filter, so anything per-row would mean loading the whole queue.
+            try:
+                window = int(due_within)
+            except ValueError:
+                window = django_settings.FOI_DUE_SOON_WORKING_DAYS
+            qs = self._due_within(qs, window)
         return qs
+
+    @staticmethod
+    def _due_within(qs, working_days: int):
+        """Cases whose deadline falls between today and `working_days` ahead.
+
+        Excludes terminal and paused cases for the same reason `is_overdue`
+        does: neither is work with a deadline running against it.
+        """
+        today = now().date()
+        return (
+            qs.filter(
+                statutory_deadline__gte=today,
+                statutory_deadline__lte=add_working_days(today, working_days),
+            )
+            .exclude(status__in=Case.TERMINAL_STATUSES)
+            .exclude(clock_paused=True)
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -157,6 +188,50 @@ class CaseViewSet(viewsets.ModelViewSet):
         new_assignee_id = instance.assignee_id
         if new_assignee_id and new_assignee_id != old_assignee_id:
             task_send_case_assignment_notification.delay(instance.pk, new_assignee_id)
+
+    @action(detail=False, methods=["get"])
+    def stats(self, request):
+        """Point-in-time counts of work in flight, for the dashboard tiles.
+
+        Built on `get_queryset`, so the assignee scoping there applies here as
+        well — an assignee gets their own numbers rather than a 403 or the
+        team's. That also means this takes the same query parameters as `list`:
+        the dashboard asks for one person's queue with `?assignee=<id>`, and the
+        same endpoint answers service-wide for the FOI team with no parameters.
+
+        Every figure counts live work, and none of them takes a reporting
+        period. A lifetime total only grows, so it stops distinguishing a busy
+        month from a quiet one and stops being worth showing.
+        """
+        today = now().date()
+        due_cutoff = add_working_days(
+            today, django_settings.FOI_DUE_SOON_WORKING_DAYS
+        )
+        live = ~Q(status__in=Case.TERMINAL_STATUSES)
+        # A paused clock is not running against a deadline, so it can be neither
+        # overdue nor due soon. Matches `Case.is_overdue`.
+        running = live & Q(clock_paused=False)
+
+        # One query, five conditional counts — the alternative is a round trip
+        # per tile, each scanning the same rows.
+        return Response(
+            self.get_queryset().aggregate(
+                open=Count("id", filter=live),
+                due_soon=Count(
+                    "id",
+                    filter=running
+                    & Q(
+                        statutory_deadline__gte=today,
+                        statutory_deadline__lte=due_cutoff,
+                    ),
+                ),
+                overdue=Count(
+                    "id", filter=running & Q(statutory_deadline__lt=today)
+                ),
+                in_review=Count("id", filter=Q(status=Case.Status.REVIEW)),
+                unassigned=Count("id", filter=live & Q(assignee__isnull=True)),
+            )
+        )
 
     @action(detail=True, methods=["post"], permission_classes=[IsFOITeam])
     def acknowledge(self, request, pk=None):
