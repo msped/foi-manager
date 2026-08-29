@@ -145,6 +145,9 @@ class Case(models.Model):
             # Without it that count is a table scan run once per attempt, so the
             # defence would get more expensive exactly as an attack got faster.
             models.Index(fields=["received_by", "submitted_at"]),
+            # Serves the dashboard counters, which filter on status and then on
+            # a `statutory_deadline` range for every tile on every page load.
+            models.Index(fields=["status", "statutory_deadline"]),
         ]
 
     def __str__(self):
@@ -183,9 +186,16 @@ class Case(models.Model):
     def is_overdue(self) -> bool:
         if not self.statutory_deadline:
             return False
+        # A paused clock cannot be in breach. `resume_clock` only pushes
+        # `statutory_deadline` out once the pause ends, so a case paused before
+        # its deadline sits past that date for as long as the pause lasts —
+        # without this check the service reports statutory breaches that did not
+        # happen. `CaseViewSet.get_queryset` repeats this as a queryset
+        # expression for the `is_overdue=true` filter; keep the two in step.
         return (
             date.today() > self.statutory_deadline
             and self.status not in self.TERMINAL_STATUSES
+            and not self.clock_paused
         )
 
     def acknowledge(self, actor=None):
