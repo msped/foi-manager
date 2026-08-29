@@ -1,8 +1,8 @@
 import djangoClient from "./django";
 import type {
   AssigneeConsultation, BankHoliday, CaseConsultation, CaseCRUAdvice, CaseDetail, CaseListItem, CaseNote,
-  CaseOutcome, CaseResponse, ConsultationMessage, Department, EmailTemplate, EmailTemplatePurposeInfo,
-  Mailbox, Paginated, ResponseSeed, ResponseTemplate,
+  CaseOutcome, CaseResponse, CaseStats, ConsultationMessage, Department, EmailTemplate,
+  EmailTemplatePurposeInfo, Mailbox, Paginated, ResponseSeed, ResponseTemplate,
 } from "@/lib/types";
 
 export async function createCase(body: {
@@ -21,6 +21,19 @@ export async function createCase(body: {
 export async function listCases(params?: Record<string, string>): Promise<Paginated<CaseListItem>> {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
   const { data } = await djangoClient.get<Paginated<CaseListItem>>(`/cases/${qs}`);
+  return data;
+}
+
+/**
+ * Counts of live work, aggregated in one query server-side.
+ *
+ * Takes the same query parameters as `listCases`, so `{ assignee }` narrows it
+ * to one person's queue. Counting client-side over `listCases` results instead
+ * would silently stop at the page size.
+ */
+export async function getCaseStats(params?: Record<string, string>): Promise<CaseStats> {
+  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+  const { data } = await djangoClient.get<CaseStats>(`/cases/stats/${qs}`);
   return data;
 }
 

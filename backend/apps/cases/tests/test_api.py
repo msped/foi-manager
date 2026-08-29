@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 
 from apps.cases import submissions
 from apps.cases.models import Case, EmailTemplate
+from apps.cases.utils import add_working_days
 
 
 @pytest.fixture
@@ -283,6 +284,87 @@ class TestStaffCaseList:
         resp = auth_client.get(url, {"status": "new"})
         assert resp.data["count"] == 1
         assert resp.data["results"][0]["status"] == "new"
+
+
+# ── Dashboard counters ───────────────────────────────────────────────────────
+
+
+class TestCaseStats:
+    """The counters behind the dashboard tiles.
+
+    Counted server-side precisely so they do not stop at the page size, which
+    is what the dashboard used to do by filtering one page of results in the
+    browser.
+    """
+
+    def test_counts_live_work(self, auth_client, case, foi_team_user):
+        Case.objects.create(
+            requester_name="Bob",
+            requester_email="bob@example.com",
+            request_text="Another.",
+            created_by=foi_team_user,
+            status=Case.Status.CLOSED,
+        )
+        resp = auth_client.get(reverse("cases:case-stats"))
+        assert resp.status_code == 200
+        # The closed case is finished, so it is not open work.
+        assert resp.data["open"] == 1
+        assert resp.data["unassigned"] == 1
+
+    def test_overdue_excludes_paused_cases(self, auth_client, case):
+        case.statutory_deadline = timezone.now().date() - timedelta(days=3)
+        case.save()
+        assert auth_client.get(reverse("cases:case-stats")).data["overdue"] == 1
+
+        case.pause_clock(reason="Awaiting clarification")
+        assert auth_client.get(reverse("cases:case-stats")).data["overdue"] == 0
+
+    def test_due_soon_uses_working_days(self, auth_client, case):
+        case.statutory_deadline = add_working_days(
+            timezone.now().date(), settings.FOI_DUE_SOON_WORKING_DAYS
+        )
+        case.save()
+        assert auth_client.get(reverse("cases:case-stats")).data["due_soon"] == 1
+
+    def test_due_soon_excludes_deadlines_beyond_the_window(self, auth_client, case):
+        case.statutory_deadline = add_working_days(
+            timezone.now().date(), settings.FOI_DUE_SOON_WORKING_DAYS + 1
+        )
+        case.save()
+        assert auth_client.get(reverse("cases:case-stats")).data["due_soon"] == 0
+
+    def test_assignee_filter_narrows_to_one_queue(
+        self, auth_client, case, assignee_user, foi_team_user
+    ):
+        Case.objects.create(
+            requester_name="Alice",
+            requester_email="alice@example.com",
+            request_text="Theirs.",
+            assignee=assignee_user,
+            created_by=foi_team_user,
+        )
+        url = reverse("cases:case-stats")
+        assert auth_client.get(url).data["open"] == 2
+        assert auth_client.get(url, {"assignee": assignee_user.pk}).data["open"] == 1
+
+    def test_assignee_sees_only_their_own_counts(
+        self, assignee_client, assignee_user, case, foi_team_user
+    ):
+        """The scoping in `get_queryset` has to survive aggregation.
+
+        Rows are already hidden from an assignee; a count that ignored that
+        would leak the size of the queue they cannot read.
+        """
+        Case.objects.create(
+            requester_name="Alice",
+            requester_email="alice@example.com",
+            request_text="Theirs.",
+            assignee=assignee_user,
+            created_by=foi_team_user,
+        )
+        resp = assignee_client.get(reverse("cases:case-stats"))
+        assert resp.status_code == 200
+        assert resp.data["open"] == 1
 
 
 # ── Staff case detail ────────────────────────────────────────────────────────

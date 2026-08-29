@@ -130,7 +130,12 @@ export default function CasesTable({ cases, activeTab, foiTeam = [] }: Props) {
               </td>
             </tr>
           ) : filtered.map(c => {
-            const days = isTerminalStatus(c.status) ? null : daysUntil(c.statutory_deadline);
+            // A paused clock is not counting down, and `resume_clock` moves the
+            // deadline out by the length of the pause — so days remaining is
+            // not a number worth showing until the clock restarts.
+            const days = isTerminalStatus(c.status) || c.clock_paused
+              ? null
+              : daysUntil(c.statutory_deadline);
             return (
               <tr key={c.id} className="govuk-table__row">
                 <td className="govuk-table__cell">
@@ -174,9 +179,11 @@ export default function CasesTable({ cases, activeTab, foiTeam = [] }: Props) {
                   )}
                 </td>
                 <td className="govuk-table__cell">
-                  {days !== null ? (
+                  {c.clock_paused ? (
+                    <span className="govuk-hint govuk-!-margin-bottom-0">Clock paused</span>
+                  ) : days !== null ? (
                     <>
-                      {days < 0
+                      {c.is_overdue
                         ? <strong className="govuk-error-message govuk-!-margin-bottom-0">{-days} days overdue</strong>
                         : days <= 3
                           ? <strong>{days} days left</strong>

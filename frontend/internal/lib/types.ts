@@ -279,8 +279,24 @@ export interface CaseListItem {
   submitted_at: string;
   statutory_deadline: string | null;
   is_overdue: boolean;
+  clock_paused: boolean;
   assignee: number | null;
   assignee_name: string | null;
+}
+
+/**
+ * Mirrors the `stats` action on backend/apps/cases/views.py:CaseViewSet.
+ *
+ * Every figure counts work in flight at this moment — none of them takes a
+ * reporting period, because a lifetime total only grows and stops meaning
+ * anything. `due_soon` uses the working-day window from FOI_DUE_SOON_WORKING_DAYS.
+ */
+export interface CaseStats {
+  open: number;
+  due_soon: number;
+  overdue: number;
+  in_review: number;
+  unassigned: number;
 }
 
 export interface CaseDisclosureLogEntry {
