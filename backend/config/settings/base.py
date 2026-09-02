@@ -234,9 +234,11 @@ AI_PUBLIC_RESULT_COUNT = config("AI_PUBLIC_RESULT_COUNT", default=5, cast=int)
 # rather than 1.0, so the entire usable range is narrow and small changes here
 # matter more than they look.
 #
-# Provisional until the golden set replaces it. `manage.py ai_inspect <case>
-# --all` prints real distances from live data, including what is currently
-# filtered out, which is the view to tune against.
+# Provisional. Measured since: this cutoff is a backstop against absurd matches
+# and nothing more — it cannot separate relevant from irrelevant, because the
+# scale moves with the query. A nonsense request scored 0.2976 to its nearest
+# neighbour where a good one scored 0.2984. What decides relevance is the
+# agreement between the two retrieval arms; see `retrieval.CANDIDATE_DEPTH`.
 AI_MAX_DISTANCE = config("AI_MAX_DISTANCE", default=0.42, cast=float)
 
 # FOI settings
