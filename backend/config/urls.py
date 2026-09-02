@@ -15,6 +15,7 @@ urlpatterns = [
         "api/v1/public/track/",
         include("apps.requester_portal.urls", namespace="requester_portal"),
     ),
+    path("api/v1/ai/", include("apps.ai_assistant.urls", namespace="ai_assistant")),
     path("api/v1/", include("apps.documents.urls", namespace="documents")),
     path("api/v1/", include("apps.users.urls", namespace="users")),
 ]
