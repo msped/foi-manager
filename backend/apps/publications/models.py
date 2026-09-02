@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.db import models
 
 
@@ -90,8 +92,27 @@ class DisclosureLogEntry(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # See the note on `Case.search_vector`. Weighted so that a term in the
+    # title beats one in the request, which beats one buried in the response —
+    # a published response can run to tens of thousands of words about a great
+    # many things the request never asked for.
+    #
+    # `response_text` is HTML and goes in as HTML. Postgres's `english` parser
+    # recognises and drops tags, so the markup contributes no lexemes; this is
+    # the one place the stripping done for embeddings is not needed.
+    search_vector = models.GeneratedField(
+        expression=SearchVector("title", weight="A", config="english")
+        + SearchVector("summary", weight="B", config="english")
+        + SearchVector("response_text", weight="C", config="english"),
+        output_field=SearchVectorField(),
+        db_persist=True,
+    )
+
     class Meta:
         ordering = ["-date_responded"]
+        indexes = [
+            GinIndex(fields=["search_vector"], name="pub_entry_search_gin"),
+        ]
 
     def __str__(self):
         return f"{self.case.ref} — {self.title}"
