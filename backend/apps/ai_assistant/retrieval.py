@@ -22,6 +22,14 @@ learns to skim past all of it. `AI_MAX_DISTANCE` survives only as a backstop on
 the vector arm, no longer as the thing deciding what is relevant, because the
 measurements above showed it cannot be.
 
+Possible, but not guaranteed, and the difference is worth being honest about.
+Measured against five off-topic requests written in ordinary FOI register, the
+gate silences three; the other two return a result at every candidate depth
+down to 3, because both arms rank the same wrong case at the very top. That is
+false agreement rather than looseness, and no threshold or depth reaches it —
+only something that judges the relation itself, which nothing here does. So the
+panel should be read as "both methods found this", never as "this is relevant".
+
 Exemption frequencies are counted. They say what was claimed on comparable
 requests before, not what should be claimed on this one. Nothing here predicts
 an exemption, and the wording that reaches the UI has to keep that distinction
@@ -75,7 +83,28 @@ RRF_K = 60
 #: How deep each arm looks before fusing. Wider than the panel shows, because a
 #: result ranked tenth by one method and second by the other is exactly the
 #: agreement worth surfacing, and a cap at the display size would hide it.
-CANDIDATE_DEPTH = 25
+#:
+#: 25 was too wide: at that depth a case ranked 25th by *both* arms counted as
+#: agreement, which is barely a claim at all. Swept over the 339-case corpus,
+#: scoring 75 topic-labelled cases against five off-topic probes:
+#:
+#:      depth   precision   results   empty    nonsense results
+#:         25       0.565       7.0    1/75                 3.8
+#:         15       0.602       4.4    5/75                 1.8
+#:         12       0.623       3.3    7/75                 1.0
+#:          8       0.687       2.1   11/75                 0.8
+#:
+#: 12 cuts off-topic results by 74% and silences three of the five probes, for
+#: about half the panel's length. Below 8 the trade inverts — empty panels climb
+#: steeply on cases that genuinely have precedent, while dud suppression barely
+#: moves.
+#:
+#: Precision here is a floor, not a measurement: the labels are topic clusters
+#: keyed on a title word, and they score genuinely correct matches as misses
+#: (Clare's Law against domestic abuse, Professional Standards against
+#: misconduct). They are applied identically to every depth, so the trend is
+#: sound even though the level is pessimistic.
+CANDIDATE_DEPTH = 12
 
 
 def _fuse(vector_ranked, lexical_ranked, limit):
