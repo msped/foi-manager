@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import PageHeader from "@/components/govuk/PageHeader";
 import { StatusTag, Tag } from "@/components/ui/Tag";
-import AiPanel from "@/components/ui/AiPanel";
+import CaseInsightsPanel from "./CaseInsightsPanel";
 import ConsultationsPanel from "./ConsultationsPanel";
 import CaseResponsesPanel, { type CaseResponsesPanelHandle } from "./CaseResponsesPanel";
 import CruAdvicePanel from "./CruAdvicePanel";
@@ -20,7 +20,7 @@ import {
   pauseClock, resumeClock, transitionCase,
   sendClarificationRequest, receiveClarification,
 } from "@/lib/services/cases";
-import type { ApiUser, CaseDetail, ResponseSeed } from "@/lib/types";
+import type { ApiUser, CaseDetail, CaseInsights, ResponseSeed } from "@/lib/types";
 
 const AUDIT_ACTION_LABEL: Record<string, string> = {
   acknowledged: "Case acknowledged",
@@ -92,9 +92,10 @@ interface Props {
   c: CaseDetail;
   foiTeam: ApiUser[];
   seed: ResponseSeed;
+  insights: CaseInsights;
 }
 
-export default function CaseDetailView({ c, foiTeam, seed }: Props) {
+export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
   const router = useRouter();
   const responsePanelRef = useRef<CaseResponsesPanelHandle>(null);
   const [isPending, startTransition] = useTransition();
@@ -223,14 +224,7 @@ export default function CaseDetailView({ c, foiTeam, seed }: Props) {
                   </dl>
                 </SummaryCard>
 
-                <AiPanel title="Risk & precedent" micro="AI assessment">
-                  <p className="govuk-body-s">
-                    AI exemption suggestions and precedent search will be available once the AI assistant is connected.
-                  </p>
-                  <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
-                    Any suggestions are advisory only. Apply the public interest test where relevant.
-                  </p>
-                </AiPanel>
+                <CaseInsightsPanel insights={insights} />
 
                 <CruAdvicePanel caseId={c.id} advice={c.cru_advice} />
 
