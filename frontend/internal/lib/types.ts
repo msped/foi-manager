@@ -436,3 +436,36 @@ export interface DisclosureLogListItem {
   published_by_name: string | null;
   published_at: string | null;
 }
+
+/**
+ * Case insights from `apps/ai_assistant` — retrieval and counting, no model
+ * output. Deliberately carries no similarity scores: the ordering is built from
+ * them, but a number next to a suggestion reads as a measurement of relevance
+ * and the range moves with the model, the prefixes and the length of the texts.
+ */
+export interface SimilarCase {
+  id: number;
+  ref: string;
+  status: CaseStatus;
+  status_display: string;
+  outcome: string;
+  outcome_display: string;
+  submitted_at: string;
+  preview: string;
+}
+
+/** How often an exemption was claimed across comparable past cases. */
+export interface ExemptionFrequency {
+  code: string;
+  code_display: string;
+  count: number;
+  case_count: number;
+}
+
+export interface CaseInsights {
+  /** False while the case is waiting on the indexer; the panel shows less. */
+  indexed: boolean;
+  /** One list. Unbounded in time — precedent does not expire; see `retrieval.py`. */
+  similar_cases: SimilarCase[];
+  exemption_frequencies: ExemptionFrequency[];
+}
