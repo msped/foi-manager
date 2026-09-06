@@ -177,7 +177,6 @@ DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="foi@example.com")
 # Ollama
 OLLAMA_BASE_URL = config("OLLAMA_BASE_URL", default="http://localhost:11434")
 OLLAMA_EMBED_MODEL = config("OLLAMA_EMBED_MODEL", default="nomic-embed-text")
-OLLAMA_CHAT_MODEL = config("OLLAMA_CHAT_MODEL", default="llama3.2")
 
 # Ollama unloads a model from memory after five idle minutes and reloads it on
 # the next request. That reload takes far longer than any timeout worth setting
@@ -193,9 +192,20 @@ OLLAMA_KEEP_ALIVE = config("OLLAMA_KEEP_ALIVE", default="-1m")
 
 # AI assistant
 #
-# There is no language model here. Both features — precedent for officers,
+# There is no language model here, and the setting for one has been removed
+# rather than left as an invitation. Both features — precedent for officers,
 # published answers for the public — resolved to retrieval and counting, so the
-# only model involved produces embeddings. `OLLAMA_CHAT_MODEL` above is unused.
+# only model involved produces embeddings.
+#
+# One idea did want a language model: extracting a one-sentence subject at index
+# time and embedding that, so request boilerplate ("please send by email", "for
+# the last three years") would disappear by construction instead of being
+# suppressed by the hand-written list in `lexical.REQUEST_MECHANICS_LEXEMES`. It
+# was measured over 215 cases and it does not work — precision 0.685 to 0.688,
+# and no recall recovered at all (2.17 of 5 vector results surviving the keyword
+# gate, against 2.16 with the extracted subjects). Boilerplate shared by every
+# document contributes a common component that largely cancels in cosine
+# ranking, so there was nothing there to clean up.
 #
 # "stub" swaps in a deterministic embedder with no network calls, for tests.
 AI_EMBEDDING_BACKEND = config("AI_EMBEDDING_BACKEND", default="ollama")
