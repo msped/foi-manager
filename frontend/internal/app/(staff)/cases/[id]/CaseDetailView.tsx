@@ -224,7 +224,11 @@ export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
                   </dl>
                 </SummaryCard>
 
-                <CaseInsightsPanel insights={insights} />
+                {/* Precedent supports a decision that has not been made yet.
+                    Closed and refused cases are a record, not a decision.
+                    `internal_review` is not terminal, so a case that comes back
+                    for review gets its precedent again. */}
+                {!isTerminalStatus(c.status) && <CaseInsightsPanel insights={insights} />}
 
                 <CruAdvicePanel caseId={c.id} advice={c.cru_advice} />
 
