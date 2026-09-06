@@ -3,7 +3,6 @@ import Link from "next/link";
 import Button from "@/components/ui/Button";
 import PageHeader from "@/components/govuk/PageHeader";
 import { StatusTag } from "@/components/ui/Tag";
-import AiPanel from "@/components/ui/AiPanel";
 import { getMe } from "@/lib/services/users";
 import { getCaseStats, listCases } from "@/lib/services/cases";
 import { fmtDate, daysUntil, isTerminalStatus } from "@/lib/utils";
@@ -40,13 +39,6 @@ export default async function DashboardPage() {
     .filter(c => c.statutory_deadline && !isTerminalStatus(c.status) && !c.clock_paused)
     .sort((a, b) => new Date(a.statutory_deadline!).getTime() - new Date(b.statutory_deadline!).getTime())
     .slice(0, 5);
-
-  // The briefing names specific cases, so it needs the rows rather than the
-  // counts — but it reports the server-side totals, since the rows are one page.
-  const dueSoon = upcoming.filter(c => {
-    const d = daysUntil(c.statutory_deadline);
-    return d !== null && d >= 0;
-  });
 
   return (
     <>
@@ -140,29 +132,11 @@ export default async function DashboardPage() {
         </div>
 
         <div className="govuk-grid-column-one-third">
-          <AiPanel title="Today's briefing" micro="AI summary">
-            <p className="govuk-body">
-              {stats.overdue > 0
-                ? <><strong>{stats.overdue} of your {stats.overdue === 1 ? "cases is" : "cases are"} overdue</strong> — action needed.</>
-                : <><strong>None of your cases are overdue</strong> — on track.</>
-              }
-            </p>
-            {dueSoon.length > 0 && (
-              <ul className="govuk-list govuk-list--bullet">
-                {dueSoon.slice(0, 3).map(c => (
-                  <li key={c.id}>
-                    <Link href={`/cases/${c.id}`} className="govuk-link">{c.ref}</Link>
-                    {" — "}{c.summary.slice(0, 50) || "no summary"} ({daysUntil(c.statutory_deadline)} days left)
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="govuk-hint govuk-!-margin-bottom-0">
-              AI exemption suggestions and precedent search are available on each case.
-            </p>
-          </AiPanel>
-
-          <h2 className="govuk-heading-s govuk-!-margin-top-6">Upcoming deadlines</h2>
+          {/* No briefing panel here. It was headed "AI summary" while
+              containing no AI — it restated `stats.overdue`, which the tile
+              above already shows, and listed the same cases as the deadlines
+              list below. Three renderings of one fact, one of them mislabelled. */}
+          <h2 className="govuk-heading-s">Upcoming deadlines</h2>
           {upcoming.length === 0 ? (
             <p className="govuk-hint">No upcoming deadlines.</p>
           ) : (

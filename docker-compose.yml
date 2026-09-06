@@ -30,12 +30,22 @@ services:
     ports:
       - "5432:5432"
 
-  # ollama:
-  #   image: ollama/ollama
-  #   volumes:
-  #     - ollama_data:/root/.ollama
-  #   ports:
-  #     - "11434:11434"
+  # Ollama is deliberately NOT here. Run it natively instead:
+  #
+  #     brew install ollama && brew services start ollama
+  #     ollama pull nomic-embed-text
+  #
+  # A container cannot reach Metal on Apple Silicon — Docker Desktop runs a
+  # Linux VM and there is no GPU passthrough — so the containerised model ran
+  # entirely on emulated CPU across every core, and a bulk embedding run took
+  # the machine to 100°C. Natively it uses the GPU: far faster, and cool.
+  #
+  # Nothing needs configuring. OLLAMA_BASE_URL already defaults to
+  # localhost:11434, which is where the container published anyway, so the
+  # application cannot tell the two apart.
+  #
+  # docker-compose.prod.yml keeps its ollama service, and should: that is a
+  # Linux host, where a container is the right answer and a GPU is reachable.
 
 volumes:
   postgres_data:

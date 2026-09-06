@@ -8,6 +8,30 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
+    healthcheck:
+      # Not "is the server up" but "is the model present". The image ships with
+      # no models, so a fresh volume gives a server that answers every request
+      # with a 404 the embedder reports as unavailable — and the fallback to
+      # keyword search means nothing visibly breaks while nothing works.
+      test: ["CMD-SHELL", "ollama list | grep -q nomic-embed-text"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5m
+
+  # Runs once per deploy and exits. Pulling the model is idempotent, so on an
+  # existing volume this is a no-op that costs a few seconds.
+  ollama-pull:
+    image: ollama/ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "until ollama --version >/dev/null 2>&1; do sleep 1; done;
+       ollama pull ${OLLAMA_EMBED_MODEL:-nomic-embed-text}"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      - ollama
+    restart: on-failure
 
   backend:
     build:
@@ -48,6 +72,28 @@ services:
     depends_on:
       - redis
 
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    # Exactly one of these. Beat does not coordinate between instances, so a
+    # second replica means every scheduled task runs twice.
+    #
+    # The schedule file records when each task last fired; on a named volume so
+    # a restart resumes the schedule instead of treating everything as due.
+    command: celery -A config beat -l info --schedule /var/lib/celery/celerybeat-schedule
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      REDIS_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - celery_beat_data:/var/lib/celery
+    restart: unless-stopped
+    depends_on:
+      - redis
+
   frontend-internal:
     build:
       context: ./frontend/internal
@@ -72,3 +118,4 @@ volumes:
   ollama_data:
   media_files:
   static_files:
+  celery_beat_data:

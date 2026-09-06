@@ -40,3 +40,11 @@ Thumbs.db
 .claude/
 
 notes.md
+
+# Dev-only management commands. Scaffolding used to build the corpus and tune
+# retrieval while the AI assistant was being written — they stay on disk and
+# out of the repo. `embed_backlog` is deliberately NOT here: the ai.W00x system
+# checks tell the operator to run it, so it is part of the product.
+backend/apps/ai_assistant/management/commands/ai_inspect.py
+backend/apps/ai_assistant/management/commands/import_foi_pdfs.py
+backend/apps/ai_assistant/management/commands/seed_demo_cases.py
