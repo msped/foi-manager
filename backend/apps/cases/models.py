@@ -226,7 +226,13 @@ class Case(models.Model):
         self._log(action="acknowledged", actor=actor, detail={})
 
     def pause_clock(self, reason: str = "", actor=None):
-        if self.clock_paused:
+        # Not pausable before acknowledgement. `acknowledge()` resets
+        # `statutory_deadline` from the acknowledgement date outright, so a pause
+        # taken before it would be silently forfeited — and a case acknowledged
+        # while still flagged paused would be extended again on resume, by days
+        # counted from a pause that began before the deadline it is applied to.
+        # Blocking the earlier half of that pairing keeps `acknowledge()` simple.
+        if self.clock_paused or not self.acknowledged_at:
             return
         self.clock_paused = True
         self.clock_paused_at = date.today()

@@ -285,6 +285,8 @@ class TestWhatTheCasePayloadExposes:
         assert self._fetch(api_client)["status"] == "With the Information Commissioner"
 
     def test_suppresses_the_deadline_while_the_clock_is_paused(self, api_client, case):
+        # The clock is only pausable once receipt is acknowledged.
+        case.acknowledge()
         case.pause_clock(reason="clarification_requested")
 
         payload = self._fetch(api_client)

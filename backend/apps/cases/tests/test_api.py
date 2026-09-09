@@ -313,6 +313,9 @@ class TestCaseStats:
 
     def test_overdue_excludes_paused_cases(self, auth_client, case):
         case.statutory_deadline = timezone.now().date() - timedelta(days=3)
+        # Pausing requires an acknowledged case. Set directly so the deadline
+        # above survives — acknowledge() would recalculate it from today.
+        case.acknowledged_at = timezone.now().date()
         case.save()
         assert auth_client.get(reverse("cases:case-stats")).data["overdue"] == 1
 
@@ -494,6 +497,58 @@ class TestCaseAcknowledge:
         url = reverse("cases:case-acknowledge", kwargs={"pk": case.pk})
         resp = assignee_client.post(url)
         assert resp.status_code in (403, 404)
+
+    def test_acknowledge_refuses_a_second_time(
+        self, auth_client, case, acknowledgement_template
+    ):
+        """Receipt happens once, whatever the case has moved on to since.
+
+        The guard used to test `status == ACKNOWLEDGED`, which only holds while
+        the case sits at that status. A case at drafting or review could be
+        acknowledged again, and `Case.acknowledge` recalculates
+        `statutory_deadline` from scratch — so the rerun silently reset the one
+        date the Act counts, and forfeited any pause taken in between.
+        """
+        url = reverse("cases:case-acknowledge", kwargs={"pk": case.pk})
+        assert auth_client.post(url).status_code == 200
+        case.refresh_from_db()
+        deadline = case.statutory_deadline
+
+        case.status = Case.Status.DRAFTING
+        case.save()
+
+        resp = auth_client.post(url)
+
+        assert resp.status_code == 400
+        case.refresh_from_db()
+        assert case.statutory_deadline == deadline
+
+
+class TestCaseClock:
+    def test_pause_refuses_before_acknowledgement(self, auth_client, case):
+        """`acknowledge()` resets the deadline from the acknowledgement date, so
+        a pause taken beforehand would be discarded by it."""
+        url = reverse("cases:case-pause-clock", kwargs={"pk": case.pk})
+
+        resp = auth_client.post(url)
+
+        assert resp.status_code == 400
+        case.refresh_from_db()
+        assert case.clock_paused is False
+
+    def test_pause_succeeds_once_acknowledged(
+        self, auth_client, case, acknowledgement_template
+    ):
+        auth_client.post(reverse("cases:case-acknowledge", kwargs={"pk": case.pk}))
+
+        resp = auth_client.post(
+            reverse("cases:case-pause-clock", kwargs={"pk": case.pk})
+        )
+
+        assert resp.status_code == 200
+        case.refresh_from_db()
+        assert case.clock_paused is True
+        assert case.clock_paused_at is not None
 
 
 class TestCaseTransition:
