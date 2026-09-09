@@ -107,8 +107,12 @@ RRF_K = 60
 CANDIDATE_DEPTH = 12
 
 
-def _fuse(vector_ranked, lexical_ranked, limit):
+def fuse(vector_ranked, lexical_ranked, limit):
     """Reciprocal rank fusion, keeping only what both arms found.
+
+    Public because `public.py` fuses the same way. The gate is the load-bearing
+    part of this design, and a second implementation of it on the surface facing
+    the public is the last place it should be allowed to drift.
 
     Returns primary keys, best first.
 
@@ -150,7 +154,7 @@ def similar_cases(case, limit=None):
     )
     lexical_hits = lexical.similar_cases(case, CANDIDATE_DEPTH)
 
-    ordered_ids = _fuse(vector_ranked, [c.pk for c in lexical_hits], limit)
+    ordered_ids = fuse(vector_ranked, [c.pk for c in lexical_hits], limit)
     if not ordered_ids:
         return []
 
