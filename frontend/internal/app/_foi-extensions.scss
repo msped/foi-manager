@@ -138,6 +138,8 @@
   }
 }
 
+// Also applied to the `a` each row now renders as, and to the plain `div` used
+// for legacy rows that carry no link.
 .foi-notifications__link {
   display: block;
   width: 100%;
@@ -148,10 +150,15 @@
   cursor: pointer;
   color: inherit;
   font: inherit;
+  text-decoration: none;
 
   &:focus {
     @include govuk-focused-text;
   }
+}
+
+div.foi-notifications__link {
+  cursor: default;
 }
 
 // ─── Page header ────────────────────────────────────────────────────────────
