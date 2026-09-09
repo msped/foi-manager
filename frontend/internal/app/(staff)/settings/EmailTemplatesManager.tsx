@@ -148,7 +148,12 @@ function TemplateSlot({ info, onConfigured, onUpdated, onDeleted }: SlotProps) {
           </FormField>
           <FormField
             label="Body"
-            hint={`Available variables: ${variables.join(", ")}`}
+            hint={
+              `Available variables: ${variables.join(", ")}. ` +
+              "To link to a URL variable, type the wording you want first, select it, " +
+              "then use the link button and paste the variable as the address — " +
+              "otherwise the address is used as the link text."
+            }
             htmlFor={`tpl-body-${info.purpose}`}
           >
             <RichTextEditor value={body} onChange={setBody} variables={variables} minHeight={180} />

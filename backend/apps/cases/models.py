@@ -356,7 +356,7 @@ class EmailTemplate(models.Model):
         },
         Purpose.CONSULTATION_NOTIFICATION: {
             "label": "Consultation Notification",
-            "description": "Sent to an assignee when they are added to a consultation.",
+            "description": "Sent to an assignee when they are added to a consultation. To link to it, select your wording and use the link button with {{consultation_url}} as the address — dropping the variable into the text on its own leaves an address the reader cannot click.",
             "variables": [
                 "ref",
                 "requester_name",
@@ -369,7 +369,7 @@ class EmailTemplate(models.Model):
         },
         Purpose.CONSULTATION_MESSAGE: {
             "label": "Consultation Message",
-            "description": "Sent to an assignee when a new message is posted on their consultation.",
+            "description": "Sent to an assignee when a new message is posted on their consultation. To link to it, select your wording and use the link button with {{consultation_url}} as the address — dropping the variable into the text on its own leaves an address the reader cannot click.",
             "variables": [
                 "ref",
                 "requester_name",
@@ -381,7 +381,7 @@ class EmailTemplate(models.Model):
         },
         Purpose.CASE_ASSIGNMENT: {
             "label": "Case Assignment",
-            "description": "Sent to a staff member when a case is assigned to them.",
+            "description": "Sent to a staff member when a case is assigned to them. To link to it, select your wording and use the link button with {{case_url}} as the address — dropping the variable into the text on its own leaves an address the reader cannot click.",
             "variables": [
                 "ref",
                 "requester_name",

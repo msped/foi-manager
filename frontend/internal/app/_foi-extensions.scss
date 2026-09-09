@@ -350,6 +350,146 @@ button:where(.govuk-link) {
   padding: govuk-spacing(2);
 }
 
+// ─── Tiptap link popover, restyled for GDS ──────────────────────────────────
+//
+// The popover comes from `npx @tiptap/cli add link-popover` and ships its own
+// look: 12px radii, a soft elevation shadow, thin 1px hairlines and a grey
+// focus tint. All of it is driven by --tt-* custom properties, so the mapping
+// below is mostly a matter of redefining those rather than fighting the
+// component's own rules — which also survives a future `tiptap add` overwriting
+// the vendored files.
+//
+// These selectors are deliberately NOT nested under .foi-editor: Radix portals
+// the popover to document.body, so it is not a descendant of the editor.
+//
+// The class names are doubled (.tiptap-popover.tiptap-popover) purely to win on
+// specificity. Tiptap's own rules are attribute-qualified — .tiptap-button
+// [data-style="ghost"] scores the same 0-2-0 as a plain descendant selector
+// here, so the tie would be broken by source order, and their CSS arrives via
+// `import "./button.scss"` inside the components rather than through this
+// stylesheet. Doubling makes the outcome independent of how Next orders the two.
+
+.tiptap-popover.tiptap-popover {
+  --tt-radius-xs: 0;
+  --tt-radius-sm: 0;
+  --tt-radius-md: 0;
+  --tt-radius-lg: 0;
+  --tt-radius-xl: 0;
+
+  @include govuk-font($size: 19);
+
+  // GDS has no elevation system — a hard 2px border does the lifting instead.
+  .tiptap-card {
+    border: 2px solid $govuk-input-border-colour;
+    border-radius: 0;
+    box-shadow: none;
+    background: govuk-colour("white");
+    padding: govuk-spacing(1);
+  }
+
+  // The address field. GDS inputs are 2px bordered and square; the vendored
+  // rule strips the border entirely to sit flush in their card.
+  .tiptap-input,
+  .tiptap-link-input {
+    @include govuk-font($size: 19);
+
+    height: auto;
+    padding: govuk-spacing(1);
+    border: 2px solid $govuk-input-border-colour;
+    border-radius: 0;
+    background: govuk-colour("white");
+    color: $govuk-text-colour;
+
+    &:focus,
+    &:focus-visible {
+      outline: $govuk-focus-width solid $govuk-focus-colour;
+      outline-offset: 0;
+      box-shadow: inset 0 0 0 2px;
+      border-color: $govuk-input-border-colour;
+    }
+  }
+
+  // Apply / open / remove. Matches .foi-editor__button so the popover's
+  // controls read as the same family as the toolbar that opened it.
+  .tiptap-button {
+    @include govuk-font($size: 16);
+
+    border: 1px solid govuk-colour("black", $variant: "tint-80");
+    border-radius: 0;
+    background: transparent;
+    color: $govuk-text-colour;
+
+    &:hover:not([disabled]) {
+      background: govuk-colour("black", $variant: "tint-95");
+    }
+
+    &:focus-visible {
+      @include govuk-focused-text;
+
+      outline: $govuk-focus-width solid $govuk-focus-colour;
+    }
+
+    &[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .tiptap-separator {
+    background-color: govuk-colour("black", $variant: "tint-80");
+  }
+
+  // Card centres its children; the variable row needs the full width under the
+  // address field rather than a centred block.
+  .tiptap-card-body {
+    width: 100%;
+  }
+
+  // The vendored animations zoom and slide. GDS interfaces do not.
+  .tiptap-card,
+  &[data-state="open"],
+  &[data-state="closed"] {
+    animation: none;
+  }
+}
+
+// URL variables offered as link addresses, under the address field.
+.foi-link-popover__variables {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: govuk-spacing(1);
+  width: 100%;
+  margin-top: govuk-spacing(2);
+  padding-top: govuk-spacing(2);
+  border-top: 1px solid govuk-colour("black", $variant: "tint-80");
+}
+
+// The trigger sits in the toolbar among .foi-editor__button, so it has to match
+// them rather than the popover it opens.
+.foi-editor__toolbar .tiptap-button.tiptap-button {
+  @include govuk-font($size: 16);
+
+  height: auto;
+  min-width: 0;
+  padding: 0 govuk-spacing(2);
+  border: 1px solid govuk-colour("black", $variant: "tint-80");
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &[data-active-state="on"] {
+    background: govuk-colour("blue");
+    color: govuk-colour("white");
+  }
+
+  &:focus,
+  &:focus-visible {
+    @include govuk-focused-text;
+  }
+}
+
 // ─── Search results menu ────────────────────────────────────────────────────
 
 .foi-autocomplete {
