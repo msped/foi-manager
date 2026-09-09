@@ -43,6 +43,25 @@ export interface DisclosureLogFilters {
   years: number[];
 }
 
+/** One published response offered to someone part-way through writing a request.
+ *
+ *  Mirrors `RequestSuggestionSerializer`. Narrower than `DisclosureLogListItem`
+ *  on purpose: no exemptions. On a staff panel an exemption code is precedent;
+ *  on a card shown to a requester mid-journey it is jargon attached to
+ *  something they have not read, and it reads as a warning that their own
+ *  request will be refused.
+ *
+ *  There is no relevance score, and there is not meant to be one — see the note
+ *  at the top of `apps/ai_assistant/serializers.py`. */
+export interface RequestSuggestion {
+  id: number;
+  case_ref: string;
+  title: string;
+  date_responded: string | null;
+  /** The published request, cut to about 300 characters. */
+  preview: string;
+}
+
 /** One of the verified requester's own cases.
  *
  *  Mirrors `PublicTrackedCaseSerializer`. Note what is not here: the response
