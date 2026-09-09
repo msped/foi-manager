@@ -1,3 +1,5 @@
+import type { RequestSuggestion } from "@/lib/types";
+
 export interface RequestAnswers {
   requester_name: string;
   requester_email: string;
@@ -22,6 +24,17 @@ export type RequestState =
       values: RequestAnswers;
       errors: RequestFieldErrors;
       formError?: string;
+    }
+  /**
+   * Published responses that may already answer this request, shown between the
+   * form and check-answers. Reached only when there is at least one — an empty
+   * interruption saying "we found nothing" would be a screen that exists to
+   * announce its own failure, so the journey skips straight past it.
+   */
+  | {
+      step: "suggestions";
+      values: RequestAnswers;
+      suggestions: RequestSuggestion[];
     }
   | { step: "review"; values: RequestAnswers; formError?: string };
 
