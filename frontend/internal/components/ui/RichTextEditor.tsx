@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import EditorLinkPopover from "@/components/ui/EditorLinkPopover";
 import { forwardRef, useEffect, useImperativeHandle, useMemo } from "react";
 
 export interface RichTextEditorHandle {
@@ -55,8 +56,25 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
   disabled = false,
   onFocus,
 }, ref) {
+  // Variables that name a URL, offered as link addresses in the popover. Drawn
+  // from the same per-purpose list as the chip bar, so a template is only ever
+  // offered a variable that exists in its own render context — see
+  // EmailTemplate.PURPOSE_META on the backend.
+  const urlVariables = useMemo(
+    () => (variables ?? []).filter(v => v.endsWith("_url}}")),
+    [variables],
+  );
+
   const extensions = useMemo(() => [
-    StarterKit.configure({ heading: { levels: [2, 3] } }),
+    StarterKit.configure({
+      heading: { levels: [2, 3] },
+      // StarterKit ships Link. `openOnClick` would navigate away mid-edit, and
+      // autolink would turn a pasted URL into an anchor the author did not ask
+      // for. A `{{variable}}` href passes the extension's own URI check (it has
+      // no protocol, so it falls through the "not a scheme" branch), which is
+      // what lets a template link to {{case_url}}.
+      link: { openOnClick: false, autolink: false },
+    }),
     Placeholder.configure({ placeholder: placeholder ?? "" }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], []);
@@ -74,9 +92,14 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
     },
   });
 
+  // `destroy()` nulls the schema but leaves the object reference intact, so an
+  // effect that captured the editor can still be holding a torn-down instance —
+  // `getHTML()` on one throws "can't access property cached, schema is null".
+  // Every entry point below therefore checks `isDestroyed`, not just for null.
+  //
   // Sync external value changes (e.g. when a template is injected)
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
     const current = editor.getHTML();
     if (value !== current) {
       editor.commands.setContent(value, { emitUpdate: false });
@@ -84,15 +107,17 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
   }, [value, editor]);
 
   useEffect(() => {
-    editor?.setEditable(!disabled);
+    if (!editor || editor.isDestroyed) return;
+    editor.setEditable(!disabled);
   }, [disabled, editor]);
 
   useImperativeHandle(ref, () => ({
     insertContent: (html: string) => {
-      editor?.chain().focus().insertContent(html).run();
+      if (!editor || editor.isDestroyed) return;
+      editor.chain().focus().insertContent(html).run();
     },
     setContentWithCaret: (html: string, sentinel: string) => {
-      if (!editor) return;
+      if (!editor || editor.isDestroyed) return;
       editor.commands.setContent(html, { emitUpdate: true });
 
       // Locate the sentinel in the document, delete it, and leave the caret there.
@@ -189,6 +214,11 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
           >
             &ldquo;
           </ToolbarBtn>
+          {/* Built on Tiptap's `useLinkPopover` (added via `npx @tiptap/cli add
+              link-popover`). The address is not sanitised on apply, which is
+              what lets a template link to a {{variable}}. */}
+          <EditorLinkPopover editor={editor} urlVariables={urlVariables} />
+
           <ToolbarBtn
             title="Clear formatting"
             onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}

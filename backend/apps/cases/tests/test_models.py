@@ -91,11 +91,16 @@ class TestCaseCreation:
         length of the pause. Reading the date alone reported statutory breaches
         that had not happened.
         """
+        # The clock is only pausable once receipt is acknowledged. Set the date
+        # directly rather than calling acknowledge(), which would reset the
+        # deadline this test needs in the past.
+        case.acknowledged_at = date.today()
         case.statutory_deadline = date.today() - timedelta(days=5)
         case.pause_clock(reason="Awaiting clarification")
         assert case.is_overdue is False
 
     def test_is_overdue_true_again_once_the_clock_resumes(self, case):
+        case.acknowledged_at = date.today()
         case.statutory_deadline = date.today() - timedelta(days=5)
         case.pause_clock(reason="Awaiting clarification")
         case.resume_clock()

@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
@@ -16,6 +16,7 @@ import {
   type CaseOutcome,
   type CaseResponse,
   type ResponseSeed,
+  type ResponseSeedBlock,
 } from "@/lib/types";
 
 /** Any {{variable}} left in a draft would reach the requester literally. */
@@ -24,26 +25,134 @@ function unresolvedVariables(html: string): string[] {
   return [...new Set(found)];
 }
 
+function TemplateRow({ template, onInsert, inserted }: {
+  template: ResponseSeedBlock;
+  onInsert: () => void;
+  inserted?: boolean;
+}) {
+  const [preview, setPreview] = useState(false);
+  return (
+    <div style={{ borderBottom: "1px solid var(--govuk-border-colour)", padding: "10px 0" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {inserted !== undefined && (
+          <span
+            aria-hidden="true"
+            style={{ color: inserted ? "var(--govuk-success-colour, #00703c)" : "var(--govuk-secondary-text-colour)", flexShrink: 0 }}
+          >
+            {inserted ? "✓" : "○"}
+          </span>
+        )}
+        <span className="govuk-body-s" style={{ flex: 1, fontWeight: 500, margin: 0 }}>{template.name}</span>
+        <button className="govuk-link govuk-body-s" onClick={() => setPreview(v => !v)}>
+          {preview ? "Hide" : "Preview"}
+        </button>
+        <button className="govuk-link govuk-body-s" onClick={onInsert}>Insert</button>
+      </div>
+      {preview && (
+        <div
+          className="foi-rich-content"
+          style={{ marginTop: 8, fontSize: 12, padding: "8px 10px", background: "var(--govuk-template-background-colour)", borderLeft: "3px solid var(--govuk-border-colour)" }}
+          dangerouslySetInnerHTML={{ __html: template.body }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Template blocks for one editor, collapsed until asked for.
+ *
+ * Lives beside the editor it writes into rather than as a panel-level card, so
+ * there is no question of which draft an Insert lands in. The inserted set is
+ * advisory and scoped to this editing session — reloading clears it.
+ */
+function TemplatePicker({ blocks, onInsert }: {
+  blocks: ResponseSeedBlock[];
+  onInsert: (html: string) => void;
+}) {
+  const [insertedIds, setInsertedIds] = useState<Set<number>>(new Set());
+
+  if (blocks.length === 0) {
+    return (
+      <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)" }}>
+        No response templates configured. Add them in <a href="/settings" className="govuk-link">Settings</a>.
+      </p>
+    );
+  }
+
+  const suggested = blocks.filter(b => b.suggested);
+  const other = blocks.filter(b => !b.suggested);
+  const claimedCodes = new Set(suggested.map(b => b.exemption_code));
+  const addressedCodes = new Set(
+    suggested.filter(b => insertedIds.has(b.id)).map(b => b.exemption_code),
+  );
+
+  function insert(block: ResponseSeedBlock) {
+    onInsert(block.body);
+    setInsertedIds(prev => new Set(prev).add(block.id));
+  }
+
+  return (
+    <details className="govuk-details" style={{ marginBottom: 8 }}>
+      <summary className="govuk-details__summary">
+        <span className="govuk-details__summary-text">Insert a template</span>
+      </summary>
+      <div className="govuk-details__text">
+        {suggested.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <h4 className="govuk-body-s" style={{ fontWeight: 700, marginBottom: 2 }}>
+              Suggested for this case
+            </h4>
+            <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", fontSize: 12, marginBottom: 4 }}>
+              {addressedCodes.size} of {claimedCodes.size} claimed exemption
+              {claimedCodes.size === 1 ? "" : "s"} addressed
+            </p>
+            <div className="foi-col" style={{ gap: 0 }}>
+              {suggested.map(b => (
+                <TemplateRow
+                  key={b.id}
+                  template={b}
+                  inserted={insertedIds.has(b.id)}
+                  onInsert={() => insert(b)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        {other.length > 0 && (
+          <div>
+            {suggested.length > 0 && (
+              <h4 className="govuk-body-s" style={{ fontWeight: 700, marginBottom: 2 }}>
+                All templates
+              </h4>
+            )}
+            <div className="foi-col" style={{ gap: 0 }}>
+              {other.map(b => (
+                <TemplateRow key={b.id} template={b} onInsert={() => insert(b)} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
 interface Props {
   caseId: number;
   responses: CaseResponse[];
   seed: ResponseSeed;
   requesterEmail: string;
   isClosed?: boolean;
-  onEditorFocus?: (ref: RichTextEditorHandle) => void;
 }
 
-export interface CaseResponsesPanelHandle {
-  insertContent: (html: string) => void;
-}
-
-function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requesterEmail }: {
+function ResponseRow({ resp, caseId, isClosed, subject, requesterEmail, blocks }: {
   resp: CaseResponse;
   caseId: number;
-  onEditorFocus?: (ref: RichTextEditorHandle) => void;
   isClosed?: boolean;
   subject: string;
   requesterEmail: string;
+  blocks: ResponseSeedBlock[];
 }) {
   const router = useRouter();
   const editorRef = useRef<RichTextEditorHandle>(null);
@@ -58,13 +167,6 @@ function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requester
   // makes rather than one they accept by not noticing a pre-filled select.
   const [outcome, setOutcome] = useState<CaseOutcome | "">("");
   const leftover = unresolvedVariables(body);
-
-  function handleExpand() {
-    setExpanded(v => {
-      if (!v && editorRef.current) onEditorFocus?.(editorRef.current);
-      return !v;
-    });
-  }
 
   function handleSave() {
     startTransition(async () => {
@@ -107,7 +209,7 @@ function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requester
             : `Created ${fmtDate(resp.created_at)}`}
           {resp.created_by_name && ` by ${resp.created_by_name}`}
         </span>
-        <button className="govuk-link govuk-body-s" onClick={handleExpand}>
+        <button className="govuk-link govuk-body-s" onClick={() => setExpanded(v => !v)}>
           {expanded ? "Collapse" : "Expand"}
         </button>
       </div>
@@ -133,9 +235,12 @@ function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requester
                   value={body}
                   onChange={setBody}
                   minHeight={180}
-                  onFocus={() => editorRef.current && onEditorFocus?.(editorRef.current)}
                 />
               </div>
+              <TemplatePicker
+                blocks={blocks}
+                onInsert={html => editorRef.current?.insertContent(html)}
+              />
               <div className="foi-spread">
                 <span style={{ fontSize: 13, color: "var(--govuk-secondary-text-colour)" }}>
                   {saved ? "Saved." : ""}
@@ -233,13 +338,11 @@ function ResponseRow({ resp, caseId, onEditorFocus, isClosed, subject, requester
   );
 }
 
-const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function CaseResponsesPanel(
-  { caseId, responses, seed, requesterEmail, isClosed },
-  ref,
-) {
+export default function CaseResponsesPanel({
+  caseId, responses, seed, requesterEmail, isClosed,
+}: Props) {
   const router = useRouter();
   const newDraftEditorRef = useRef<RichTextEditorHandle>(null);
-  const activeEditorRef = useRef<RichTextEditorHandle | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -256,17 +359,6 @@ const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function 
     setError(null);
     setBody(seed.body);
     setShowForm(true);
-  }
-
-  useImperativeHandle(ref, () => ({
-    insertContent: (html: string) => {
-      const target = activeEditorRef.current ?? newDraftEditorRef.current;
-      target?.insertContent(html);
-    },
-  }));
-
-  function handleEditorFocus(editorRef: RichTextEditorHandle) {
-    activeEditorRef.current = editorRef;
   }
 
   function handleCreate(e: React.SubmitEvent<HTMLFormElement>) {
@@ -297,10 +389,10 @@ const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function 
               key={r.id}
               resp={r}
               caseId={caseId}
-              onEditorFocus={handleEditorFocus}
               isClosed={isClosed}
               subject={seed.subject}
               requesterEmail={requesterEmail}
+              blocks={seed.blocks}
             />
           ))}
         </SummaryCard>
@@ -344,10 +436,10 @@ const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function 
             key={r.id}
             resp={r}
             caseId={caseId}
-            onEditorFocus={handleEditorFocus}
             isClosed={isClosed}
             subject={seed.subject}
             requesterEmail={requesterEmail}
+            blocks={seed.blocks}
           />
         ))}
 
@@ -361,9 +453,12 @@ const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function 
                 onChange={setBody}
                 placeholder="Write your response…"
                 minHeight={200}
-                onFocus={() => newDraftEditorRef.current && handleEditorFocus(newDraftEditorRef.current)}
               />
             </FormField>
+            <TemplatePicker
+              blocks={seed.blocks}
+              onInsert={html => newDraftEditorRef.current?.insertContent(html)}
+            />
             <div style={{ display: "flex", gap: 8 }}>
               <Button type="submit" size="small" disabled={isPending}>
                 {isPending ? "Saving…" : "Save draft"}
@@ -382,6 +477,4 @@ const CaseResponsesPanel = forwardRef<CaseResponsesPanelHandle, Props>(function 
       </SummaryCard>
     </div>
   );
-});
-
-export default CaseResponsesPanel;
+}

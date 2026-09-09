@@ -46,3 +46,19 @@
 
 // Service-specific styles for the bits the Design System doesn't cover.
 @use "foi-extensions";
+
+// Tiptap UI components (the link popover in RichTextEditor), added by
+// `npx @tiptap/cli add link-popover`.
+//
+// The CLI writes these as `@import` at the very top of this file, which Sass
+// rejects outright — `@use` must precede every other rule, so the govuk-frontend
+// line below it fails with "@use rules must be written before any other rules".
+// They are `@use` here instead, which also avoids the @import deprecation.
+//
+// Both files are pure CSS output, no Sass members: `_variables.scss` is the
+// --tt-* custom properties the components read, `_keyframe-animations.scss` the
+// popover's enter/exit animations. Note that _variables.scss ALSO sets
+// unscoped font-smoothing and text-rendering on :root, which the Design System
+// does not set and therefore does not override — see notes.md, "To revisit".
+@use "../styles/variables";
+@use "../styles/keyframe-animations";

@@ -226,7 +226,13 @@ class Case(models.Model):
         self._log(action="acknowledged", actor=actor, detail={})
 
     def pause_clock(self, reason: str = "", actor=None):
-        if self.clock_paused:
+        # Not pausable before acknowledgement. `acknowledge()` resets
+        # `statutory_deadline` from the acknowledgement date outright, so a pause
+        # taken before it would be silently forfeited — and a case acknowledged
+        # while still flagged paused would be extended again on resume, by days
+        # counted from a pause that began before the deadline it is applied to.
+        # Blocking the earlier half of that pairing keeps `acknowledge()` simple.
+        if self.clock_paused or not self.acknowledged_at:
             return
         self.clock_paused = True
         self.clock_paused_at = date.today()
@@ -350,7 +356,7 @@ class EmailTemplate(models.Model):
         },
         Purpose.CONSULTATION_NOTIFICATION: {
             "label": "Consultation Notification",
-            "description": "Sent to an assignee when they are added to a consultation.",
+            "description": "Sent to an assignee when they are added to a consultation. To link to it, select your wording and use the link button with {{consultation_url}} as the address — dropping the variable into the text on its own leaves an address the reader cannot click.",
             "variables": [
                 "ref",
                 "requester_name",
@@ -363,7 +369,7 @@ class EmailTemplate(models.Model):
         },
         Purpose.CONSULTATION_MESSAGE: {
             "label": "Consultation Message",
-            "description": "Sent to an assignee when a new message is posted on their consultation.",
+            "description": "Sent to an assignee when a new message is posted on their consultation. To link to it, select your wording and use the link button with {{consultation_url}} as the address — dropping the variable into the text on its own leaves an address the reader cannot click.",
             "variables": [
                 "ref",
                 "requester_name",
@@ -375,7 +381,7 @@ class EmailTemplate(models.Model):
         },
         Purpose.CASE_ASSIGNMENT: {
             "label": "Case Assignment",
-            "description": "Sent to a staff member when a case is assigned to them.",
+            "description": "Sent to a staff member when a case is assigned to them. To link to it, select your wording and use the link button with {{case_url}} as the address — dropping the variable into the text on its own leaves an address the reader cannot click.",
             "variables": [
                 "ref",
                 "requester_name",

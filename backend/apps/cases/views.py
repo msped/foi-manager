@@ -236,7 +236,13 @@ class CaseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], permission_classes=[IsFOITeam])
     def acknowledge(self, request, pk=None):
         case = get_object_or_404(Case, pk=pk)
-        if case.status == Case.Status.ACKNOWLEDGED:
+        # Tested on `acknowledged_at`, not on status. Status only holds while the
+        # case sits at ACKNOWLEDGED, so testing it let a case that had moved on
+        # to drafting or review be acknowledged a second time — and
+        # `Case.acknowledge` recalculates `statutory_deadline` from scratch, so
+        # the rerun silently reset the statutory date and forfeited any pause
+        # taken since. Receipt happens once.
+        if case.acknowledged_at:
             return Response(
                 {"detail": "Case is already acknowledged."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -265,6 +271,14 @@ class CaseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], permission_classes=[IsFOITeam])
     def pause_clock(self, request, pk=None):
         case = get_object_or_404(Case, pk=pk)
+        # `Case.pause_clock` returns silently in this state, which over the API
+        # would be a 200 carrying an unchanged case — indistinguishable from a
+        # pause that worked. Reject it explicitly instead.
+        if not case.acknowledged_at:
+            return Response(
+                {"detail": "Acknowledge the case before pausing the clock."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         case.pause_clock(reason=request.data.get("reason", ""), actor=request.user)
         return Response(CaseDetailSerializer(case).data)
 

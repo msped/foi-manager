@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/services/users";
 import { fmtDate } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
@@ -71,25 +72,39 @@ export default function NotificationBell() {
                 No notifications
               </li>
             )}
-            {notifications.slice(0, 20).map(n => (
-              <li
-                key={n.id}
-                className={`foi-notifications__item${n.read ? "" : " foi-notifications__item--unread"}`}
-              >
-                <button
-                  type="button"
-                  className="foi-notifications__link"
-                  onClick={() => {
-                    if (!n.read) handleMarkOne(n.id);
-                    if (n.link) window.location.href = n.link;
-                  }}
-                >
+            {notifications.slice(0, 20).map(n => {
+              const body = (
+                <>
                   <span className="govuk-body-s govuk-!-margin-bottom-0">{n.message}</span>
                   <br />
                   <span className="govuk-hint govuk-!-margin-bottom-0">{fmtDate(n.created_at)}</span>
-                </button>
-              </li>
-            ))}
+                </>
+              );
+              return (
+                <li
+                  key={n.id}
+                  className={`foi-notifications__item${n.read ? "" : " foi-notifications__item--unread"}`}
+                >
+                  {/* Rows created before `link` was mandatory have nowhere to go,
+                      so they stay plain text rather than becoming a dead anchor.
+                      "Mark all read" is how those get cleared. */}
+                  {n.link ? (
+                    <Link
+                      href={n.link}
+                      className="foi-notifications__link"
+                      onClick={() => {
+                        if (!n.read) handleMarkOne(n.id);
+                        setOpen(false);
+                      }}
+                    >
+                      {body}
+                    </Link>
+                  ) : (
+                    <div className="foi-notifications__link">{body}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

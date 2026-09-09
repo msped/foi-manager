@@ -67,6 +67,7 @@ class CaseConsultationViewSet(
             _notify_foi_team(
                 consultation,
                 f"Consultation on {consultation.case.ref} status changed to {consultation.get_status_display()}",
+                link=f"/cases/{consultation.case_id}",
             )
 
     def perform_destroy(self, instance):
@@ -161,7 +162,12 @@ class MyConsultationViewSet(
         )
 
 
-def _notify_foi_team(consultation, message: str, link: str = ""):
+def _notify_foi_team(consultation, message: str, link: str):
+    """Raise an in-app notification for every FOI officer.
+
+    `link` is required: the bell renders each row as an anchor, so a
+    notification without one is a dead end for whoever clicks it.
+    """
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
