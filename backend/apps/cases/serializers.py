@@ -367,6 +367,13 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "acknowledged_at",
             "statutory_deadline",
             "clock_paused",
+            # `statutory_deadline` is only extended on resume, so while a case is
+            # paused the stored deadline is stale and a countdown against it
+            # keeps falling on days that are not being counted. The UI needs the
+            # pause date to freeze the figure at what it was when the clock
+            # stopped. `clock_paused_days` cannot serve — it is the total from
+            # *previous* pauses and reads 0 throughout a first one.
+            "clock_paused_at",
             "clock_paused_days",
             "is_overdue",
             "outcome",
@@ -388,6 +395,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "acknowledged_at",
             "statutory_deadline",
             "clock_paused",
+            "clock_paused_at",
             "clock_paused_days",
             "created_at",
             "updated_at",

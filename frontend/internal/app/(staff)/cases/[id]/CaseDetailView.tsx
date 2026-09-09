@@ -11,7 +11,7 @@ import ConsultationsPanel from "./ConsultationsPanel";
 import CaseResponsesPanel from "./CaseResponsesPanel";
 import CruAdvicePanel from "./CruAdvicePanel";
 import DisclosureLogPanel from "./DisclosureLogPanel";
-import { fmtDate, daysUntil, isTerminalStatus } from "@/lib/utils";
+import { fmtDate, daysUntil, daysBetween, pluralDays, isTerminalStatus } from "@/lib/utils";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import FormField from "@/components/ui/FormField";
 import Modal from "@/components/ui/Modal";
@@ -75,8 +75,16 @@ export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
   const [clarificationNotes, setClarificationNotes] = useState("");
   const terminal = isTerminalStatus(c.status);
   const days = terminal ? null : daysUntil(c.statutory_deadline);
-
-  const response_sent = c.responses.find(r => r.status === "sent");
+  // Paused: what was left when the clock stopped, and how long it has been off.
+  const pausedDaysLeft = c.clock_paused
+    ? daysBetween(c.clock_paused_at, c.statutory_deadline)
+    : null;
+  const pausedFor = c.clock_paused
+    ? daysBetween(c.clock_paused_at, new Date().toISOString())
+    : null;
+  const overdueShown = c.clock_paused
+    ? pausedDaysLeft !== null && pausedDaysLeft < 0
+    : days !== null && days < 0;
 
   function withAction(fn: () => Promise<void>) {
     setActionError(null);
@@ -149,6 +157,12 @@ export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
                       <dd className="govuk-summary-list__value">{fmtDate(c.submitted_at)} via {c.received_by}</dd>
                     </div>
                     <div className="govuk-summary-list__row">
+                      <dt className="govuk-summary-list__key">Acknowledged</dt>
+                      <dd className="govuk-summary-list__value">
+                        {c.acknowledged_at ? fmtDate(c.acknowledged_at) : <Tag colour="grey">Pending</Tag>}
+                      </dd>
+                    </div>
+                    <div className="govuk-summary-list__row">
                       <dt className="govuk-summary-list__key">Statutory deadline</dt>
                       <dd className="govuk-summary-list__value">{fmtDate(c.statutory_deadline)}</dd>
                     </div>
@@ -167,8 +181,48 @@ export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
                         <dt className="govuk-summary-list__key">Clock</dt>
                         <dd className="govuk-summary-list__value">
                           {c.clock_paused
-                            ? <Tag colour="yellow">Paused ({c.clock_paused_days} days)</Tag>
+                            ? <Tag colour="yellow">Paused</Tag>
                             : <Tag colour="green">Running</Tag>}
+                          <span
+                            className="govuk-body-s"
+                            style={{
+                              marginLeft: 8,
+                              color: overdueShown
+                                ? "var(--govuk-error-colour)"
+                                : "var(--govuk-secondary-text-colour)",
+                              fontWeight: overdueShown ? 700 : undefined,
+                            }}
+                          >
+                            {c.clock_paused
+                              // Frozen at the pause date: the stored deadline is
+                              // not extended until resume, so counting from today
+                              // would burn days that are not being counted. A
+                              // case can be paused after going overdue, so this
+                              // figure is signed like the running one.
+                              ? (pausedDaysLeft === null
+                                  ? "Deadline on hold"
+                                  : pausedDaysLeft < 0
+                                    ? `${pluralDays(-pausedDaysLeft)} overdue when paused`
+                                    : `${pluralDays(pausedDaysLeft)} remaining when paused`)
+                              : days !== null
+                                ? (days < 0
+                                    ? `${pluralDays(-days)} overdue`
+                                    : `${pluralDays(days)} remaining`)
+                                : ""}
+                          </span>
+                        </dd>
+                      </div>
+                    )}
+                    {c.clock_paused && c.clock_paused_at && (
+                      <div className="govuk-summary-list__row">
+                        <dt className="govuk-summary-list__key">Paused since</dt>
+                        <dd className="govuk-summary-list__value">
+                          {fmtDate(c.clock_paused_at)}
+                          {pausedFor !== null && (
+                            <span className="govuk-body-s" style={{ marginLeft: 8, color: "var(--govuk-secondary-text-colour)" }}>
+                              ({pluralDays(pausedFor)} so far)
+                            </span>
+                          )}
                         </dd>
                       </div>
                     )}
@@ -266,56 +320,6 @@ export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
         </div>
 
         <aside className="govuk-grid-column-one-third foi-col">
-            <SummaryCard title="Timeline" headingLevel={3}>
-              <dl className="govuk-summary-list govuk-summary-list--no-border">
-                <div className="govuk-summary-list__row">
-                  <dt className="govuk-summary-list__key">Received</dt>
-                  <dd className="govuk-summary-list__value">{fmtDate(c.submitted_at)}</dd>
-                </div>
-                <div className="govuk-summary-list__row">
-                  <dt className="govuk-summary-list__key">Acknowledged</dt>
-                  <dd className="govuk-summary-list__value">
-                    {c.acknowledged_at ? fmtDate(c.acknowledged_at) : <Tag colour="grey">Pending</Tag>}
-                  </dd>
-                </div>
-                {response_sent || terminal ? '' : <div className="govuk-summary-list__row">
-                  <dt className="govuk-summary-list__key">Due</dt>
-                  <dd className="govuk-summary-list__value"><strong>{fmtDate(c.statutory_deadline)}</strong></dd>
-                </div>}
-                <div className="govuk-summary-list__row">
-                  <dt className="govuk-summary-list__key">
-                    {response_sent ? "Response sent" : terminal ? "Closed" : "Days remaining"}
-                  </dt>
-                  <dd className="govuk-summary-list__value">
-                    {response_sent ? fmtDate(response_sent.sent_at) : days !== null ? (
-                      <Tag colour={days < 0 ? "red" : days <= 5 ? "yellow" : "green"}>
-                        {days < 0 ? `${-days}d overdue` : `${days}d`}
-                      </Tag>
-                    ) : "—"}
-                  </dd>
-                </div>
-              </dl>
-            </SummaryCard>
-
-            <SummaryCard title="Assigned to" headingLevel={3}>
-              <select
-                className="govuk-select"
-                defaultValue={c.assignee ?? ""}
-                style={{ width: "100%", marginBottom: 8 }}
-                onChange={e => {
-                  const val = e.target.value;
-                  withAction(() => assignCase(c.id, val ? Number(val) : null));
-                }}
-              >
-                <option value="">— Unassigned —</option>
-                {foiTeam.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.first_name || u.last_name ? `${u.first_name} ${u.last_name}`.trim() : u.email}
-                  </option>
-                ))}
-              </select>
-            </SummaryCard>
-
             <SummaryCard title="Actions" headingLevel={3}>
               {actionError && <p className="govuk-error-message" style={{ marginBottom: 8 }}>{actionError}</p>}
               <div className="foi-col" style={{ gap: 8 }}>
@@ -335,7 +339,7 @@ export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
                   >
                     Resume clock
                   </Button>
-                ) : (
+                ) : c.acknowledged_at ? (
                   <Button
                     variant="secondary"
                     disabled={isPending}
@@ -343,7 +347,7 @@ export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
                   >
                     Pause clock
                   </Button>
-                ))}
+                ) : null)}
 
                 {c.status !== "closed" && c.status !== "with_applicant" && !showClarificationForm && (
                   <Button
@@ -430,6 +434,25 @@ export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
                   </form>
                 </Modal>
               )}
+            </SummaryCard>
+
+            <SummaryCard title="Assigned to" headingLevel={3}>
+              <select
+                className="govuk-select"
+                defaultValue={c.assignee ?? ""}
+                style={{ width: "100%", marginBottom: 8 }}
+                onChange={e => {
+                  const val = e.target.value;
+                  withAction(() => assignCase(c.id, val ? Number(val) : null));
+                }}
+              >
+                <option value="">— Unassigned —</option>
+                {foiTeam.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.first_name || u.last_name ? `${u.first_name} ${u.last_name}`.trim() : u.email}
+                  </option>
+                ))}
+              </select>
             </SummaryCard>
 
             {c.status === "with_applicant" && (

@@ -325,6 +325,9 @@ export interface CaseDetail {
   acknowledged_at: string | null;
   statutory_deadline: string | null;
   clock_paused: boolean;
+  /** Date the current pause began; null when the clock is running. */
+  clock_paused_at: string | null;
+  /** Working days accumulated from *previous* pauses. 0 during a first pause. */
   clock_paused_days: number;
   is_overdue: boolean;
   outcome: string;
