@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import SummaryCard from "@/components/govuk/SummaryCard";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
@@ -8,7 +8,7 @@ import PageHeader from "@/components/govuk/PageHeader";
 import { StatusTag, Tag } from "@/components/ui/Tag";
 import CaseInsightsPanel from "./CaseInsightsPanel";
 import ConsultationsPanel from "./ConsultationsPanel";
-import CaseResponsesPanel, { type CaseResponsesPanelHandle } from "./CaseResponsesPanel";
+import CaseResponsesPanel from "./CaseResponsesPanel";
 import CruAdvicePanel from "./CruAdvicePanel";
 import DisclosureLogPanel from "./DisclosureLogPanel";
 import { fmtDate, daysUntil, isTerminalStatus } from "@/lib/utils";
@@ -46,40 +46,6 @@ function fmtAuditAction(action: string, detail: Record<string, unknown>): string
   return label;
 }
 
-function TemplateAsideRow({ template, onInsert, inserted }: {
-  template: { id: number; name: string; body: string };
-  onInsert: () => void;
-  inserted?: boolean;
-}) {
-  const [preview, setPreview] = useState(false);
-  return (
-    <div style={{ borderBottom: "1px solid var(--govuk-border-colour)", padding: "10px 0" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {inserted !== undefined && (
-          <span
-            aria-hidden="true"
-            style={{ color: inserted ? "var(--govuk-success-colour, #00703c)" : "var(--govuk-secondary-text-colour)", flexShrink: 0 }}
-          >
-            {inserted ? "✓" : "○"}
-          </span>
-        )}
-        <span className="govuk-body-s" style={{ flex: 1, fontWeight: 500, margin: 0 }}>{template.name}</span>
-        <button className="govuk-link govuk-body-s" onClick={() => setPreview(v => !v)}>
-          {preview ? "Hide" : "Preview"}
-        </button>
-        <button className="govuk-link govuk-body-s" onClick={onInsert}>Insert</button>
-      </div>
-      {preview && (
-        <div
-          className="foi-rich-content"
-          style={{ marginTop: 8, fontSize: 12, padding: "8px 10px", background: "var(--govuk-template-background-colour)", borderLeft: "3px solid var(--govuk-border-colour)" }}
-          dangerouslySetInnerHTML={{ __html: template.body }}
-        />
-      )}
-    </div>
-  );
-}
-
 const TABS = [
   { id: "overview",      label: "Overview" },
   { id: "consultations", label: "Consultations" },
@@ -97,22 +63,7 @@ interface Props {
 
 export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
   const router = useRouter();
-  const responsePanelRef = useRef<CaseResponsesPanelHandle>(null);
   const [isPending, startTransition] = useTransition();
-  // Advisory only, and scoped to this editing session — reloading clears it.
-  const [insertedBlocks, setInsertedBlocks] = useState<Set<number>>(new Set());
-
-  const suggestedBlocks = seed.blocks.filter(b => b.suggested);
-  const otherBlocks = seed.blocks.filter(b => !b.suggested);
-  const claimedCodes = new Set(suggestedBlocks.map(b => b.exemption_code));
-  const addressedCodes = new Set(
-    suggestedBlocks.filter(b => insertedBlocks.has(b.id)).map(b => b.exemption_code),
-  );
-
-  function insertBlock(block: { id: number; body: string }) {
-    responsePanelRef.current?.insertContent(block.body);
-    setInsertedBlocks(prev => new Set(prev).add(block.id));
-  }
   const [actionError, setActionError] = useState<string | null>(null);
   const [noteBody, setNoteBody] = useState("");
   const [showClarificationForm, setShowClarificationForm] = useState(false);
@@ -275,59 +226,12 @@ export default function CaseDetailView({ c, foiTeam, seed, insights }: Props) {
 
             <div className="govuk-tabs__panel" id="panel-response">
               <CaseResponsesPanel
-                ref={responsePanelRef}
                 caseId={c.id}
                 responses={c.responses}
                 isClosed={c.status === "closed"}
                 seed={seed}
                 requesterEmail={c.requester_email}
               />
-
-              <SummaryCard title="Response templates" headingLevel={3}>
-                {seed.blocks.length === 0 ? (
-                  <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", marginBottom: 0 }}>
-                    No templates configured. Add them in <a href="/settings" className="govuk-link">Settings</a>.
-                  </p>
-                ) : (
-                  <>
-                    {suggestedBlocks.length > 0 && (
-                      <div style={{ marginBottom: 16 }}>
-                        <h4 className="govuk-body-s" style={{ fontWeight: 700, marginBottom: 2 }}>
-                          Suggested for this case
-                        </h4>
-                        <p className="govuk-body-s" style={{ color: "var(--govuk-secondary-text-colour)", fontSize: 12, marginBottom: 4 }}>
-                          {addressedCodes.size} of {claimedCodes.size} claimed exemption
-                          {claimedCodes.size === 1 ? "" : "s"} addressed
-                        </p>
-                        <div className="foi-col" style={{ gap: 0 }}>
-                          {suggestedBlocks.map(b => (
-                            <TemplateAsideRow
-                              key={b.id}
-                              template={b}
-                              inserted={insertedBlocks.has(b.id)}
-                              onInsert={() => insertBlock(b)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {otherBlocks.length > 0 && (
-                      <div>
-                        {suggestedBlocks.length > 0 && (
-                          <h4 className="govuk-body-s" style={{ fontWeight: 700, marginBottom: 2 }}>
-                            All templates
-                          </h4>
-                        )}
-                        <div className="foi-col" style={{ gap: 0 }}>
-                          {otherBlocks.map(b => (
-                            <TemplateAsideRow key={b.id} template={b} onInsert={() => insertBlock(b)} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </SummaryCard>
             </div>
 
             <div className="govuk-tabs__panel" id="panel-audit">
