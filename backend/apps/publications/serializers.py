@@ -53,9 +53,30 @@ class PublicAttachmentSerializer(serializers.ModelSerializer):
         fields = ["id", "original_filename", "file"]
 
 
+#: How much of a request the disclosure log list shows before cutting it.
+#:
+#: `summary` is seeded from the case's request text at publication and edited by
+#: staff, so it is usually a whole FOI request rather than the sentence the
+#: field name suggests — several hundred words is ordinary. Ten of those on one
+#: page made the list unreadable and buried the pagination.
+#:
+#: Cut server-side rather than clamped in CSS so the payload shrinks too, and so
+#: the list still reads correctly with stylesheets unavailable.
+SUMMARY_EXCERPT_CHARS = 300
+
+
+def _excerpt(text: str) -> str:
+    """Enough of a request to recognise it, cut at a word boundary."""
+    text = (text or "").strip()
+    if len(text) <= SUMMARY_EXCERPT_CHARS:
+        return text
+    return text[:SUMMARY_EXCERPT_CHARS].rsplit(" ", 1)[0] + "…"
+
+
 class PublicDisclosureLogListSerializer(serializers.ModelSerializer):
     case_ref = serializers.CharField(source="case.ref", read_only=True)
     exemptions = PublicExemptionSerializer(many=True, read_only=True)
+    summary = serializers.SerializerMethodField()
 
     class Meta:
         model = DisclosureLogEntry
@@ -70,9 +91,18 @@ class PublicDisclosureLogListSerializer(serializers.ModelSerializer):
             "exemptions",
         ]
 
+    def get_summary(self, entry):
+        return _excerpt(entry.summary)
+
 
 class PublicDisclosureLogDetailSerializer(PublicDisclosureLogListSerializer):
     attachments = serializers.SerializerMethodField()
+
+    # Undoes the list serializer's excerpt. Inheriting the field list is worth
+    # keeping, but inheriting the truncation is not: this is the page someone
+    # opens *because* they want the whole request, and it is the only place the
+    # full text is published at all.
+    summary = serializers.CharField(read_only=True)
 
     class Meta(PublicDisclosureLogListSerializer.Meta):
         fields = PublicDisclosureLogListSerializer.Meta.fields + [

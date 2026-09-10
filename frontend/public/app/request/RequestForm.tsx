@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+import type { RequestSuggestion } from "@/lib/types";
+import { fmtDate } from "@/lib/utils";
 import { requestAction } from "./actions";
 import {
   FIELD_LABELS,
@@ -79,6 +81,83 @@ function Honeypot() {
   );
 }
 
+/**
+ * Published responses that may already answer the request being written.
+ *
+ * The one deflection point in the journey, and the reason the AI retrieval
+ * exists at all: an answer that already exists is available now, where a new
+ * request takes twenty working days to produce the same thing.
+ *
+ * Worded so it can be wrong. Both retrieval arms had to agree before anything
+ * reached this screen, but agreement is not relevance — two methods can rank
+ * the same wrong entry first — so nothing here claims these *do* answer the
+ * request, and continuing is a plain button rather than a discouraged one.
+ * Nobody is made to justify carrying on: the right to make the request does not
+ * depend on our search being good.
+ */
+function Suggestions({ suggestions }: { suggestions: RequestSuggestion[] }) {
+  return (
+    <>
+      <h1 className="govuk-heading-l">We may have already answered this</h1>
+      <p className="govuk-body-l">
+        These published responses look similar to your request. If one of them
+        has the information you want, you can read it now rather than waiting up
+        to 20 working days for a reply.
+      </p>
+
+      <ul className="govuk-list">
+        {suggestions.map((s) => (
+          <li key={s.id} className="govuk-!-margin-bottom-6">
+            <h2 className="govuk-heading-s govuk-!-margin-bottom-1">
+              {/* A new tab, which GDS otherwise discourages. This is the
+                  exception it allows: the request is held in this page's form
+                  fields, so following a link in the same tab would throw away
+                  everything they have written. */}
+              <a
+                className="govuk-link"
+                href={`/disclosure-log/${s.id}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {s.title || s.case_ref}
+                <span className="govuk-visually-hidden"> (opens in new tab)</span>
+              </a>
+            </h2>
+            <p className="govuk-body-s govuk-!-margin-bottom-1">
+              <span className="govuk-visually-hidden">Reference </span>
+              {s.case_ref}
+              {s.date_responded && <> &middot; Responded {fmtDate(s.date_responded)}</>}
+            </p>
+            {s.preview && (
+              <p className="govuk-body govuk-!-margin-bottom-0">{s.preview}</p>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <hr className="govuk-section-break govuk-section-break--m govuk-section-break--visible" />
+
+      <div className="govuk-button-group">
+        <button
+          type="submit"
+          name="intent"
+          value="continue"
+          className="govuk-button"
+          data-module="govuk-button"
+        >
+          None of these answer my question
+        </button>
+        {/* For the case the list above is meant to create: having read a
+            published response, someone often wants to ask for the part it did
+            not cover rather than to abandon the request or send it unchanged. */}
+        <button type="submit" name="intent" value="back" className="govuk-link">
+          Change my request
+        </button>
+      </div>
+    </>
+  );
+}
+
 function CheckAnswers({ values }: { values: RequestAnswers }) {
   return (
     <>
@@ -128,7 +207,10 @@ export default function RequestForm() {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
 
   const errors = state.step === "form" ? state.errors : {};
-  const hasErrors = Object.keys(errors).length > 0 || Boolean(state.formError);
+  // Nothing has been submitted by the suggestions step, so it can have no
+  // submission-level error to report.
+  const formError = state.step === "suggestions" ? undefined : state.formError;
+  const hasErrors = Object.keys(errors).length > 0 || Boolean(formError);
 
   // Move focus the way govuk-frontend would: to the error summary when the
   // submission fails, and to the new heading when the step changes.
@@ -165,20 +247,20 @@ export default function RequestForm() {
 
   return (
     <form action={formAction} noValidate>
-      <ErrorSummary
-        errors={errors}
-        formError={state.formError}
-        summaryRef={summaryRef}
-      />
+      <ErrorSummary errors={errors} formError={formError} summaryRef={summaryRef} />
 
-      {state.step === "review" ? (
+      {state.step !== "form" ? (
         <>
           {/* Carries the answers forward without a cookie or a size limit. */}
           {FIELD_ORDER.map((field) => (
             <input key={field} type="hidden" name={field} value={state.values[field]} />
           ))}
           <div ref={headingRef as React.RefObject<HTMLDivElement>} tabIndex={-1}>
-            <CheckAnswers values={state.values} />
+            {state.step === "suggestions" ? (
+              <Suggestions suggestions={state.suggestions} />
+            ) : (
+              <CheckAnswers values={state.values} />
+            )}
           </div>
         </>
       ) : (

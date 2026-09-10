@@ -206,18 +206,13 @@ def document_frequencies(table: str) -> tuple[dict[str, int], int]:
     return result
 
 
-def case_lexemes(case, table="cases_case") -> list[str]:
-    """The case's most distinctive search terms, rarest first.
+def _rank_lexemes(rows, table) -> list[str]:
+    """Pick the most distinctive terms from `(lexeme, weights)` rows.
 
-    Read back out of the generated `search_vector` rather than recomputed from
-    the text, so the query side and the document side are guaranteed to have
-    been through the same stemmer and the same stopword list. Recomputing in
-    Python would be a second implementation of Postgres's English parser, and
-    the two would drift.
-
-    Ordered by how rare each term is in `table`, with a term in the subject
-    line breaking ties. Cases and published entries have different
-    vocabularies, so each is judged against its own corpus.
+    Shared by both entry points below so the two sides of a comparison are
+    filtered and ranked identically. The only thing that varies is where the
+    lexemes came from — a stored `search_vector` or a tsvector built on the
+    fly — and Postgres produces both with the same parser.
     """
     frequencies, total = document_frequencies(table)
     # Only where there are real frequencies to judge against. An empty map
@@ -225,17 +220,6 @@ def case_lexemes(case, table="cases_case") -> list[str]:
     # ceiling of `total * 0.35` there would drop every term — in a corpus of
     # two, the default frequency of 1 exceeds a ceiling of 0.7.
     ceiling = total * MAX_DOCUMENT_FREQUENCY if frequencies else None
-
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT lexeme, weights
-            FROM cases_case, unnest(search_vector)
-            WHERE cases_case.id = %s
-            """,
-            [case.pk],
-        )
-        rows = cursor.fetchall()
 
     candidates = []
     for lexeme, weights in rows:
@@ -259,11 +243,70 @@ def case_lexemes(case, table="cases_case") -> list[str]:
         # subject and the body comes back as ['A', 'B'], and 'A' is the
         # subject. Only a tie-breaker — two terms of equal rarity are better
         # separated by which one names the request than by chance.
+        #
+        # A tsvector built by `to_tsvector` alone carries no `setweight`, so
+        # every term comes back as ['D'] and this contributes nothing. That is
+        # the correct outcome for `text_lexemes`: unsaved text has no subject
+        # line to privilege.
         strongest = min(weights) if weights else "Z"
         candidates.append((frequency, strongest, term))
 
     candidates.sort()
     return [term for _frequency, _weight, term in candidates[:MAX_LEXEMES]]
+
+
+def case_lexemes(case, table="cases_case") -> list[str]:
+    """The case's most distinctive search terms, rarest first.
+
+    Read back out of the generated `search_vector` rather than recomputed from
+    the text, so the query side and the document side are guaranteed to have
+    been through the same stemmer and the same stopword list. Recomputing in
+    Python would be a second implementation of Postgres's English parser, and
+    the two would drift.
+
+    Ordered by how rare each term is in `table`, with a term in the subject
+    line breaking ties. Cases and published entries have different
+    vocabularies, so each is judged against its own corpus.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT lexeme, weights
+            FROM cases_case, unnest(search_vector)
+            WHERE cases_case.id = %s
+            """,
+            [case.pk],
+        )
+        rows = cursor.fetchall()
+
+    return _rank_lexemes(rows, table)
+
+
+def text_lexemes(text: str, table: str) -> list[str]:
+    """The same, for text that is not a row yet.
+
+    The public surfaces have nothing to read a stored `search_vector` from: on
+    the request form the case does not exist, and a search box never becomes a
+    row at all. Without this the public side could only run the vector arm, and
+    a vector arm alone is precisely what the module docstring says cannot tell
+    an empty result from a confident wrong one.
+
+    Built in Postgres rather than stemmed in Python for the same reason
+    `case_lexemes` reads the stored column: `to_tsvector` is the function that
+    generated every document vector these will be matched against, so using
+    anything else here would compare two different stemmers' output.
+    """
+    if not text.strip():
+        return []
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT lexeme, weights FROM unnest(to_tsvector('english', %s))",
+            [text],
+        )
+        rows = cursor.fetchall()
+
+    return _rank_lexemes(rows, table)
 
 
 def build_query(lexemes) -> SearchQuery | None:
@@ -298,15 +341,35 @@ def similar_cases(case, limit):
 
 
 def similar_published_entries(case, limit):
-    """Published entries sharing vocabulary with this case."""
+    """Published entries sharing vocabulary with this case.
+
+    Excludes the case's own entry — a published case matches itself perfectly
+    and tells an officer nothing.
+    """
     query = build_query(case_lexemes(case, table="publications_disclosurelogentry"))
+    return _published_entries(query, limit, exclude_case=case)
+
+
+def published_entries_for_text(text: str, limit):
+    """Published entries sharing vocabulary with text that has no row yet.
+
+    Nothing to exclude: the text this is called with has never been saved, so
+    there is no entry of its own for it to match.
+    """
+    query = build_query(text_lexemes(text, table="publications_disclosurelogentry"))
+    return _published_entries(query, limit)
+
+
+def _published_entries(query, limit, exclude_case=None):
     if query is None:
         return []
 
+    qs = DisclosureLogEntry.objects.filter(status=DisclosureLogEntry.Status.PUBLISHED)
+    if exclude_case is not None:
+        qs = qs.exclude(case=exclude_case)
+
     return list(
-        DisclosureLogEntry.objects.filter(status=DisclosureLogEntry.Status.PUBLISHED)
-        .exclude(case=case)
-        .annotate(rank=SearchRank(F("search_vector"), query))
+        qs.annotate(rank=SearchRank(F("search_vector"), query))
         .filter(rank__gt=0)
         .select_related("case")
         .prefetch_related("exemptions")

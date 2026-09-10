@@ -18,12 +18,16 @@ from rest_framework import serializers
 PREVIEW_LENGTH = 300
 
 
-def _preview(case) -> str:
-    """Enough of the request to judge a suggestion without opening it."""
-    text = (case.summary or case.request_text or "").strip()
+def _preview_text(text: str) -> str:
+    """Enough of a request to judge a suggestion without opening it."""
+    text = (text or "").strip()
     if len(text) <= PREVIEW_LENGTH:
         return text
     return text[:PREVIEW_LENGTH].rsplit(" ", 1)[0] + "…"
+
+
+def _preview(case) -> str:
+    return _preview_text(case.summary or case.request_text)
 
 
 class SimilarCaseSerializer(serializers.Serializer):
@@ -49,3 +53,29 @@ class CaseInsightsSerializer(serializers.Serializer):
     indexed = serializers.BooleanField()
     similar_cases = SimilarCaseSerializer(many=True)
     exemption_frequencies = serializers.ListField(child=serializers.DictField())
+
+
+class RequestSuggestionSerializer(serializers.Serializer):
+    """One published response offered to someone drafting a request.
+
+    Carries only what the disclosure log list already publishes, and less of it:
+    no exemptions. On a staff panel an exemption code is precedent; on a card
+    shown to a member of the public mid-request it is jargon attached to a
+    result they have not read yet, and it reads as a warning that their own
+    request will be refused.
+
+    No score and no ordering claim beyond the order of the list, for the reason
+    at the top of this module — more so here, where the reader has no way to
+    calibrate a number against anything.
+    """
+
+    id = serializers.IntegerField()
+    case_ref = serializers.CharField(source="case.ref")
+    title = serializers.CharField()
+    date_responded = serializers.DateField()
+    preview = serializers.SerializerMethodField()
+
+    def get_preview(self, entry):
+        # `summary` is the request as published, already reviewed by staff — the
+        # same field the disclosure log list shows, cut the same way.
+        return _preview_text(entry.summary)

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { isAxiosError } from "axios";
+import { getRequestSuggestions } from "@/lib/services/ai";
 import { submitPublicRequest } from "@/lib/services/cases";
 import {
   HONEYPOT_FIELD,
@@ -24,6 +25,10 @@ import {
  *
  * Both steps still work without JavaScript — the form posts, the action runs,
  * and the page re-renders with the next state.
+ *
+ * The suggestions step is a third state of the same route, for the same reason,
+ * and it inherits the same property: retrieval happens here on the server, so a
+ * requester with JavaScript disabled sees the published responses too.
  */
 
 function readAnswers(formData: FormData): RequestAnswers {
@@ -94,6 +99,25 @@ export async function requestAction(
   const errors = validate(answers);
   if (Object.keys(errors).length > 0) {
     return { step: "form", values: answers, errors };
+  }
+
+  // Coming off the form. Look for published responses that may already answer
+  // this before asking anyone to check their answers — the point of the step is
+  // to offer an answer now instead of in twenty working days.
+  //
+  // Skipped entirely when there is nothing to show, so nobody meets a screen
+  // whose only content is that it found nothing. `getRequestSuggestions` never
+  // throws, so retrieval being down is indistinguishable from a novel request:
+  // both go straight to check-answers, which is the correct outcome for both.
+  //
+  // Deliberately re-run if someone edits their request and continues again.
+  // Carrying the previously-checked text through three steps of hidden fields
+  // to avoid one repeated call would cost more than the call.
+  if (intent === "review") {
+    const suggestions = await getRequestSuggestions(answers.request_text);
+    if (suggestions.length > 0) {
+      return { step: "suggestions", values: answers, suggestions };
+    }
   }
 
   if (intent !== "submit") {
