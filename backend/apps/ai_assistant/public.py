@@ -121,3 +121,38 @@ def suggest_published_entries(request_text: str, limit=None):
         ).select_related("case")
     }
     return [by_id[pk] for pk in ordered_ids if pk in by_id]
+
+
+#: How many scheme entries the request form will offer.
+#:
+#: Lower than `AI_PUBLIC_RESULT_COUNT` on purpose. These sit in a second section
+#: below the published responses, and the whole screen is an interruption
+#: between someone and a statutory right — a long one earns being skipped, which
+#: costs the deflection the section exists for.
+SCHEME_RESULT_COUNT = 3
+
+
+def suggest_scheme_entries(request_text: str, limit=None):
+    """Publication scheme entries that may already cover a request.
+
+    A weaker and broader claim than `suggest_published_entries`, and the two
+    are kept apart rather than merged into one ranked list for that reason. A
+    disclosure log hit says someone asked this exact question and here is the
+    reply. A scheme hit says we publish this sort of thing routinely and here is
+    where it lives. One list would need one heading, and no heading is honest
+    about both.
+
+    No embedding call, so unlike its neighbour above this keeps working with
+    Ollama stopped. It shares the same posture on failure regardless: an empty
+    list is an ordinary outcome, and most requests will get one.
+    """
+    text = normalise(request_text)
+    # The same floor the published-entry search uses. Applied here for the
+    # first of the two reasons given at `MIN_QUERY_CHARS` rather than the
+    # second — nothing is embedded on this path, so the degenerate-vector bug
+    # cannot bite, but a handful of words still cannot support a gate that asks
+    # for two distinctive terms.
+    if len(text) < MIN_QUERY_CHARS:
+        return []
+
+    return lexical.scheme_entries_for_text(text, limit or SCHEME_RESULT_COUNT)

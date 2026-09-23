@@ -360,6 +360,100 @@ def published_entries_for_text(text: str, limit):
     return _published_entries(query, limit)
 
 
+#: Which corpus the publication scheme borrows its word frequencies from.
+#:
+#: Not its own, and that is a departure from the rule `case_lexemes` follows of
+#: judging each corpus against itself. That rule assumes a corpus big enough to
+#: count in. A publication scheme is a few dozen rows — `document_frequencies`
+#: returns an empty map below `MIN_CORPUS_FOR_FREQUENCY`, which sets `ceiling`
+#: to None and gives every term a frequency of 1, at which point `_rank_lexemes`
+#: falls through its sort key to the term itself and returns the fifteen
+#: alphabetically-first words of the request. Ranking by the alphabet is worse
+#: than not ranking at all, because it looks like it worked.
+#:
+#: Cases are the right lender. The question being asked of the frequency map is
+#: "which words in this request are distinctive?", and that is a fact about the
+#: language of FOI requests, not about the scheme. The cases table is the
+#: largest body of exactly that language the system holds.
+SCHEME_FREQUENCY_TABLE = "cases_case"
+
+#: How many of the request's ranked terms an entry must contain.
+#:
+#: This is the gate, and it exists because the scheme has no second retrieval
+#: arm to agree with. Everywhere else in this module relevance is decided by two
+#: independent methods concurring; a keyword-only surface has to get that
+#: assurance from somewhere else, and depth of overlap is what is left.
+#:
+#: One is far too loose. The terms come from a whole FOI request, so a single
+#: shared word is ordinary coincidence — a request about school transport and an
+#: entry about school meals share `school` and nothing else that matters. Two
+#: independently distinctive terms is a much weaker claim than vector-plus-
+#: lexical agreement, and it is stated as such on the page: the wording offers
+#: these as things we may already publish, never as an answer.
+MIN_SCHEME_LEXEME_MATCHES = 2
+
+
+def scheme_entries_for_text(text: str, limit):
+    """Published scheme entries sharing distinctive vocabulary with a request.
+
+    Keyword-only, deliberately. The vector arm that carries the disclosure log
+    is not used here and no scheme embedding exists: an entry is a title and a
+    short description, which is inside the input range where `nomic-embed-text`
+    returns identical vectors on Ollama's CPU backend — the bug documented at
+    `public.MIN_QUERY_CHARS`, which would make every short entry a confident
+    match for the same arbitrary request, invisibly in development and only in
+    production. What the vector arm buys elsewhere is synonym bridging across
+    long prose, and there is little of that to do against eighty characters of
+    literal, plainly-worded title.
+
+    Counted rather than ranked. `SearchRank` scores how well a document matches
+    overall and cannot say how many distinct query terms it contained, which is
+    exactly the judgement `MIN_SCHEME_LEXEME_MATCHES` needs — so this counts
+    matched lexemes directly out of the stored vector.
+    """
+    lexemes = text_lexemes(text, SCHEME_FREQUENCY_TABLE)
+    if len(lexemes) < MIN_SCHEME_LEXEME_MATCHES:
+        # Fewer distinctive terms than the gate requires means the gate can
+        # never be met, and the query would be wasted work.
+        return []
+
+    from apps.publications.models import PublicationSchemeEntry
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT e.id, count(DISTINCT t.lexeme) AS hits
+            FROM publications_publicationschemeentry e,
+                 unnest(e.search_vector) AS t(lexeme, positions, weights)
+            WHERE e.status = %s
+              AND t.lexeme = ANY(%s)
+            GROUP BY e.id
+            HAVING count(DISTINCT t.lexeme) >= %s
+            ORDER BY hits DESC, e.id
+            LIMIT %s
+            """,
+            [
+                PublicationSchemeEntry.Status.PUBLISHED,
+                lexemes,
+                MIN_SCHEME_LEXEME_MATCHES,
+                limit,
+            ],
+        )
+        ordered_ids = [row[0] for row in cursor.fetchall()]
+
+    if not ordered_ids:
+        return []
+
+    by_id = {
+        entry.pk: entry
+        for entry in PublicationSchemeEntry.objects.filter(
+            pk__in=ordered_ids,
+            status=PublicationSchemeEntry.Status.PUBLISHED,
+        ).prefetch_related("items")
+    }
+    return [by_id[pk] for pk in ordered_ids if pk in by_id]
+
+
 def _published_entries(query, limit, exclude_case=None):
     if query is None:
         return []
