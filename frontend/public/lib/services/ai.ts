@@ -1,8 +1,21 @@
 import djangoClient from "./django";
-import type { RequestSuggestion } from "@/lib/types";
+import type { RequestSuggestion, SchemeSuggestion } from "@/lib/types";
+
+export interface RequestDeflection {
+  /** Published responses to requests someone else already made. */
+  suggestions: RequestSuggestion[];
+  /** Information published as a matter of course, which may cover this. */
+  scheme_entries: SchemeSuggestion[];
+}
+
+const NOTHING: RequestDeflection = { suggestions: [], scheme_entries: [] };
 
 /**
- * Published responses that may already answer a request being drafted.
+ * Things we already publish that may cover a request being drafted.
+ *
+ * Two lists rather than one ranked list, because they are two different claims
+ * — a published response answered this exact question, a scheme entry covers
+ * this sort of question routinely — and the form gives each its own heading.
  *
  * POST because the request text is the requester's own words, at up to 20,000
  * characters, on a subject they have not yet decided to send us — it should not
@@ -15,14 +28,17 @@ import type { RequestSuggestion } from "@/lib/types";
  */
 export async function getRequestSuggestions(
   requestText: string
-): Promise<RequestSuggestion[]> {
+): Promise<RequestDeflection> {
   try {
-    const { data } = await djangoClient.post<{ suggestions: RequestSuggestion[] }>(
+    const { data } = await djangoClient.post<Partial<RequestDeflection>>(
       "/ai/public/request-suggestions/",
       { request_text: requestText }
     );
-    return data.suggestions ?? [];
+    return {
+      suggestions: data.suggestions ?? [],
+      scheme_entries: data.scheme_entries ?? [],
+    };
   } catch {
-    return [];
+    return NOTHING;
   }
 }

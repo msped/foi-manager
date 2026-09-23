@@ -50,10 +50,15 @@ export async function getDisclosureLogFilters(): Promise<DisclosureLogFilters> {
  * The publication scheme is rendered in full, grouped by category, so it asks
  * for the backend's `max_page_size` in one request rather than paginating.
  * If a scheme ever outgrows that, this needs to page properly.
+ *
+ * `public/scheme/` rather than `scheme/`. The staff route is the only one that
+ * returns drafts and is now closed to anonymous callers entirely; this one is
+ * filtered to published entries unconditionally, with no branch that could be
+ * got wrong later.
  */
 export async function listPublicationScheme(): Promise<PublicationSchemeEntry[]> {
   const { data } = await djangoClient.get<Paginated<PublicationSchemeEntry>>(
-    "/publications/scheme/",
+    "/publications/public/scheme/",
     { params: { page_size: 200 } }
   );
   return data.results;

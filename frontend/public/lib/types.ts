@@ -98,12 +98,43 @@ export type SchemeCategory =
   | "lists_registers"
   | "services";
 
+/** One thing to go and read, under a scheme entry.
+ *
+ *  Mirrors `PublicSchemeItemSerializer`. `label` is the backend's
+ *  `display_label`, which falls back to the entry's title — so it is never
+ *  empty, and a link on the page always has text. */
+export interface PublicationSchemeItem {
+  id: number;
+  kind: "link" | "document";
+  label: string;
+  url: string;
+  document: string | null;
+}
+
 export interface PublicationSchemeEntry {
   id: number;
   title: string;
   category: SchemeCategory;
+  /** HTML, authored by staff. Sanitise before rendering. */
   description: string;
-  /** Either a link out or an uploaded document — an entry may have both. */
-  url: string;
-  document: string | null;
+  /** An entry holds however many links and files make it up — spending data
+   *  published monthly accumulates twelve a year under one entry. */
+  items: PublicationSchemeItem[];
+  published_at: string | null;
+  updated_at: string;
+}
+
+/** A scheme entry offered to someone part-way through writing a request.
+ *
+ *  Mirrors `SchemeSuggestionSerializer`. Carries its items, unlike
+ *  `RequestSuggestion`, because the scheme has no per-entry page — the links
+ *  have to be on the deflection screen or the suggestion goes nowhere. */
+export interface SchemeSuggestion {
+  id: number;
+  title: string;
+  category: SchemeCategory;
+  category_display: string;
+  /** HTML. Sanitise before rendering. */
+  description: string;
+  items: PublicationSchemeItem[];
 }

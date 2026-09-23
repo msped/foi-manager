@@ -1,4 +1,4 @@
-import type { RequestSuggestion } from "@/lib/types";
+import type { RequestSuggestion, SchemeSuggestion } from "@/lib/types";
 
 export interface RequestAnswers {
   requester_name: string;
@@ -26,15 +26,22 @@ export type RequestState =
       formError?: string;
     }
   /**
-   * Published responses that may already answer this request, shown between the
-   * form and check-answers. Reached only when there is at least one — an empty
-   * interruption saying "we found nothing" would be a screen that exists to
-   * announce its own failure, so the journey skips straight past it.
+   * Things we already publish that may cover this request, shown between the
+   * form and check-answers. Reached only when there is at least one of either
+   * kind — an empty interruption saying "we found nothing" would be a screen
+   * that exists to announce its own failure, so the journey skips straight past
+   * it.
+   *
+   * Two lists, kept apart. A published response answered this exact question;
+   * a scheme entry covers this sort of question as a matter of course. Merged
+   * into one list they would need one heading, and no heading is honest about
+   * both. Either may be empty while the other is not.
    */
   | {
       step: "suggestions";
       values: RequestAnswers;
       suggestions: RequestSuggestion[];
+      schemeEntries: SchemeSuggestion[];
     }
   | { step: "review"; values: RequestAnswers; formError?: string };
 

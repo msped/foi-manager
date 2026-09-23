@@ -101,22 +101,34 @@ export async function requestAction(
     return { step: "form", values: answers, errors };
   }
 
-  // Coming off the form. Look for published responses that may already answer
-  // this before asking anyone to check their answers — the point of the step is
-  // to offer an answer now instead of in twenty working days.
+  // Coming off the form. Look for things we already publish that may cover this
+  // before asking anyone to check their answers — the point of the step is to
+  // offer an answer now instead of in twenty working days.
   //
   // Skipped entirely when there is nothing to show, so nobody meets a screen
   // whose only content is that it found nothing. `getRequestSuggestions` never
   // throws, so retrieval being down is indistinguishable from a novel request:
   // both go straight to check-answers, which is the correct outcome for both.
   //
+  // Either list on its own is reason enough to show the step. The two arms fail
+  // independently — the published-response search needs the embedding model up,
+  // the scheme search does not — so requiring both would mean stopping Ollama
+  // silently switched off scheme deflection as well.
+  //
   // Deliberately re-run if someone edits their request and continues again.
   // Carrying the previously-checked text through three steps of hidden fields
   // to avoid one repeated call would cost more than the call.
   if (intent === "review") {
-    const suggestions = await getRequestSuggestions(answers.request_text);
-    if (suggestions.length > 0) {
-      return { step: "suggestions", values: answers, suggestions };
+    const { suggestions, scheme_entries } = await getRequestSuggestions(
+      answers.request_text
+    );
+    if (suggestions.length > 0 || scheme_entries.length > 0) {
+      return {
+        step: "suggestions",
+        values: answers,
+        suggestions,
+        schemeEntries: scheme_entries,
+      };
     }
   }
 

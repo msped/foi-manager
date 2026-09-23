@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import type { RequestSuggestion } from "@/lib/types";
+import { sanitizeResponseHtml } from "@/lib/sanitize";
+import type { RequestSuggestion, SchemeSuggestion } from "@/lib/types";
 import { fmtDate } from "@/lib/utils";
 import { requestAction } from "./actions";
 import {
@@ -82,24 +83,18 @@ function Honeypot() {
 }
 
 /**
- * Published responses that may already answer the request being written.
- *
- * The one deflection point in the journey, and the reason the AI retrieval
- * exists at all: an answer that already exists is available now, where a new
- * request takes twenty working days to produce the same thing.
+ * Published responses to requests someone else already made.
  *
  * Worded so it can be wrong. Both retrieval arms had to agree before anything
  * reached this screen, but agreement is not relevance — two methods can rank
  * the same wrong entry first — so nothing here claims these *do* answer the
- * request, and continuing is a plain button rather than a discouraged one.
- * Nobody is made to justify carrying on: the right to make the request does not
- * depend on our search being good.
+ * request.
  */
-function Suggestions({ suggestions }: { suggestions: RequestSuggestion[] }) {
+function PublishedResponses({ suggestions }: { suggestions: RequestSuggestion[] }) {
   return (
     <>
-      <h1 className="govuk-heading-l">We may have already answered this</h1>
-      <p className="govuk-body-l">
+      <h2 className="govuk-heading-m">Responses to similar requests</h2>
+      <p className="govuk-body">
         These published responses look similar to your request. If one of them
         has the information you want, you can read it now rather than waiting up
         to 20 working days for a reply.
@@ -108,7 +103,7 @@ function Suggestions({ suggestions }: { suggestions: RequestSuggestion[] }) {
       <ul className="govuk-list">
         {suggestions.map((s) => (
           <li key={s.id} className="govuk-!-margin-bottom-6">
-            <h2 className="govuk-heading-s govuk-!-margin-bottom-1">
+            <h3 className="govuk-heading-s govuk-!-margin-bottom-1">
               {/* A new tab, which GDS otherwise discourages. This is the
                   exception it allows: the request is held in this page's form
                   fields, so following a link in the same tab would throw away
@@ -122,7 +117,7 @@ function Suggestions({ suggestions }: { suggestions: RequestSuggestion[] }) {
                 {s.title || s.case_ref}
                 <span className="govuk-visually-hidden"> (opens in new tab)</span>
               </a>
-            </h2>
+            </h3>
             <p className="govuk-body-s govuk-!-margin-bottom-1">
               <span className="govuk-visually-hidden">Reference </span>
               {s.case_ref}
@@ -134,6 +129,111 @@ function Suggestions({ suggestions }: { suggestions: RequestSuggestion[] }) {
           </li>
         ))}
       </ul>
+    </>
+  );
+}
+
+/**
+ * Information published as a matter of course, which may cover the request.
+ *
+ * A separate section rather than more entries in the list above, because it is
+ * a different and weaker claim: not "someone asked this and here is the reply"
+ * but "we publish this sort of thing routinely and here is where it lives". It
+ * also reaches this screen by a different route — keyword matching alone, with
+ * no second method to agree with it — so the wording is looser still.
+ *
+ * The links are on this screen because there is nowhere else to send anyone.
+ * The publication scheme has no page per entry, so a suggestion without its
+ * links would be a dead end.
+ */
+function SchemeEntries({ entries }: { entries: SchemeSuggestion[] }) {
+  return (
+    <>
+      <h2 className="govuk-heading-m">Information we publish routinely</h2>
+      <p className="govuk-body">
+        We publish some information without anyone having to ask for it. These
+        parts of our publication scheme may cover what you want.
+      </p>
+
+      <ul className="govuk-list">
+        {entries.map((entry) => (
+          <li key={entry.id} className="govuk-!-margin-bottom-6">
+            <h3 className="govuk-heading-s govuk-!-margin-bottom-1">
+              {entry.title}
+            </h3>
+            <p className="govuk-body-s govuk-!-margin-bottom-1">
+              {entry.category_display}
+            </p>
+            {entry.description && (
+              <div
+                className="govuk-body"
+                // Staff-authored HTML, sanitised at this boundary like every
+                // other piece of it that reaches an anonymous visitor.
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeResponseHtml(entry.description),
+                }}
+              />
+            )}
+            {entry.items.length > 0 && (
+              <ul className="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
+                {entry.items.map((item) => (
+                  <li key={item.id}>
+                    {/* New tab for the same reason as above — the half-written
+                        request lives in this page's form fields. */}
+                    <a
+                      className="govuk-link"
+                      href={item.kind === "link" ? item.url : (item.document ?? "#")}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {item.label}
+                      <span className="govuk-visually-hidden">
+                        {" "}
+                        (opens in new tab)
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/**
+ * The one deflection point in the journey, and the reason the retrieval exists
+ * at all: an answer that already exists is available now, where a new request
+ * takes twenty working days to produce the same thing.
+ *
+ * Either section may be empty — they are found by different machinery that
+ * fails independently — and the heading has to be true when only one is
+ * present, which is why it says "may already have this" rather than naming
+ * either kind.
+ *
+ * Continuing is a plain button rather than a discouraged one. Nobody is made to
+ * justify carrying on: the right to make the request does not depend on our
+ * search being good.
+ */
+function Suggestions({
+  suggestions,
+  schemeEntries,
+}: {
+  suggestions: RequestSuggestion[];
+  schemeEntries: SchemeSuggestion[];
+}) {
+  return (
+    <>
+      <h1 className="govuk-heading-l">We may already have this</h1>
+      <p className="govuk-body-l">
+        Before you send your request, it is worth checking whether what you want
+        is already available.
+      </p>
+
+      {suggestions.length > 0 && <PublishedResponses suggestions={suggestions} />}
+      {schemeEntries.length > 0 && <SchemeEntries entries={schemeEntries} />}
 
       <hr className="govuk-section-break govuk-section-break--m govuk-section-break--visible" />
 
@@ -147,7 +247,7 @@ function Suggestions({ suggestions }: { suggestions: RequestSuggestion[] }) {
         >
           None of these answer my question
         </button>
-        {/* For the case the list above is meant to create: having read a
+        {/* For the case the lists above are meant to create: having read a
             published response, someone often wants to ask for the part it did
             not cover rather than to abandon the request or send it unchanged. */}
         <button type="submit" name="intent" value="back" className="govuk-link">
@@ -257,7 +357,10 @@ export default function RequestForm() {
           ))}
           <div ref={headingRef as React.RefObject<HTMLDivElement>} tabIndex={-1}>
             {state.step === "suggestions" ? (
-              <Suggestions suggestions={state.suggestions} />
+              <Suggestions
+                suggestions={state.suggestions}
+                schemeEntries={state.schemeEntries}
+              />
             ) : (
               <CheckAnswers values={state.values} />
             )}

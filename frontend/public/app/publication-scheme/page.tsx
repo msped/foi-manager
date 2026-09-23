@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Breadcrumbs from "@/components/govuk/Breadcrumbs";
+import { sanitizeResponseHtml } from "@/lib/sanitize";
 import { listPublicationScheme } from "@/lib/services/publications";
 import type { PublicationSchemeEntry, SchemeCategory } from "@/lib/types";
 
@@ -54,31 +55,35 @@ const CATEGORIES: { key: SchemeCategory; title: string; description: string }[] 
   },
 ];
 
-function EntryLinks({ entry }: { entry: PublicationSchemeEntry }) {
-  // An entry can point at an external page, an uploaded document, or both.
-  const links: { href: string; text: string; download?: boolean }[] = [];
-  if (entry.url) links.push({ href: entry.url, text: "View online" });
-  if (entry.document)
-    links.push({ href: entry.document, text: "Download document", download: true });
-
-  if (links.length === 0) return null;
+/**
+ * Everything an entry points at, in the order staff put it in.
+ *
+ * A list rather than a run of links on one line, because entries routinely
+ * carry a dozen of these — spending data is published monthly, accounts and
+ * senior salaries annually — and a comma-separated row of twelve is unreadable
+ * and impossible to scan for the year you want.
+ */
+function EntryItems({ entry }: { entry: PublicationSchemeEntry }) {
+  if (entry.items.length === 0) return null;
 
   return (
-    <p className="govuk-body-s govuk-!-margin-bottom-0">
-      {links.map((link, i) => (
-        <span key={link.href}>
-          {i > 0 && " · "}
+    <ul className="govuk-list govuk-!-margin-bottom-0">
+      {entry.items.map((item) => (
+        <li key={item.id}>
           <a
             className="govuk-link"
-            href={link.href}
+            href={item.kind === "link" ? item.url : (item.document ?? "#")}
             rel="noreferrer"
-            download={link.download}
+            // Only for files we serve. `download` on a cross-origin link is
+            // ignored by browsers anyway, so setting it on an external page
+            // would suggest a behaviour that will not happen.
+            download={item.kind === "document" ? true : undefined}
           >
-            {link.text}
+            {item.label}
           </a>
-        </span>
+        </li>
       ))}
-    </p>
+    </ul>
   );
 }
 
@@ -150,11 +155,18 @@ export default async function PublicationSchemePage() {
                             {entry.title}
                           </h3>
                           {entry.description && (
-                            <p className="govuk-body govuk-!-margin-bottom-1">
-                              {entry.description}
-                            </p>
+                            <div
+                              className="govuk-body govuk-!-margin-bottom-1"
+                              // Authored by staff in a rich text editor and
+                              // stored as HTML. Sanitised here, at the public
+                              // edge, like every other piece of staff-authored
+                              // markup this app renders.
+                              dangerouslySetInnerHTML={{
+                                __html: sanitizeResponseHtml(entry.description),
+                              }}
+                            />
                           )}
-                          <EntryLinks entry={entry} />
+                          <EntryItems entry={entry} />
                         </li>
                       ))}
                     </ul>
