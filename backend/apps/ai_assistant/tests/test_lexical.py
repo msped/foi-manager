@@ -36,7 +36,12 @@ class TestTextLexemes:
         terms = lexical.text_lexemes(
             "How many pothole repairs were completed?", table="cases_case"
         )
-        assert "pothole" in terms
+        # `pothol` and `repair`, not `pothole` and `repairs` — the stems are
+        # what `to_tsvector` wrote into every document vector these are matched
+        # against, so they are the only forms that can match anything.
+        assert "pothol" in terms
+        assert "pothole" not in terms
+        assert "repair" in terms
         assert "repairs" not in terms
 
     def test_request_mechanics_are_dropped(self):
@@ -58,7 +63,7 @@ class TestTextLexemes:
 
     def test_no_row_is_needed(self, db):
         """The whole point: this runs before anything has been saved."""
-        assert "pothole" in lexical.text_lexemes(
+        assert "pothol" in lexical.text_lexemes(
             "How many potholes were repaired?", table="cases_case"
         )
 
