@@ -5,6 +5,7 @@ export const STAFF_NAV: NavDefinition[] = [
   { href: "/cases", text: "Cases" },
   { href: "/publish", text: "Publish to portal" },
   { href: "/disclosure", text: "Disclosure log" },
+  { href: "/publication-scheme", text: "Publication scheme" },
   { href: "/settings", text: "Settings" },
 ];
 
