@@ -79,3 +79,30 @@ class RequestSuggestionSerializer(serializers.Serializer):
         # `summary` is the request as published, already reviewed by staff — the
         # same field the disclosure log list shows, cut the same way.
         return _preview_text(entry.summary)
+
+
+class SchemeSuggestionItemSerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    label = serializers.CharField(source="display_label")
+    url = serializers.CharField()
+    document = serializers.FileField()
+
+
+class SchemeSuggestionSerializer(serializers.Serializer):
+    """One publication scheme entry offered to someone drafting a request.
+
+    Carries its items, unlike the disclosure log suggestion beside it, because
+    there is nowhere else to send the reader — the scheme has no per-entry page,
+    so the links have to be on this screen or the suggestion is a dead end.
+
+    `description` is HTML and is passed through as stored. It is sanitised where
+    it is rendered, at the public app's edge, alongside every other piece of
+    staff-authored markup that reaches an anonymous visitor.
+    """
+
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    category = serializers.CharField()
+    category_display = serializers.CharField(source="get_category_display")
+    description = serializers.CharField()
+    items = SchemeSuggestionItemSerializer(many=True)

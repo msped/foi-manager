@@ -472,3 +472,74 @@ export interface CaseInsights {
   similar_cases: SimilarCase[];
   exemption_frequencies: ExemptionFrequency[];
 }
+
+// --- Publication scheme ---
+
+/** Mirrors `PublicationSchemeEntry.Category` — the seven classes from the
+ *  Information Commissioner's model publication scheme. */
+export type SchemeCategory =
+  | "who_we_are"
+  | "finances"
+  | "priorities"
+  | "decisions"
+  | "policies"
+  | "lists_registers"
+  | "services";
+
+export type SchemeStatus = "draft" | "published";
+
+/** One link or one uploaded file under an entry.
+ *
+ *  An entry holds however many of these make it up. Spending over £500 is
+ *  published monthly and accounts annually, so a single class of information
+ *  routinely accumulates a dozen files — which is why these are a separate
+ *  record rather than one url and one document on the entry. */
+export interface PublicationSchemeItem {
+  id: number;
+  entry: number;
+  kind: "link" | "document";
+  label: string;
+  url: string;
+  document: string | null;
+  /** The uploaded name with the UUID directory stripped off. */
+  filename: string;
+  /** `label`, falling back to the entry's title. Never empty. */
+  display_label: string;
+  sort_order: number;
+}
+
+export interface PublicationSchemeEntry {
+  id: number;
+  title: string;
+  category: SchemeCategory;
+  /** HTML from the rich text editor. */
+  description: string;
+  /** Only ever moved by the publish and unpublish actions — a plain PATCH
+   *  cannot set it, because that would skip the "does this entry point
+   *  anywhere" check. */
+  status: SchemeStatus;
+  published_by: number | null;
+  published_by_name: string | null;
+  published_at: string | null;
+  items: PublicationSchemeItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** Order and labels for the seven classes. Fixed rather than alphabetical:
+ *  this is the order the ICO model scheme lists them in, and it is the order
+ *  the public page renders. */
+export const SCHEME_CATEGORIES: { key: SchemeCategory; label: string }[] = [
+  { key: "who_we_are", label: "Who we are and what we do" },
+  { key: "finances", label: "What we spend and how we spend it" },
+  { key: "priorities", label: "What our priorities are and how we are doing" },
+  { key: "decisions", label: "How we make decisions" },
+  { key: "policies", label: "Our policies and procedures" },
+  { key: "lists_registers", label: "Lists and registers" },
+  { key: "services", label: "The services we offer" },
+];
+
+export const SCHEME_CATEGORY_LABELS: Record<SchemeCategory, string> =
+  Object.fromEntries(
+    SCHEME_CATEGORIES.map((c) => [c.key, c.label])
+  ) as Record<SchemeCategory, string>;

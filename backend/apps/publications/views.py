@@ -9,13 +9,15 @@ from rest_framework.response import Response
 from apps.cases.models import Case, CaseExemption, CaseResponse
 from apps.cases.permissions import IsFOITeam
 
-from .models import DisclosureLogEntry, PublicationSchemeEntry
+from .models import DisclosureLogEntry, PublicationSchemeEntry, PublicationSchemeItem
 from .serializers import (
     DisclosureLogEntrySerializer,
     DisclosureLogListSerializer,
     PublicationSchemeEntrySerializer,
+    PublicationSchemeItemSerializer,
     PublicDisclosureLogDetailSerializer,
     PublicDisclosureLogListSerializer,
+    PublicPublicationSchemeEntrySerializer,
     PublishQueueItemSerializer,
     RejectedQueueItemSerializer,
 )
@@ -124,21 +126,134 @@ class PublicDisclosureLogViewSet(
         )
 
 
-class PublicationSchemeEntryViewSet(viewsets.ModelViewSet):
-    serializer_class = PublicationSchemeEntrySerializer
+class PublicPublicationSchemeViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    """Read-only view of the published publication scheme for the portal.
+
+    A separate viewset rather than a conditional on the staff one, for the same
+    reason `PublicDisclosureLogViewSet` is separate. Draft visibility would
+    otherwise rest on a single branch inside `get_queryset` staying correct
+    forever, and the failure mode is silent — an unfinished entry appearing on
+    a public site with nothing to raise an alarm. Here the filter is
+    unconditional, so there is no branch to get wrong.
+
+    `authentication_classes` is emptied so a stale staff JWT left in a browser
+    can never turn a public page into a 401.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
     pagination_class = PublicationSchemePagination
+    serializer_class = PublicPublicationSchemeEntrySerializer
 
     def get_queryset(self):
-        qs = PublicationSchemeEntry.objects.all()
-        category = self.request.query_params.get("category")
-        if category:
+        qs = PublicationSchemeEntry.objects.filter(
+            status=PublicationSchemeEntry.Status.PUBLISHED
+        ).prefetch_related("items")
+
+        if category := self.request.query_params.get("category"):
             qs = qs.filter(category=category)
         return qs
 
-    def get_permissions(self):
-        if self.action in ("list", "retrieve"):
-            return [AllowAny()]
-        return [IsAuthenticated(), IsFOITeam()]
+
+class PublicationSchemeEntryViewSet(viewsets.ModelViewSet):
+    """Staff management of the publication scheme.
+
+    `IsFOITeam` throughout, including reads. The public half of this used to
+    live on the same viewset; it now has its own, so there is nothing left here
+    an anonymous caller has any business seeing — drafts included.
+    """
+
+    serializer_class = PublicationSchemeEntrySerializer
+    pagination_class = PublicationSchemePagination
+    permission_classes = [IsAuthenticated, IsFOITeam]
+
+    def get_queryset(self):
+        qs = PublicationSchemeEntry.objects.prefetch_related("items").select_related(
+            "published_by"
+        )
+        category = self.request.query_params.get("category")
+        if category:
+            qs = qs.filter(category=category)
+
+        if status_filter := self.request.query_params.get("status"):
+            qs = qs.filter(status=status_filter)
+        return qs
+
+    @action(detail=True, methods=["post"])
+    def publish(self, request, pk=None):
+        """Put an entry on the public site.
+
+        The one gate on the way out. An entry with no items renders as a title
+        and a description that point nowhere, which on a statutory publication
+        reads as though the information is being withheld rather than that
+        someone forgot to attach the file. Blocking it here rather than on save
+        is deliberate: drafting an entry before its document exists is normal
+        work, and validation that fires on save would make it impossible.
+        """
+        entry = self.get_object()
+        if entry.status == PublicationSchemeEntry.Status.PUBLISHED:
+            return Response(
+                {"detail": "Already published."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not entry.items.exists():
+            return Response(
+                {
+                    "detail": (
+                        "Add a link or a document before publishing this entry."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        entry.status = PublicationSchemeEntry.Status.PUBLISHED
+        entry.published_by = request.user
+        entry.published_at = timezone.now()
+        entry.save(update_fields=["status", "published_by", "published_at"])
+        return Response(self.get_serializer(entry).data)
+
+    @action(detail=True, methods=["post"])
+    def unpublish(self, request, pk=None):
+        """Take an entry off the public site.
+
+        Removes it from the scheme page and from request-form matching, but
+        note what it does not do: uploaded files stay where they are and stay
+        fetchable, because nothing serves them through this application. To
+        take a document back, delete the item.
+        """
+        entry = self.get_object()
+        if entry.status != PublicationSchemeEntry.Status.PUBLISHED:
+            return Response(
+                {"detail": "Not published."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        entry.status = PublicationSchemeEntry.Status.DRAFT
+        entry.published_by = None
+        entry.published_at = None
+        entry.save(update_fields=["status", "published_by", "published_at"])
+        return Response(self.get_serializer(entry).data)
+
+
+class PublicationSchemeItemViewSet(viewsets.ModelViewSet):
+    """The links and files under an entry.
+
+    Flat rather than nested under the entry route. Items carry uploads, so
+    these requests are multipart and are made one at a time from the entry
+    form; a nested route would buy tidier URLs and cost a second lookup on
+    every call.
+    """
+
+    serializer_class = PublicationSchemeItemSerializer
+    permission_classes = [IsAuthenticated, IsFOITeam]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = PublicationSchemeItem.objects.select_related("entry")
+        if entry_id := self.request.query_params.get("entry"):
+            qs = qs.filter(entry_id=entry_id)
+        return qs
 
 
 class DisclosureLogEntryViewSet(

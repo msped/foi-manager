@@ -10,9 +10,13 @@ from apps.cases.models import Case
 from apps.cases.permissions import IsFOITeam
 from apps.cases.submissions import MAX_REQUEST_CHARS
 
-from .public import suggest_published_entries
+from .public import suggest_published_entries, suggest_scheme_entries
 from .retrieval import case_insights
-from .serializers import CaseInsightsSerializer, RequestSuggestionSerializer
+from .serializers import (
+    CaseInsightsSerializer,
+    RequestSuggestionSerializer,
+    SchemeSuggestionSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +95,16 @@ class RequestSuggestionsView(APIView):
             )
 
         entries = suggest_published_entries(text)
+        scheme_entries = suggest_scheme_entries(text)
         return Response(
-            {"suggestions": RequestSuggestionSerializer(entries, many=True).data}
+            {
+                "suggestions": RequestSuggestionSerializer(entries, many=True).data,
+                # A second list rather than more of the first. The two are
+                # different claims — one is an answer someone already received,
+                # the other is information published as a matter of course — and
+                # the form renders them under separate headings that say so.
+                "scheme_entries": SchemeSuggestionSerializer(
+                    scheme_entries, many=True, context={"request": request}
+                ).data,
+            }
         )
